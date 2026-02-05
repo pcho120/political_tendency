@@ -1,6 +1,6 @@
-# Political Tendency Research Project
+Political Tendency Research Project
 
-#📌 Project Overview
+📌 Project Overview
 
 Political Tendency is a research-oriented data analysis project designed to analyze publicly available information in order to infer political tendencies of attorneys working at large firms.
 
@@ -9,7 +9,7 @@ It is intended strictly for academic, exploratory, and research purposes.
 
 This project does not aim to label, judge, or definitively determine any individual’s political beliefs.
 
-#🧩 Project Pipeline
+🧩 Project Pipeline
 1. Official Website Collection
 
 Input:
@@ -55,7 +55,7 @@ Output:
 Research-level analytical insights into political tendencies
 (expressed as trends, probabilities, or clusters—not definitive labels)
 
-#🔍 Key Characteristics
+🔍 Key Characteristics
 
 ✅ Uses only publicly accessible data
 
@@ -65,7 +65,7 @@ Research-level analytical insights into political tendencies
 
 ❌ Not intended for surveillance, profiling, or decision-making about individuals
 
-#⚠️ Ethical & Legal Considerations
+⚠️ Ethical & Legal Considerations
 
 This project is intended solely for research and academic use.
 
@@ -79,7 +79,7 @@ All findings should be interpreted as analytical tendencies, not factual asserti
 
 Users are responsible for ensuring ethical use of the results.
 
-#🛠️ Example Tech Stack
+🛠️ Example Tech Stack
 
 Python
 
@@ -91,7 +91,7 @@ Natural Language Processing (NLP)
 
 Excel-based Input / Output
 
-#📄 Disclaimer
+📄 Disclaimer
 
 This project does not determine or verify an individual’s political beliefs.
 All outputs represent research-based analytical interpretations derived from publicly available data and should not be treated as factual or authoritative conclusions.
