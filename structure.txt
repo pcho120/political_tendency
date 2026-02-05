@@ -1,0 +1,10 @@
+political_tendency/
+├── firm_finder_desktop.py       # Desktop app source
+├── build.bat                    # Build script
+├── Company list.xlsx            # Input file
+├── Company list_with_websites.xlsx  # Output file
+├── README.md                    # Documentation
+├── structure.txt                # This file - project structure
+├── .gitignore                   # Git config
+└── dist/
+    └── FirmWebsiteFinder.exe    # The executable
