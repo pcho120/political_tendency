@@ -1,108 +1,96 @@
-# Firm Website Finder
+Political Tendency Research Project
+📌 Project Overview
 
-A Streamlit web application that automatically finds official websites for law firms from an Excel file.
+Political Tendency is a research-oriented data analysis project designed to analyze publicly available information in order to infer political tendencies of attorneys working at large firms.
 
-## Features
+The project leverages official company websites and publicly accessible social media content to conduct non-deterministic, analytical research.
+It is intended strictly for academic, exploratory, and research purposes.
 
-- Upload Excel files containing a "Firm" column
-- Automatically search for each firm's official website using DuckDuckGo
-- Filter out unwanted results (Wikipedia, LinkedIn, rankings sites, etc.)
-- Add results to a new "Official Website" column
-- Download the updated Excel file
-- Progress tracking and error handling
-- Configurable search delays and row limits
+This project does not aim to label, judge, or definitively determine any individual’s political beliefs.
 
-## Requirements
+🧩 Project Pipeline
+1. Official Website Collection
 
-- Python 3.7+
-- Required packages (install with `pip install -r requirements.txt`):
-  - streamlit
-  - requests
-  - beautifulsoup4
-  - openpyxl
-  - lxml
+Input:
+An Excel file containing a list of large companies (e.g., law firms)
 
-## Installation
+Process:
+Automatically search and identify each company’s official website URL
 
-1. Clone or download this repository
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+Output:
+An updated Excel file with official website URLs added
 
-## Usage
+2. Attorney List Extraction
 
-1. Run the application:
-   ```bash
-   streamlit run name_to_URL.py
-   ```
-   
-2. Open your browser and go to `http://localhost:8501`
+Input:
+Official company website URLs
 
-3. Upload an Excel file (.xlsx) that contains a column named "Firm"
+Process:
+Extract publicly available information about attorneys, including:
 
-4. Configure settings:
-   - **Delay between searches**: Adjust to avoid rate limiting (0.2-2.0 seconds)
-   - **Max firms to process**: Limit for testing purposes
+Name
 
-5. Click "🔍 Find Official Websites" to start processing
+Title / Practice Area
 
-6. Wait for the process to complete. The app will show:
-   - Progress bar
-   - Current firm being searched
-   - Summary of results
-   - List of firms where no website was found
+(When available) profile page URL
 
-7. Download the updated Excel file with the "Official Website" column added
+Output:
+A structured dataset of attorneys associated with each company
 
-## How It Works
+3. Political Tendency Analysis (Research-Oriented)
 
-1. **Excel Processing**: The app reads the uploaded Excel file and finds the "Firm" column
-2. **Web Searching**: For each firm, it searches DuckDuckGo HTML results for "[Firm Name] official website"
-3. **URL Extraction**: It extracts real URLs from DuckDuckGo redirect links
-4. **Filtering**: Blocks known non-official sources (Wikipedia, LinkedIn, law directories, etc.)
-5. **Normalization**: Returns clean homepage URLs in the format `https://domain.com`
-6. **Output**: Adds results to a new column and preserves all existing data
+Input:
+Publicly available Twitter(X) posts from identified attorneys
 
-## Blocked Domains
+Process:
 
-The application automatically filters out results from these domains:
-- wikipedia.org
-- linkedin.com
-- facebook.com
-- instagram.com
-- twitter.com
-- law.com
-- vault.com
-- chambers.com
-- bloomberg.com
-- crunchbase.com
+Text collection and preprocessing
 
-## File Requirements
+Keyword, topic, and language-pattern analysis
 
-- Excel file must be in .xlsx format
-- Must contain a column named "Firm" (case-insensitive)
-- The "Official Website" column will be added at the end of the header row
-- Empty cells in the Firm column will be skipped
+Probabilistic or trend-based inference of political tendencies
 
-## Troubleshooting
+Output:
+Research-level analytical insights into political tendencies
+(expressed as trends, probabilities, or clusters—not definitive labels)
 
-- **No "Firm" column found**: Ensure your Excel file has a column with exactly "Firm" as the header
-- **Rate limiting**: Increase the delay between searches if you encounter errors
-- **Network issues**: Check your internet connection and try again
-- **Empty results**: Some firms may not have official websites or may not be findable
+🔍 Key Characteristics
 
-## Example Output
+✅ Uses only publicly accessible data
 
-| Firm | ... | Official Website |
-|------|-----|------------------|
-| Baker McKenzie | ... | https://bakermckenzie.com |
-| Skadden Arps | ... | https://skadden.com |
-| Jones Day | ... | https://jonesday.com |
+✅ Designed for automated and scalable research workflows
 
-## Notes
+✅ Focuses on inference and analysis, not classification or judgment
 
-- The application runs locally and does not require any API keys
-- Results are saved as direct homepage URLs (e.g., `https://example.com`)
-- Processing time depends on the number of firms and search delay settings
-- Always review results for accuracy, especially for important business use
+❌ Not intended for surveillance, profiling, or decision-making about individuals
+
+⚠️ Ethical & Legal Considerations
+
+This project is intended solely for research and academic use.
+
+Social media data collection must comply with:
+
+Platform Terms of Service (ToS)
+
+Applicable local and international regulations
+
+All findings should be interpreted as analytical tendencies, not factual assertions.
+
+Users are responsible for ensuring ethical use of the results.
+
+🛠️ Example Tech Stack
+
+Python
+
+Pandas / OpenPyXL
+
+Web Scraping (Requests, BeautifulSoup, Selenium, etc.)
+
+Natural Language Processing (NLP)
+
+Excel-based Input / Output
+
+📄 Disclaimer
+
+This project does not determine or verify an individual’s political beliefs.
+All outputs represent research-based analytical interpretations derived from publicly available data and should not be treated as factual or authoritative conclusions.
