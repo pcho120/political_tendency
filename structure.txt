@@ -1,10 +1,11 @@
 political_tendency/
-├── firm_finder_desktop.py       # Desktop app source
-├── build.bat                    # Build script
-├── Company list.xlsx            # Input file
-├── Company list_with_websites.xlsx  # Output file
+├── firm_finder_desktop.py       # Desktop app - finds official URLs for firms
+├── find_attorney.py             # Desktop app - scrapes attorneys via sitemaps
+├── build.bat                    # Build script for firm_finder_desktop.exe
+├── Company list.xlsx            # Input file (firm names)
+├── Company list_with_websites.xlsx  # Output file (with URLs + Attorneys tab)
 ├── README.md                    # Documentation
 ├── structure.txt                # This file - project structure
 ├── .gitignore                   # Git config
 └── dist/
-    └── FirmWebsiteFinder.exe    # The executable
+    └── FirmWebsiteFinder.exe    # The executable for finding URLs
