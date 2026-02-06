@@ -1,574 +1,1426 @@
 #!/usr/bin/env python3
-"""
-Find Attorney (Hybrid: Sitemap + Crawl)
-Combines Sitemap speed with Directory Crawling for max coverage.
+"""find_attorney.py - High-Coverage Attorney Scraper (Option B)
+
+Strategy:
+1. FAST PATH: Sitemap + robots.txt + requests (30s per firm)
+2. FALLBACK: Stabilization-based Playwright discovery with:
+   - Pagination, load-more, infinite scroll (stabilization)
+   - Filter enumeration (practice/office)
+   - API detection + full enumeration
+   - Coverage auditing (expected vs actual)
+
+Usage:
+  python find_attorney.py "Company list_with_websites.xlsx"
+  python find_attorney.py --debug-firm "Kirkland & Ellis" --headful true
 """
 
-import tkinter as tk
-from tkinter import filedialog, messagebox
-from tkinter import ttk
-import time
-import re
-import os
-import sys
-import threading
-import random
-import requests
-import xml.etree.ElementTree as ET
+from __future__ import annotations
+
+import argparse
 import gzip
-from urllib.parse import urljoin, urlparse
-from openpyxl import load_workbook
-from bs4 import BeautifulSoup
+import json
+import os
+import re
+import time
+import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+from urllib.parse import urljoin, urlparse, parse_qs, urlencode, urlunparse
+
+import requests
+from openpyxl import load_workbook
 
 # Configuration
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-}
+DEFAULT_SHEET_NAME = "Attorneys"
+MAX_WORKERS = 4
+REQUEST_TIMEOUT = 10
+MIN_ATTORNEYS_THRESHOLD = 5
+DEFAULT_STABILIZATION = 3
+DEFAULT_MAX_SCROLL_SECONDS = 120
+RATE_LIMIT_DELAY = 0.5  # seconds between requests per domain
 
-# Some sites use WAF/bot protection; these additional headers help requests look more like a browser.
-DEFAULT_EXTRA_HEADERS = {
-    "Accept-Language": "en-US,en;q=0.9",
-    "Cache-Control": "no-cache",
-    "Pragma": "no-cache",
-    "Upgrade-Insecure-Requests": "1",
-}
 
-# Max threads for parallel scraping
-MAX_WORKERS = 10 
+@dataclass
+class DiscoveryMetrics:
+    """Track discovery coverage metrics"""
+    directory_url: str = ""
+    expected_total: int = 0
+    discovered_unique: int = 0
+    discovered_by_dom: int = 0
+    discovered_by_pagination: int = 0
+    discovered_by_loadmore: int = 0
+    discovered_by_scroll: int = 0
+    discovered_by_filters: int = 0
+    discovered_by_api: int = 0
+    failure_notes: list[str] = field(default_factory=list)
+    
+    def to_dict(self) -> dict:
+        return {
+            "directory_url": self.directory_url,
+            "expected_total": self.expected_total,
+            "discovered_unique": self.discovered_unique,
+            "discovered_by_dom": self.discovered_by_dom,
+            "discovered_by_pagination": self.discovered_by_pagination,
+            "discovered_by_loadmore": self.discovered_by_loadmore,
+            "discovered_by_scroll": self.discovered_by_scroll,
+            "discovered_by_filters": self.discovered_by_filters,
+            "discovered_by_api": self.discovered_by_api,
+            "failure_notes": self.failure_notes,
+            "coverage_ratio": (
+                self.discovered_unique / self.expected_total
+                if self.expected_total > 0
+                else 0.0
+            ),
+        }
 
-# Common directory paths
-DIRECTORY_PATHS = [
-    "/people", "/attorneys", "/lawyers", "/professionals", "/our-people", 
-    "/team", "/staff", "/directory", "/people-directory"
-]
 
-# Sitemap paths to check (many law firms use specialized sitemap URLs)
-SITEMAP_PATHS = [
-    "/sitemap.xml",
-    "/sitemap/lawyers",
-    "/sitemap/lawyers.xml", 
-    "/sitemap/attorneys",
-    "/sitemap/attorneys.xml",
-    "/sitemap/people",
-    "/sitemap/people.xml",
-    "/sitemap/professionals",
-    "/sitemap/professionals.xml",
-    "/sitemap/team",
-    "/sitemap/team.xml",
-    "/sitemap_index.xml",
-    "/sitemaps/sitemap.xml",
-]
-
-class FindAttorneyApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Attorney Finder (Max Coverage)")
-        self.root.geometry("800x650")
+class AttorneyFinder:
+    def __init__(
+        self,
+        *,
+        limit: int,
+        sheet_name: str,
+        max_firms: int,
+        workers: int,
+        debug_firm: str = "",
+        debug_domain: str = "",
+        headful: bool = False,
+        stabilization: int = DEFAULT_STABILIZATION,
+        max_scroll_seconds: int = DEFAULT_MAX_SCROLL_SECONDS,
+    ) -> None:
+        self.limit = limit
+        self.sheet_name = sheet_name
+        self.max_firms = max_firms
+        self.workers = workers
+        self.debug_firm = debug_firm
+        self.debug_domain = debug_domain
+        self.headful = headful
+        self.stabilization = stabilization
+        self.max_scroll_seconds = max_scroll_seconds
         
-        main_frame = ttk.Frame(root, padding="15")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        self.session = requests.Session()
+        self.session.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+        )
         
-        ttk.Label(main_frame, text="Find Attorneys (Hybrid Mode)", font=("Arial", 16, "bold")).pack(pady=(0, 20))
+        # Create debug directory
+        self.debug_dir = Path("debug_reports")
+        self.debug_dir.mkdir(exist_ok=True)
         
-        # File Selection
-        file_frame = ttk.LabelFrame(main_frame, text="Input", padding="10")
-        file_frame.pack(fill=tk.X, pady=5)
-        self.file_path_var = tk.StringVar(value="No file selected")
-        ttk.Label(file_frame, textvariable=self.file_path_var).pack(side=tk.LEFT, padx=5)
-        ttk.Button(file_frame, text="Browse...", command=self.browse_file).pack(side=tk.RIGHT)
-        
-        # Settings
-        settings_frame = ttk.LabelFrame(main_frame, text="Settings", padding="10")
-        settings_frame.pack(fill=tk.X, pady=5)
-        
-        ttk.Label(settings_frame, text="Max pages to crawl (0=unlimited):").pack(side=tk.LEFT)
-        self.max_pages_var = tk.IntVar(value=50) # Safety limit
-        ttk.Spinbox(settings_frame, from_=0, to=1000, textvariable=self.max_pages_var, width=8).pack(side=tk.LEFT, padx=5)
+        # Track last request time per domain for rate limiting
+        self.domain_last_request: dict[str, float] = {}
 
-        ttk.Checkbutton(settings_frame, text="Use Sitemap (Fast)", variable=tk.BooleanVar(value=True)).pack(side=tk.LEFT, padx=10)
-        ttk.Checkbutton(settings_frame, text="Use Crawling (Thorough)", variable=tk.BooleanVar(value=True)).pack(side=tk.LEFT, padx=10)
-        
-        # Progress
-        self.progress_text = tk.Text(main_frame, height=15, state="disabled")
-        self.progress_text.pack(fill=tk.BOTH, expand=True, pady=10)
-        
-        # Buttons
-        btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(fill=tk.X, pady=5)
-        self.run_btn = ttk.Button(btn_frame, text="Start Extraction", command=self.start_thread, state="disabled")
-        self.run_btn.pack(side=tk.RIGHT, padx=5)
-        ttk.Button(btn_frame, text="Exit", command=root.quit).pack(side=tk.RIGHT)
-
-        self.current_file = None
-        self.stop_event = threading.Event()
-        self._thread_local = threading.local()
-
-    def browse_file(self):
-        path = filedialog.askopenfilename(filetypes=[("Excel Files", "*.xlsx")])
-        if path:
-            self.current_file = path
-            self.file_path_var.set(os.path.basename(path))
-            self.run_btn.config(state="normal")
-            self.log(f"Loaded: {path}")
-
-    def log(self, msg):
-        self.progress_text.config(state="normal")
-        self.progress_text.insert(tk.END, msg + "\n")
-        self.progress_text.see(tk.END)
-        self.progress_text.config(state="disabled")
-        self.root.update_idletasks()
-
-    def start_thread(self):
-        self.run_btn.config(state="disabled")
-        self.stop_event.clear()
-        threading.Thread(target=self.process_file, daemon=True).start()
-
-    def process_file(self):
+    def log(self, msg: str) -> None:
         try:
-            # Fix: Close file handle issues by removing images
-            if not self.current_file:
-                self.log("ERROR: No file selected.")
-                return
+            print(msg, flush=True)
+        except UnicodeEncodeError:
+            print(msg.encode("utf-8", errors="ignore").decode("utf-8"), flush=True)
 
-            wb = load_workbook(self.current_file)
-            ws = wb.active
+    def _rate_limit(self, domain: str) -> None:
+        """Enforce per-domain rate limiting"""
+        last = self.domain_last_request.get(domain, 0)
+        elapsed = time.time() - last
+        if elapsed < RATE_LIMIT_DELAY:
+            time.sleep(RATE_LIMIT_DELAY - elapsed)
+        self.domain_last_request[domain] = time.time()
 
-            if ws is None:
-                self.log("ERROR: Failed to load active worksheet.")
-                self.run_btn.config(state="normal")
-                return
+    def run(self, excel_path: str) -> int:
+        if not os.path.exists(excel_path):
+            raise FileNotFoundError(excel_path)
+        if not excel_path.lower().endswith(".xlsx"):
+            raise ValueError("Input must be an .xlsx file")
+
+        wb = load_workbook(excel_path)
+        ws = wb.active
+        headers = [cell.value for cell in ws[1]]
+        if "Official Website" not in headers or "Firm" not in headers:
+            for sheet in wb.worksheets:
+                sheet_headers = [cell.value for cell in sheet[1]]
+                if "Official Website" in sheet_headers and "Firm" in sheet_headers:
+                    ws = sheet
+                    headers = sheet_headers
+                    break
+
+        try:
+            url_col_idx = headers.index("Official Website") + 1
+            firm_col_idx = headers.index("Firm") + 1
+        except ValueError as e:
+            raise ValueError(
+                "File must have 'Firm' and 'Official Website' columns."
+            ) from e
+
+        if self.sheet_name in wb.sheetnames:
+            del wb[self.sheet_name]
+        out_ws = wb.create_sheet(self.sheet_name)
+        out_ws.append(
+            ["Firm", "Attorney Name", "Title", "Practice Area", "Office", "Profile URL"]
+        )
+
+        firms = []
+        for row in ws.iter_rows(min_row=2, values_only=False):
+            firm_name = row[firm_col_idx - 1].value
+            base_url = row[url_col_idx - 1].value
+            if not firm_name or not base_url:
+                continue
             
-            # Remove images to prevent "I/O operation on closed file" error
-            try:
-                imgs = getattr(ws, "_images", None)
-                if imgs is not None:
-                    setattr(ws, "_images", [])
-            except Exception:
-                pass
-            
-            # openpyxl Worksheet supports 1-based row indexing
-            first_row = list(ws.iter_rows(min_row=1, max_row=1))
-            if not first_row or not first_row[0]:
-                self.log("ERROR: Worksheet appears to be empty.")
-                self.run_btn.config(state="normal")
-                return
-
-            headers = [cell.value for cell in first_row[0]]
-            try:
-                url_col_idx = headers.index("Official Website") + 1
-                firm_col_idx = headers.index("Firm") + 1
-            except ValueError:
-                self.log("ERROR: File must have 'Firm' and 'Official Website' columns.")
-                self.run_btn.config(state="normal")
-                return
-
-            if "Attorneys" in wb.sheetnames:
-                del wb["Attorneys"]
-            out_ws = wb.create_sheet("Attorneys")
-            out_ws.append(["Firm", "Attorney Name", "Title", "Practice Area", "Office", "Profile URL"])
-
-            if "Failed Profiles" in wb.sheetnames:
-                del wb["Failed Profiles"]
-            failed_ws = wb.create_sheet("Failed Profiles")
-            failed_ws.append(["Firm", "Profile URL"])
-
-            total_processed = 0
-            total_failed = 0
-
-            for row in ws.iter_rows(min_row=2, values_only=False):
-                if self.stop_event.is_set(): break
-                
-                firm_cell = row[firm_col_idx-1]
-                url_cell = row[url_col_idx-1]
-                firm_name = firm_cell.value
-                base_url = url_cell.value
-                
-                if not base_url or not firm_name:
+            # Debug mode filters
+            if self.debug_firm and self.debug_firm.lower() not in firm_name.lower():
+                continue
+            if self.debug_domain:
+                domain = urlparse(str(base_url)).netloc
+                if self.debug_domain.lower() not in domain.lower():
                     continue
+            
+            firms.append((firm_name, str(base_url)))
+            if self.max_firms > 0 and len(firms) >= self.max_firms:
+                break
 
-                self.log(f"\nProcessing: {firm_name}...")
+        if not firms:
+            self.log("No firms to process (check debug filters)")
+            return 0
 
-                # New session per firm (connection pooling + retries)
-                session = self.build_session()
+        total_processed = 0
 
-                # reduce concurrency on known WAF-heavy sites
-                firm_domain = urlparse(str(base_url)).netloc.lower()
-                workers = 3 if "kirkland.com" in firm_domain else MAX_WORKERS
+        # Process sequentially to manage Playwright browser lifecycle
+        for firm, url in firms:
+            try:
+                attorneys, metrics = self.process_firm(firm, url)
+                for att in attorneys:
+                    out_ws.append(
+                        [
+                            firm,
+                            att.get("name", ""),
+                            att.get("title", ""),
+                            att.get("practice", ""),
+                            att.get("office", ""),
+                            att.get("url", ""),
+                        ]
+                    )
+                    total_processed += 1
                 
-                # --- PHASE 1: DISCOVERY ---
-                all_urls = set()
+                # Save metrics
+                self._save_metrics(firm, metrics)
                 
-                # A. Sitemap Strategy
-                self.log("  [1/2] Checking Sitemap...")
-                sitemap_urls = self.get_profile_urls_from_sitemap(base_url, session=session)
-                if sitemap_urls:
-                    self.log(f"    Found {len(sitemap_urls)} from sitemap.")
-                    all_urls.update(sitemap_urls)
-                
-                # B. Crawl Strategy
-                self.log("  [2/2] Crawling Directory...")
-                crawl_urls = self.crawl_directory(base_url, session=session)
-                if crawl_urls:
-                    new_found = len(crawl_urls)
-                    self.log(f"    Found {new_found} from crawling.")
-                    all_urls.update(crawl_urls)
-                
-                self.log(f"  Total Unique Profiles: {len(all_urls)}")
-                
-                # --- PHASE 2: EXTRACTION ---
-                self.log(f"  Extracting Data (Parallel x{workers})...")
-                
-                count = 0
-                failed = 0
-                failed_urls = []
-                with ThreadPoolExecutor(max_workers=workers) as executor:
-                    # Do NOT share a Session across threads; scraper uses per-thread sessions.
-                    future_to_url = {executor.submit(self.scrape_profile, url): url for url in all_urls}
-                    
-                    for future in as_completed(future_to_url):
-                        if self.stop_event.is_set(): break
+                self.log(f"[OK] {firm}: {len(attorneys)} attorneys")
+                wb.save(excel_path)
+            except Exception as e:
+                self.log(f"[ERROR] {firm}: {e}")
+                import traceback
+                traceback.print_exc()
+
+        self.log(f"\nTotal: {total_processed} attorneys")
+        return total_processed
+
+    def _save_metrics(self, firm_name: str, metrics: DiscoveryMetrics) -> None:
+        """Save discovery metrics to JSON"""
+        safe_name = re.sub(r'[^\w\s-]', '', firm_name).strip().replace(' ', '_')
+        metrics_path = self.debug_dir / f"{safe_name}_metrics.json"
+        
+        with open(metrics_path, 'w', encoding='utf-8') as f:
+            json.dump(metrics.to_dict(), f, indent=2)
+        
+        self.log(f"  Metrics saved: {metrics_path}")
+
+    def process_firm(self, firm_name: str, base_url: str) -> tuple[list[dict], DiscoveryMetrics]:
+        """Process one firm: fast path first, Playwright fallback"""
+        self.log(f"\nProcessing: {firm_name}...")
+        start = time.time()
+        
+        metrics = DiscoveryMetrics()
+
+        # FAST PATH: Sitemap + requests
+        attorneys = self._try_fast_path(base_url, metrics)
+
+        # FALLBACK: If insufficient data, use Playwright
+        if len(attorneys) < MIN_ATTORNEYS_THRESHOLD:
+            self.log(
+                f"  Fast path insufficient ({len(attorneys)} found), trying Playwright..."
+            )
+            playwright_attorneys, metrics = self._try_playwright_path(base_url, metrics)
+            if playwright_attorneys:
+                attorneys = playwright_attorneys
+
+        # Deduplicate
+        seen = set()
+        unique = []
+        for att in attorneys:
+            url = att.get("url", "")
+            name = att.get("name", "")
+            key = url if url else name
+            if key and key not in seen:
+                seen.add(key)
+                unique.append(att)
+
+        metrics.discovered_unique = len(unique)
+
+        if self.limit > 0:
+            unique = unique[: self.limit]
+
+        elapsed = time.time() - start
+        self.log(f"  Done: {len(unique)} attorneys ({elapsed:.1f}s)")
+        
+        # Coverage audit
+        if metrics.expected_total > 0:
+            ratio = metrics.discovered_unique / metrics.expected_total
+            self.log(
+                f"  Coverage: {metrics.discovered_unique}/{metrics.expected_total} ({ratio*100:.1f}%)"
+            )
+            if ratio < 0.98:
+                metrics.failure_notes.append(
+                    f"Low coverage: {ratio*100:.1f}% (expected {metrics.expected_total}, got {metrics.discovered_unique})"
+                )
+        
+        return unique, metrics
+
+    def _try_fast_path(self, base_url: str, metrics: DiscoveryMetrics) -> list[dict]:
+        """Fast path: Sitemap + parallel requests"""
+        attorneys = []
+
+        try:
+            # Try sitemap (with robots.txt check)
+            profile_urls = self._extract_profile_urls_from_sitemap(base_url)
+            if profile_urls:
+                self.log(f"  Sitemap: found {len(profile_urls)} URLs")
+
+                # Parallel metadata fetch
+                with ThreadPoolExecutor(max_workers=8) as executor:
+                    futures = {
+                        executor.submit(self._fetch_profile_metadata, url): url
+                        for url in profile_urls[
+                            : self.limit * 3 if self.limit > 0 else len(profile_urls)
+                        ]
+                    }
+                    for future in as_completed(futures):
                         try:
-                            data = future.result()
-                            if data:
-                                out_ws.append([
-                                    firm_name,
-                                    data['name'],
-                                    data['title'],
-                                    data['practice'],
-                                    data['office'],
-                                    data['url']
-                                ])
-                                count += 1
-                                total_processed += 1
-                                if count % 20 == 0:
-                                    self.log(f"    Extracted {count}/{len(all_urls)}...")
-                            else:
-                                failed += 1
-                                failed_urls.append(future_to_url[future])
+                            att = future.result()
+                            if att and att.get("name"):
+                                attorneys.append(att)
                         except Exception:
-                            failed += 1
-                            failed_urls.append(future_to_url[future])
-                 
-                total_failed += failed
-                self.log(f"  Finished {firm_name}: {count} attorneys added. Failed: {failed}")
-
-                for u in failed_urls:
-                    failed_ws.append([firm_name, u])
-
-                wb.save(self.current_file)
-
-            self.log(f"\nDONE! Total attorneys found: {total_processed}. Failed profiles: {total_failed}")
-            messagebox.showinfo("Success", f"Extraction Complete!\nTotal attorneys: {total_processed}\nFailed profiles: {total_failed}")
-
+                            pass
         except Exception as e:
-            self.log(f"CRITICAL ERROR: {e}")
-            import traceback
-            traceback.print_exc()
-        finally:
-            self.run_btn.config(state="normal")
+            self.log(f"  Fast path error: {e}")
+            metrics.failure_notes.append(f"Fast path error: {e}")
 
-    def build_session(self):
-        """Create a requests.Session with retry/backoff."""
-        s = requests.Session()
-        s.headers.update(HEADERS)
-        s.headers.update(DEFAULT_EXTRA_HEADERS)
+        return attorneys
 
-        retry = Retry(
-            total=4,
-            connect=4,
-            read=4,
-            status=4,
-            backoff_factor=0.8,
-            status_forcelist=[403, 408, 425, 429, 500, 502, 503, 504],
-            allowed_methods=["HEAD", "GET"],
-            raise_on_status=False,
-            respect_retry_after_header=True,
-        )
-        adapter = HTTPAdapter(max_retries=retry, pool_connections=20, pool_maxsize=20)
-        s.mount("http://", adapter)
-        s.mount("https://", adapter)
-        return s
-
-    def get_thread_session(self):
-        s = getattr(self._thread_local, "session", None)
-        if s is None:
-            s = self.build_session()
-            setattr(self._thread_local, "session", s)
-        return s
-
-    def is_blocked_page(self, html):
-        if not html:
-            return False
-        t = html.lower()
-        # Common WAF / block messages
-        return (
-            "you have been blocked" in t
-            or "access denied" in t
-            or "incapsula" in t
-            or "request unsuccessful" in t
-            or "pardon our interruption" in t
-        )
-
-    # --- SITEMAP LOGIC (Enhanced to check multiple paths) ---
-    def get_profile_urls_from_sitemap(self, base_url, session=None):
-        """Check multiple sitemap locations and collect all attorney URLs"""
-        all_urls = set()
+    def _try_playwright_path(
+        self, base_url: str, metrics: DiscoveryMetrics
+    ) -> tuple[list[dict], DiscoveryMetrics]:
+        """Playwright fallback with stabilization-based discovery"""
         try:
-            domain = urlparse(base_url).netloc
-            scheme = urlparse(base_url).scheme
-            base = f"{scheme}://{domain}"
-            sess = session or requests
-            
-            # Check all possible sitemap paths
-            for path in SITEMAP_PATHS:
-                target = f"{base}{path}"
-                try:
-                    resp = sess.head(target, timeout=10, allow_redirects=True)
-                    if resp.status_code == 200:
-                        self.log(f"    Sitemap found: {path}")
-                        urls = self.parse_sitemap(target, session=sess)
-                        if urls:
-                            all_urls.update(urls)
-                except Exception:
-                    continue
-            
-            return list(all_urls)
-        except Exception:
-            return []
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            self.log("  Playwright not available, skipping")
+            metrics.failure_notes.append("Playwright not installed")
+            return [], metrics
 
-    def parse_sitemap(self, sitemap_url, depth=0, session=None):
-        """Parse sitemap XML to extract attorney profile URLs"""
-        if depth > 2: return []
-        urls = set()
-        try:
-            sess = session or requests
-            resp = sess.get(sitemap_url, timeout=30)
-            if resp.status_code != 200: return []
-            
-            content = resp.content
-            if sitemap_url.endswith(".gz"): content = gzip.decompress(content)
-            
-            root = ET.fromstring(content)
-            is_index = "sitemapindex" in root.tag.lower()
-            
-            keywords = ["lawyer", "attorney", "people", "team", "bio", "profile", "professional"]
-            
-            for child in root:
-                loc = None
-                for sub in child:
-                    if "loc" in sub.tag.lower():
-                        loc = sub.text.strip() if sub.text else None
-                        break
-                if not loc: continue
-                
-                if is_index:
-                    # Sitemap index - recursively parse child sitemaps
-                    if any(kw in loc.lower() for kw in keywords):
-                        urls.update(self.parse_sitemap(loc, depth+1, session=sess))
+        attorneys = []
+        all_profile_urls = set()
+        captured_api_data = []
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=not self.headful)
+
+            context = browser.new_context()
+
+            # Block heavy resources
+            def handle_route(route):
+                if route.request.resource_type in [
+                    "image",
+                    "font",
+                    "media",
+                    "stylesheet",
+                ]:
+                    route.abort()
                 else:
-                    # Direct sitemap with URLs
-                    path = urlparse(loc).path
-                    path_parts = path.strip('/').split('/')
-                    
-                    # Heuristic: attorney profile URLs typically have 2+ path segments
-                    # e.g. /lawyers/a/smith-john or /people/john-smith
-                    if len(path_parts) >= 2:
-                        # If sitemap URL contains lawyer/attorney keywords, take ALL URLs from it
-                        if any(kw in sitemap_url.lower() for kw in ["lawyer", "attorney", "people", "team", "professional"]):
-                            urls.add(loc)
-                        # Otherwise, filter URLs that match keywords
-                        elif any(kw in loc.lower() for kw in keywords):
-                            urls.add(loc)
-        except Exception as e:
-            pass
-        return list(urls)
+                    route.continue_()
 
-    # --- CRAWLING LOGIC (New) ---
-    def crawl_directory(self, base_url, session=None):
-        """Finds the directory page and crawls all pages."""
-        urls = set()
-        sess = session or requests
-        directory_url = self.find_directory_url(base_url, session=sess)
-        
-        if not directory_url: 
-            return []
-            
-        self.log(f"    Directory found: {directory_url}")
-        
-        # Crawl pages
-        current_url = directory_url
-        pages_crawled = 0
-        max_pages = self.max_pages_var.get()
-        
-        while current_url and (max_pages == 0 or pages_crawled < max_pages):
+            context.route("**/*", handle_route)
+
+            page = context.new_page()
+
+            # Intercept API responses
+            def handle_response(response):
+                try:
+                    url_lower = response.url.lower()
+                    if any(
+                        kw in url_lower
+                        for kw in [
+                            "api",
+                            "graphql",
+                            "search",
+                            "people",
+                            "attorneys",
+                            "lawyers",
+                            "professionals",
+                        ]
+                    ):
+                        if response.ok and "json" in response.headers.get(
+                            "content-type", ""
+                        ).lower():
+                            try:
+                                data = response.json()
+                                records = self._extract_attorneys_from_json(
+                                    data, base_url
+                                )
+                                captured_api_data.append(
+                                    {"url": response.url, "records": records}
+                                )
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+
+            page.on("response", handle_response)
+
+            # Find best directory URL
+            dir_url, expected_total = self._find_best_directory_url(page, base_url)
+            if not dir_url:
+                self.log("  Could not find directory page")
+                metrics.failure_notes.append("No directory page found")
+                page.close()
+                context.close()
+                browser.close()
+                return [], metrics
+
+            metrics.directory_url = dir_url
+            metrics.expected_total = expected_total
+            self.log(f"  Directory: {dir_url}")
+            if expected_total > 0:
+                self.log(f"  Expected total: {expected_total}")
+
+            # Navigate to directory
+            page.goto(dir_url, timeout=15000, wait_until="domcontentloaded")
+            page.wait_for_timeout(2000)
+
+            # DISCOVERY PHASE 1: Try API enumeration first (fastest + highest coverage)
+            api_urls = self._enumerate_api_if_available(
+                captured_api_data, base_url, metrics
+            )
+            all_profile_urls.update(api_urls)
+
+            # DISCOVERY PHASE 2: Exhaust pagination/load-more/scroll (baseline, fast)
+            if metrics.discovered_by_api == 0:  # Only if API didn't work
+                baseline_urls = self._exhaust_directory_content(page, base_url, metrics)
+                all_profile_urls.update(baseline_urls)
+
+            # DISCOVERY PHASE 3: Enumerate filters (slower, only if needed)
+            if (
+                metrics.discovered_by_api == 0 
+                and metrics.expected_total > 0
+                and len(all_profile_urls) < metrics.expected_total * 0.5
+            ):  # Only if we're missing >50% of expected attorneys
+                self.log(f"  Low coverage ({len(all_profile_urls)}/{metrics.expected_total}), trying filter enumeration...")
+                filter_urls = self._enumerate_filters(page, base_url, metrics)
+                all_profile_urls.update(filter_urls)
+
+            # Save debug artifacts if low coverage
+            if metrics.expected_total > 0:
+                ratio = len(all_profile_urls) / metrics.expected_total
+                if ratio < 0.98 or len(all_profile_urls) < MIN_ATTORNEYS_THRESHOLD:
+                    self._save_debug_artifacts(page, base_url, metrics)
+
+            page.close()
+            context.close()
+            browser.close()
+
+        # Enrich URLs with metadata
+        self.log(f"  Enriching {len(all_profile_urls)} profile URLs...")
+        attorneys = self._enrich_profile_urls(list(all_profile_urls))
+
+        return attorneys, metrics
+
+    def _find_best_directory_url(self, page, base_url: str) -> tuple[str, int]:
+        """Find directory page with most profile links"""
+        probe_paths = [
+            "/people",
+            "/professionals",
+            "/attorneys",
+            "/lawyers",
+            "/our-people",
+            "/our-team",
+            "/team",
+            "/find-a-professional",
+            "/find-a-lawyer",
+            "/attorney-search",
+        ]
+
+        best_url = ""
+        best_score = 0
+        expected_total = 0
+
+        for path in probe_paths:
             try:
-                self.log(f"      Scanning page {pages_crawled+1}...")
-                resp = sess.get(current_url, timeout=20)
-                if resp.status_code != 200: break
+                target = urljoin(base_url, path)
+                self.log(f"  Probing: {target}")
+                response = page.goto(
+                    target, timeout=20000, wait_until="networkidle"
+                )
+                if not response or not response.ok:
+                    self.log(f"    Status: {response.status if response else 'No response'}")
+                    continue
+
+                page.wait_for_timeout(2000)  # Extra wait for SPAs
+
+                # Count profile-like links
+                links = page.evaluate(
+                    """
+                    () => {
+                        const anchors = Array.from(document.querySelectorAll('a'));
+                        return anchors.map(a => a.href).filter(Boolean);
+                    }
+                    """
+                )
+
+                profile_count = sum(
+                    1
+                    for href in links
+                    if self._is_profile_like_url(href, urlparse(base_url).netloc)
+                )
+
+                self.log(f"    Found {len(links)} total links, {profile_count} profile-like")
                 
-                soup = BeautifulSoup(resp.text, 'html.parser')
-                
-                # 1. Extract Profiles from this page
-                page_urls = self.extract_profile_links(soup, base_url)
-                if not page_urls: break # Stop if empty page
-                
-                new_count = len(page_urls - urls)
-                urls.update(page_urls)
-                
-                # 2. Find Next Page
-                next_link = self.find_next_page(soup, base_url)
-                if not next_link or next_link == current_url: 
+                # Debug: Show sample URLs
+                if len(links) > 0 and profile_count == 0:
+                    self.log(f"    Sample URLs:")
+                    for href in links[:5]:
+                        self.log(f"      {href}")
+
+                # Check for total count indicators
+                total = self._extract_expected_total(page)
+
+                if profile_count > best_score:
+                    best_score = profile_count
+                    best_url = target
+                    expected_total = total
+                    self.log(f"    [BEST] New best: {profile_count} profiles")
+
+            except Exception as e:
+                self.log(f"    Error: {e}")
+
+        if best_url:
+            self.log(f"  Best directory: {best_url} ({best_score} profiles)")
+        return best_url, expected_total
+
+    def _extract_expected_total(self, page) -> int:
+        """Extract expected attorney count from directory page"""
+        try:
+            text = page.inner_text("body")
+            
+            # Patterns: "of 1234", "Showing 1-50 of 1234", "1234 Professionals", etc.
+            patterns = [
+                r"of\s+(\d{2,5})\s+(?:results|professionals|attorneys|lawyers|people)",
+                r"showing\s+\d+\s*[-–]\s*\d+\s+of\s+(\d{2,5})",
+                r"(\d{2,5})\s+(?:professionals|attorneys|lawyers|people|results)",
+                r"total[:\s]+(\d{2,5})",
+                r"(\d{3,5})\s+results",
+            ]
+            
+            for pattern in patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    count = int(match.group(1))
+                    if 10 <= count <= 10000:  # Sanity check
+                        self.log(f"  Detected total count: {count}")
+                        return count
+        except Exception:
+            pass
+        
+        return 0
+
+    def _enumerate_api_if_available(
+        self, captured_api_data: list[dict], base_url: str, metrics: DiscoveryMetrics
+    ) -> set[str]:
+        """If API detected, enumerate all pages via requests"""
+        if not captured_api_data:
+            return set()
+
+        self.log("  Detected API, attempting full enumeration...")
+        all_urls = set()
+
+        for api_data in captured_api_data:
+            api_url = api_data["url"]
+            initial_records = api_data["records"]
+            
+            if not initial_records:
+                continue
+
+            # Add initial records
+            for rec in initial_records:
+                if rec.get("url"):
+                    all_urls.add(rec["url"])
+
+            # Try to paginate API
+            paginated_urls = self._paginate_api_endpoint(api_url, base_url)
+            all_urls.update(paginated_urls)
+
+        metrics.discovered_by_api = len(all_urls)
+        if metrics.discovered_by_api > 0:
+            self.log(f"  API enumeration: {metrics.discovered_by_api} URLs")
+
+        return all_urls
+
+    def _paginate_api_endpoint(self, api_url: str, base_url: str) -> set[str]:
+        """Attempt to paginate API endpoint"""
+        all_urls = set()
+        
+        parsed = urlparse(api_url)
+        query_params = parse_qs(parsed.query)
+        
+        # Common pagination params
+        page_param = None
+        for param in ["page", "pageNumber", "pageNum", "p"]:
+            if param in query_params:
+                page_param = param
+                break
+        
+        offset_param = None
+        for param in ["offset", "start", "skip", "from"]:
+            if param in query_params:
+                offset_param = param
+                break
+        
+        limit_param = None
+        for param in ["limit", "size", "pageSize", "count", "take"]:
+            if param in query_params:
+                limit_param = param
+                break
+        
+        if not page_param and not offset_param:
+            # Can't paginate
+            return all_urls
+        
+        # Try paginating
+        page = 1
+        offset = 0
+        limit = int(query_params.get(limit_param, ["50"])[0]) if limit_param else 50
+        stabilization_counter = 0
+        
+        domain = urlparse(base_url).netloc
+        
+        for attempt in range(200):  # Safety cap
+            if stabilization_counter >= self.stabilization:
+                break
+            
+            # Build paginated URL
+            new_params = query_params.copy()
+            if page_param:
+                new_params[page_param] = [str(page)]
+                page += 1
+            elif offset_param:
+                new_params[offset_param] = [str(offset)]
+                offset += limit
+            
+            new_query = urlencode(new_params, doseq=True)
+            paginated_url = urlunparse(
+                (parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment)
+            )
+            
+            try:
+                self._rate_limit(domain)
+                resp = self.session.get(paginated_url, timeout=REQUEST_TIMEOUT)
+                if resp.status_code != 200:
                     break
                 
-                current_url = next_link
-                pages_crawled += 1
-                time.sleep(1) # Respectful delay
+                data = resp.json()
+                records = self._extract_attorneys_from_json(data, base_url)
                 
-            except Exception as e:
-                self.log(f"      Crawl error: {e}")
-                break
-                
-        return list(urls)
-
-    def find_directory_url(self, base_url, session=None):
-        """Guesses the /people or /attorneys URL"""
-        sess = session or requests
-        for path in DIRECTORY_PATHS:
-            url = urljoin(base_url, path)
-            try:
-                resp = sess.head(url, timeout=10, allow_redirects=True)
-                if resp.status_code == 200:
-                    return url
-            except: pass
-        return None
-
-    def extract_profile_links(self, soup, base_url):
-        """Finds links that look like profiles on a directory page"""
-        urls = set()
-        keywords = ["lawyer", "attorney", "people", "team", "bio", "profile"]
-        
-        for a in soup.find_all('a', href=True):
-            href = a['href']
-            # Heuristic: Profile links often contain the keywords OR are nested in 'result-item' divs
-            # For now, let's grab any link that looks like a sub-page of the directory
-            full_url = urljoin(base_url, href)
-            
-            # Filter bad links
-            if any(x in href.lower() for x in ['pdf', 'vcard', 'mailto', 'linkedin']): continue
-            if full_url == base_url: continue
-            
-            # Profile URLs usually have 2+ segments (e.g. /people/john-doe)
-            path = urlparse(full_url).path
-            if len(path.strip('/').split('/')) >= 2:
-                 urls.add(full_url)
-                 
-        return urls
-
-    def find_next_page(self, soup, base_url):
-        """Finds the 'Next' button link"""
-        # Look for text "Next" or ">"
-        next_btn = soup.find('a', string=re.compile(r'Next|>', re.I))
-        if next_btn and next_btn.get('href'):
-            return urljoin(base_url, next_btn['href'])
-            
-        # Look for class "next"
-        next_btn = soup.find('a', class_=re.compile(r'next', re.I))
-        if next_btn and next_btn.get('href'):
-            return urljoin(base_url, next_btn['href'])
-            
-        return None
-
-    # --- PROFILE SCRAPER (Reused) ---
-    def scrape_profile(self, url, session=None):
-        # (Same robust scraper as before)
-        try:
-            # per-thread session to avoid sharing connections across threads
-            sess = self.get_thread_session()
-
-            # small jitter to reduce WAF triggers
-            time.sleep(random.uniform(0.05, 0.25))
-
-            resp = sess.get(url, timeout=25)
-            if resp.status_code != 200: return None
-            if self.is_blocked_page(resp.text):
-                return None
-            soup = BeautifulSoup(resp.text, 'html.parser')
-            text = soup.get_text()
-
-            # Firm-specific fast path (Kirkland)
-            try:
-                if "kirkland.com" in urlparse(url).netloc:
-                    name_el = soup.select_one('.profile-heading__name-label')
-                    title_el = soup.select_one('.profile-heading__position')
-                    practice_el = soup.select_one('.profile-heading__specialty')
-                    office_el = soup.select_one('.profile-heading__location-link')
-                    if name_el:
-                        name = name_el.get_text(strip=True)
-                        title = title_el.get_text(strip=True) if title_el else "Unknown"
-                        practice = practice_el.get_text(strip=True) if practice_el else "Unknown"
-                        office = office_el.get_text(strip=True) if office_el else "Unknown"
-                        return {"name": name, "title": title, "practice": practice, "office": office, "url": url}
-            except Exception:
-                pass
-            
-            # Name
-            name = "Unknown"
-            h1 = soup.find('h1')
-            if h1: name = h1.get_text(strip=True)
-            
-            # Title
-            title = "Unknown"
-            common_titles = ["Partner", "Associate", "Counsel", "Of Counsel", "Shareholder", "Principal"]
-            # Look for specific classes first
-            for tag in soup.find_all(['h2', 'h3', 'div', 'span', 'p']):
-                classes = tag.get('class')
-                if classes is None:
-                    cls = ""
-                elif isinstance(classes, str):
-                    cls = classes
+                if not records:
+                    stabilization_counter += 1
                 else:
-                    cls = " ".join([str(c) for c in classes])
-                cls = cls.lower()
-                if 'title' in cls or 'position' in cls:
-                    t = tag.get_text(strip=True)
-                    if t and t != name and len(t) < 50:
-                        title = t; break
+                    stabilization_counter = 0
+                    for rec in records:
+                        if rec.get("url"):
+                            all_urls.add(rec["url"])
+                
+            except Exception:
+                break
+        
+        return all_urls
+
+    def _enumerate_filters(
+        self, page, base_url: str, metrics: DiscoveryMetrics
+    ) -> set[str]:
+        """Enumerate single-facet filters (Practice, Office, etc.)"""
+        self.log("  Attempting filter enumeration...")
+        all_urls = set()
+
+        try:
+            # Detect filter UI
+            filter_groups = page.evaluate(
+                """
+                () => {
+                    // Look for common filter patterns
+                    const filters = [];
+                    
+                    // Pattern 1: Select dropdowns
+                    const selects = Array.from(document.querySelectorAll('select'));
+                    for (const select of selects) {
+                        const label = select.previousElementSibling?.innerText || select.id || '';
+                        if (/practice|office|location|industry/i.test(label + select.name + select.id)) {
+                            const options = Array.from(select.options)
+                                .filter(opt => opt.value && opt.value !== '')
+                                .map(opt => ({value: opt.value, text: opt.text}));
+                            if (options.length > 0) {
+                                filters.push({
+                                    type: 'select',
+                                    element: select,
+                                    label: label,
+                                    options: options
+                                });
+                            }
+                        }
+                    }
+                    
+                    // Pattern 2: Clickable filter buttons/links
+                    const filterContainers = Array.from(document.querySelectorAll('[class*="filter"], [class*="facet"]'));
+                    for (const container of filterContainers) {
+                        const label = container.querySelector('label, h3, h4, .label')?.innerText || '';
+                        if (/practice|office|location/i.test(label)) {
+                            const clickables = Array.from(container.querySelectorAll('a, button, [role="button"]'))
+                                .filter(el => el.innerText.trim())
+                                .map(el => ({text: el.innerText.trim(), selector: el.tagName}));
+                            if (clickables.length > 1) {
+                                filters.push({
+                                    type: 'clickable',
+                                    label: label,
+                                    items: clickables
+                                });
+                            }
+                        }
+                    }
+                    
+                    return filters;
+                }
+                """
+            )
+
+            if not filter_groups:
+                self.log("  No filters detected")
+                return all_urls
+
+            self.log(f"  Found {len(filter_groups)} filter groups")
+
+            # Enumerate each filter group
+            for group_idx, group in enumerate(filter_groups[:1]):  # Limit to 1 group for speed
+                filter_type = group.get("type")
+                
+                if filter_type == "select":
+                    # Handle select dropdowns
+                    options = group.get("options", [])
+                    for idx, opt in enumerate(options[:10]):  # Cap at 10 values per filter
+                        try:
+                            self.log(f"  Filter {group_idx+1}/{len(filter_groups[:1])}, option {idx+1}/{min(10, len(options))}: {opt['text'][:40]}")
+                            
+                            # Select option
+                            page.select_option(
+                                f"select:has-text('{group['label']}')", opt["value"]
+                            )
+                            page.wait_for_timeout(800)
+                            
+                            # Exhaust content with quick extraction (no deep exhaustion)
+                            urls = self._extract_profile_urls_from_page(page, base_url)
+                            all_urls.update(urls)
+                            
+                            # Reset (reload page)
+                            page.reload()
+                            page.wait_for_timeout(800)
+                        except Exception as e:
+                            self.log(f"  Filter option error: {e}")
+
+                elif filter_type == "clickable":
+                    # Handle clickable filters
+                    items = group.get("items", [])
+                    for idx, item in enumerate(items[:10]):  # Cap at 10
+                        try:
+                            self.log(f"  Filter {group_idx+1}/{len(filter_groups[:1])}, item {idx+1}/{min(10, len(items))}: {item['text'][:40]}")
+                            
+                            # Click filter
+                            page.click(f"text={item['text']}")
+                            page.wait_for_timeout(800)
+                            
+                            # Quick extraction (no deep exhaustion)
+                            urls = self._extract_profile_urls_from_page(page, base_url)
+                            all_urls.update(urls)
+                            
+                            # Reset
+                            page.reload()
+                            page.wait_for_timeout(800)
+                        except Exception as e:
+                            self.log(f"  Filter item error: {e}")
+
+            metrics.discovered_by_filters = len(all_urls)
+            if metrics.discovered_by_filters > 0:
+                self.log(f"  Filter enumeration: {metrics.discovered_by_filters} URLs")
+
+        except Exception as e:
+            self.log(f"  Filter enumeration error: {e}")
+            metrics.failure_notes.append(f"Filter enumeration error: {e}")
+
+        return all_urls
+
+    def _exhaust_directory_content(
+        self, page, base_url: str, metrics: DiscoveryMetrics
+    ) -> set[str]:
+        """Exhaust pagination, load-more, and infinite scroll with stabilization"""
+        all_urls = set()
+        start_time = time.time()
+        
+        # Phase 1: Pagination (highest priority)
+        pagination_urls = self._handle_pagination_stabilized(page, base_url, metrics)
+        all_urls.update(pagination_urls)
+        
+        # Phase 2: Load-more buttons
+        if time.time() - start_time < self.max_scroll_seconds:
+            loadmore_urls = self._handle_loadmore_stabilized(page, base_url, metrics)
+            all_urls.update(loadmore_urls)
+        
+        # Phase 3: Infinite scroll
+        if time.time() - start_time < self.max_scroll_seconds:
+            scroll_urls = self._handle_scroll_stabilized(page, base_url, metrics)
+            all_urls.update(scroll_urls)
+        
+        # Phase 4: Extract all visible links
+        dom_urls = self._extract_profile_urls_from_page(page, base_url)
+        all_urls.update(dom_urls)
+        metrics.discovered_by_dom = len(dom_urls)
+        
+        return all_urls
+
+    def _handle_pagination_stabilized(
+        self, page, base_url: str, metrics: DiscoveryMetrics
+    ) -> set[str]:
+        """Handle pagination with stabilization"""
+        all_urls = set()
+        stabilization_counter = 0
+        page_num = 1
+        max_pages = 50  # Safety cap
+        
+        while stabilization_counter < self.stabilization and page_num <= max_pages:
+            try:
+                prev_count = len(all_urls)
+                
+                # Extract URLs from current page
+                urls = self._extract_profile_urls_from_page(page, base_url)
+                all_urls.update(urls)
+                
+                # Check for next button
+                next_button = None
+                for selector in [
+                    'a[rel="next"]',
+                    'a:has-text("Next")',
+                    'button:has-text("Next")',
+                    '.pagination a:has-text("›")',
+                    '.pagination a:has-text("»")',
+                    f'a:has-text("{page_num + 1}")',
+                ]:
+                    try:
+                        if page.locator(selector).count() > 0:
+                            next_button = selector
+                            break
+                    except Exception:
+                        pass
+                
+                if not next_button:
+                    break
+                
+                # Click next
+                page.click(next_button, timeout=5000)
+                page.wait_for_timeout(1500)
+                page_num += 1
+                
+                # Check stabilization
+                if len(all_urls) == prev_count:
+                    stabilization_counter += 1
+                else:
+                    stabilization_counter = 0
+                    
+            except Exception:
+                break
+        
+        metrics.discovered_by_pagination = len(all_urls)
+        if metrics.discovered_by_pagination > 0:
+            self.log(f"  Pagination: {metrics.discovered_by_pagination} URLs ({page_num} pages)")
+        
+        return all_urls
+
+    def _handle_loadmore_stabilized(
+        self, page, base_url: str, metrics: DiscoveryMetrics
+    ) -> set[str]:
+        """Handle load-more buttons with stabilization"""
+        all_urls = set()
+        stabilization_counter = 0
+        clicks = 0
+        max_clicks = 30  # Safety cap
+        
+        while stabilization_counter < self.stabilization and clicks < max_clicks:
+            try:
+                prev_count = len(all_urls)
+                
+                # Extract URLs
+                urls = self._extract_profile_urls_from_page(page, base_url)
+                all_urls.update(urls)
+                
+                # Find load-more button
+                load_more = None
+                for selector in [
+                    'button:has-text("Load More")',
+                    'button:has-text("Show More")',
+                    'a:has-text("Load More")',
+                    'a:has-text("Show More")',
+                    '[class*="load-more"]',
+                    '[class*="show-more"]',
+                ]:
+                    try:
+                        btn = page.locator(selector)
+                        if btn.count() > 0 and btn.first.is_visible():
+                            load_more = selector
+                            break
+                    except Exception:
+                        pass
+                
+                if not load_more:
+                    break
+                
+                # Click
+                page.click(load_more, timeout=5000)
+                page.wait_for_timeout(1500)
+                clicks += 1
+                
+                # Check stabilization
+                if len(all_urls) == prev_count:
+                    stabilization_counter += 1
+                else:
+                    stabilization_counter = 0
+                    
+            except Exception:
+                break
+        
+        metrics.discovered_by_loadmore = len(all_urls)
+        if metrics.discovered_by_loadmore > 0:
+            self.log(
+                f"  Load-more: {metrics.discovered_by_loadmore} URLs ({clicks} clicks)"
+            )
+        
+        return all_urls
+
+    def _handle_scroll_stabilized(
+        self, page, base_url: str, metrics: DiscoveryMetrics
+    ) -> set[str]:
+        """Handle infinite scroll with stabilization"""
+        all_urls = set()
+        stabilization_counter = 0
+        scrolls = 0
+        max_scrolls = 20  # Safety cap
+        
+        while stabilization_counter < self.stabilization and scrolls < max_scrolls:
+            try:
+                prev_count = len(all_urls)
+                
+                # Extract URLs
+                urls = self._extract_profile_urls_from_page(page, base_url)
+                all_urls.update(urls)
+                
+                # Scroll to bottom
+                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                page.wait_for_timeout(1000)
+                scrolls += 1
+                
+                # Check stabilization
+                if len(all_urls) == prev_count:
+                    stabilization_counter += 1
+                else:
+                    stabilization_counter = 0
+                    
+            except Exception:
+                break
+        
+        metrics.discovered_by_scroll = len(all_urls)
+        if metrics.discovered_by_scroll > 0:
+            self.log(f"  Scroll: {metrics.discovered_by_scroll} URLs ({scrolls} scrolls)")
+        
+        return all_urls
+
+    def _extract_profile_urls_from_page(self, page, base_url: str) -> set[str]:
+        """Extract all profile-like URLs from current page"""
+        try:
+            links = page.evaluate(
+                """
+                () => {
+                    const anchors = Array.from(document.querySelectorAll('a'));
+                    return anchors.map(a => a.href).filter(Boolean);
+                }
+                """
+            )
             
-            if title == "Unknown":
-                for t in common_titles:
-                    if t in text[:3000]: title = t; break
+            domain = urlparse(base_url).netloc
+            profile_urls = set()
+            all_candidate_count = 0
+            
+            for href in links:
+                all_candidate_count += 1
+                if self._is_profile_like_url(href, domain):
+                    profile_urls.add(href)
+            
+            if all_candidate_count > 0 and len(profile_urls) == 0:
+                # Log first few URLs to help debug
+                self.log(f"  DEBUG: Found {all_candidate_count} total links, 0 profile URLs. Sample links:")
+                for href in list(links)[:5]:
+                    self.log(f"    {href}")
+            
+            return profile_urls
+        except Exception as e:
+            self.log(f"  Error extracting URLs: {e}")
+            return set()
 
-            # Practice
-            practice = "Unknown"
-            for ph in soup.find_all(['h2', 'h3', 'strong']):
-                if not re.search(r'Practice|Service', ph.get_text(" ", strip=True), re.I):
+    def _is_profile_like_url(self, url: str, expected_domain: str) -> bool:
+        """Check if URL looks like attorney profile"""
+        try:
+            parsed = urlparse(url)
+            
+            # Must be same domain
+            if expected_domain not in parsed.netloc:
+                return False
+            
+            # Must not be mailto/tel
+            if parsed.scheme in ["mailto", "tel"]:
+                return False
+            
+            url_lower = url.lower()
+            
+            # Must contain profile keywords
+            keywords = [
+                "/lawyer",
+                "/attorney",
+                "/people/",
+                "/professional",
+                "/bio/",
+                "/profile/",
+                "/team/",
+                "/our-people/",
+            ]
+            if not any(kw in url_lower for kw in keywords):
+                return False
+            
+            # Filter out obvious junk
+            junk_keywords = [
+                "terms",
+                "privacy",
+                "advertising",
+                "disclaimer",
+                "cookie",
+                "sitemap",
+                "/search",
+                "login",
+                "subscribe",
+                "career",
+                "alumni",
+            ]
+            if any(junk in url_lower for junk in junk_keywords):
+                return False
+            
+            # Must have reasonable path depth (at least something after the directory)
+            path_parts = [p for p in parsed.path.split("/") if p]
+            if len(path_parts) < 2:
+                return False
+            
+            return True
+        except Exception:
+            return False
+
+    def _enrich_profile_urls(self, urls: list[str]) -> list[dict]:
+        """Fetch metadata for all profile URLs"""
+        attorneys = []
+        
+        with ThreadPoolExecutor(max_workers=self.workers) as executor:
+            futures = {executor.submit(self._fetch_profile_metadata, url): url for url in urls}
+            for future in as_completed(futures):
+                try:
+                    att = future.result()
+                    if att and att.get("name"):
+                        attorneys.append(att)
+                except Exception:
+                    pass
+        
+        return attorneys
+
+    def _save_debug_artifacts(self, page, base_url: str, metrics: DiscoveryMetrics) -> None:
+        """Save screenshot and HTML for debugging"""
+        try:
+            safe_name = re.sub(r'[^\w\s-]', '', urlparse(base_url).netloc).strip().replace('.', '_')
+            
+            screenshot_path = self.debug_dir / f"{safe_name}_screenshot.png"
+            html_path = self.debug_dir / f"{safe_name}_page.html"
+            
+            page.screenshot(path=str(screenshot_path))
+            html = page.content()
+            with open(html_path, 'w', encoding='utf-8') as f:
+                f.write(html)
+            
+            self.log(f"  Debug artifacts saved: {screenshot_path}, {html_path}")
+        except Exception as e:
+            self.log(f"  Could not save debug artifacts: {e}")
+
+    def _extract_profile_urls_from_sitemap(self, base_url: str) -> list[str]:
+        """Extract attorney profile URLs from sitemap (with robots.txt check)"""
+        domain = urlparse(base_url).netloc
+        scheme = urlparse(base_url).scheme
+
+        # Check robots.txt for sitemap directives
+        sitemap_urls = []
+        try:
+            robots_url = f"{scheme}://{domain}/robots.txt"
+            self._rate_limit(domain)
+            resp = self.session.get(robots_url, timeout=REQUEST_TIMEOUT)
+            if resp.status_code == 200:
+                for line in resp.text.split('\n'):
+                    if line.lower().startswith('sitemap:'):
+                        sitemap_url = line.split(':', 1)[1].strip()
+                        sitemap_urls.append(sitemap_url)
+        except Exception:
+            pass
+
+        # Add default locations
+        if not sitemap_urls:
+            sitemap_urls = [
+                f"{scheme}://{domain}/sitemap.xml",
+                f"{scheme}://{domain}/sitemap_index.xml",
+            ]
+
+        all_profile_urls = set()
+        for sitemap_url in sitemap_urls:
+            try:
+                self._rate_limit(domain)
+                resp = self.session.get(sitemap_url, timeout=REQUEST_TIMEOUT)
+                if resp.status_code != 200:
                     continue
-                container = ph.find_parent('div')
-                if container:
-                    links = container.find_all('a')
-                    if links: 
-                        practice = ", ".join([l.get_text(strip=True) for l in links[:3]])
-                        break
 
-            # Office
-            office = "Unknown"
-            for parent in soup.find_all(['p', 'div', 'span', 'li', 'strong']):
-                txt = parent.get_text(" ", strip=True)
-                if not txt:
-                    continue
-                if re.search(r'\b(Office|Location)\b', txt, re.I):
-                    office = re.sub(r'(?i)\b(Office|Location)\b', '', txt).strip()[:50]
-                    if office:
-                        break
+                content = resp.content
+                if sitemap_url.endswith(".gz"):
+                    content = gzip.decompress(content)
 
-            return {"name": name, "title": title, "practice": practice, "office": office, "url": url}
-        except: return None
+                root = ET.fromstring(content)
+                self._parse_sitemap_recursive(root, all_profile_urls, base_url)
+
+                if all_profile_urls:
+                    break
+            except Exception:
+                continue
+
+        return list(all_profile_urls)
+
+    def _parse_sitemap_recursive(
+        self, element: ET.Element, urls: set, base_url: str
+    ) -> None:
+        """Recursively parse sitemap XML"""
+        domain = urlparse(base_url).netloc
+        
+        for child in element:
+            tag = child.tag.lower()
+            # Handle namespaces
+            if "}" in tag:
+                tag = tag.split("}", 1)[1]
+            
+            if "loc" in tag and child.text:
+                loc = child.text.strip()
+                if loc.endswith(".xml") or loc.endswith(".xml.gz"):
+                    try:
+                        self._rate_limit(domain)
+                        resp = self.session.get(loc, timeout=REQUEST_TIMEOUT)
+                        if resp.status_code == 200:
+                            content = resp.content
+                            if loc.endswith(".gz"):
+                                content = gzip.decompress(content)
+                            sub_root = ET.fromstring(content)
+                            self._parse_sitemap_recursive(sub_root, urls, base_url)
+                    except Exception:
+                        pass
+                else:
+                    if self._is_attorney_profile_url(loc):
+                        urls.add(loc)
+            
+            # Recurse into children
+            self._parse_sitemap_recursive(child, urls, base_url)
+
+    def _is_attorney_profile_url(self, url: str) -> bool:
+        """Check if URL is attorney profile"""
+        url_lower = url.lower()
+        keywords = ["/lawyer", "/attorney", "/people/", "/professional", "/bio/", "/profile/"]
+        if not any(kw in url_lower for kw in keywords):
+            return False
+        
+        # Filter junk
+        junk_keywords = [
+            "terms",
+            "privacy",
+            "advertising",
+            "disclaimer",
+            "cookie",
+            "sitemap",
+        ]
+        if any(junk in url_lower for junk in junk_keywords):
+            return False
+        
+        return True
+
+    def _fetch_profile_metadata(self, url: str) -> dict | None:
+        """Fetch metadata from profile page"""
+        try:
+            domain = urlparse(url).netloc
+            self._rate_limit(domain)
+            
+            resp = self.session.get(url, timeout=REQUEST_TIMEOUT)
+            if resp.status_code != 200:
+                return None
+
+            html = resp.text
+            name = self._extract_name_from_html(html, url)
+            title = self._extract_title_from_html(html)
+            practice = self._extract_practice_from_html(html)
+            office = self._extract_office_from_html(html)
+
+            if not name:
+                return None
+
+            return {
+                "name": name,
+                "title": title,
+                "practice": practice,
+                "office": office,
+                "url": url,
+            }
+        except Exception:
+            return None
+
+    def _extract_name_from_html(self, html: str, url: str) -> str:
+        """Extract name from HTML"""
+        h1_match = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.IGNORECASE | re.DOTALL)
+        if h1_match:
+            name = re.sub(r"<[^>]+>", "", h1_match.group(1)).strip()
+            if name and len(name) < 100 and self._looks_like_person_name(name):
+                return name
+
+        title_match = re.search(
+            r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL
+        )
+        if title_match:
+            title_text = re.sub(r"<[^>]+>", "", title_match.group(1)).strip()
+            parts = re.split(r"[|\-–—]", title_text)
+            if parts:
+                name = parts[0].strip()
+                if name and len(name) < 100 and self._looks_like_person_name(name):
+                    return name
+
+        path = urlparse(url).path
+        segments = [s for s in path.split("/") if s]
+        if segments:
+            last = segments[-1].replace("-", " ").replace("_", " ").title()
+            if self._looks_like_person_name(last):
+                return last
+
+        return ""
+
+    def _extract_title_from_html(self, html: str) -> str:
+        """Extract title from HTML"""
+        patterns = [
+            r'<[^>]*class="[^"]*title[^"]*"[^>]*>(.*?)</[^>]+>',
+            r'<[^>]*class="[^"]*position[^"]*"[^>]*>(.*?)</[^>]+>',
+            r'<span[^>]*>\s*(Partner|Associate|Counsel|Of Counsel)\s*</span>',
+        ]
+        for pat in patterns:
+            match = re.search(pat, html, re.IGNORECASE | re.DOTALL)
+            if match:
+                text = re.sub(r"<[^>]+>", "", match.group(1)).strip()
+                if text and len(text) < 100:
+                    return text
+        return ""
+
+    def _extract_practice_from_html(self, html: str) -> str:
+        """Extract practice area from HTML"""
+        practice_section = re.search(
+            r"<[^>]*>Practice[s]?\s*(?:Area[s]?)?</[^>]*>(.*?)</(?:div|section|ul)",
+            html,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if practice_section:
+            content = practice_section.group(1)
+            links = re.findall(r"<a[^>]*>(.*?)</a>", content, re.IGNORECASE)
+            practices = [re.sub(r"<[^>]+>", "", link).strip() for link in links]
+            practices = [p for p in practices if p and len(p) < 100]
+            if practices:
+                return ", ".join(practices[:5])
+        return ""
+
+    def _extract_office_from_html(self, html: str) -> str:
+        """Extract office from HTML"""
+        patterns = [
+            r'<[^>]*class="[^"]*office[^"]*"[^>]*>(.*?)</[^>]+>',
+            r'<[^>]*class="[^"]*location[^"]*"[^>]*>(.*?)</[^>]+>',
+        ]
+        for pat in patterns:
+            match = re.search(pat, html, re.IGNORECASE | re.DOTALL)
+            if match:
+                text = re.sub(r"<[^>]+>", "", match.group(1)).strip()
+                if text and len(text) < 200:
+                    return text
+        return ""
+
+    def _extract_attorneys_from_json(self, data: Any, base_url: str) -> list[dict]:
+        """Extract attorney records from JSON"""
+        records = []
+
+        def visit(obj):
+            if isinstance(obj, dict):
+                has_name = any(
+                    k in obj
+                    for k in ["name", "fullName", "displayName", "firstName", "lastName"]
+                )
+                if has_name:
+                    records.append(obj)
+                for v in obj.values():
+                    visit(v)
+            elif isinstance(obj, list):
+                for item in obj:
+                    visit(item)
+
+        visit(data)
+
+        attorneys = []
+        for rec in records:
+            att = self._normalize_json_record(rec, base_url)
+            if att and att.get("name") and self._looks_like_person_name(att["name"]):
+                attorneys.append(att)
+
+        return attorneys
+
+    def _normalize_json_record(self, rec: dict, base_url: str) -> dict | None:
+        """Normalize JSON record"""
+
+        def pick(*keys):
+            for k in keys:
+                if k in rec and rec[k]:
+                    return rec[k]
+            return None
+
+        def to_text(val):
+            if val is None:
+                return ""
+            if isinstance(val, str):
+                return val.strip()
+            if isinstance(val, list):
+                parts = [to_text(v) for v in val if v]
+                return ", ".join(parts)
+            return str(val).strip()
+
+        first = pick("firstName", "first_name", "first")
+        last = pick("lastName", "last_name", "last")
+        name = pick("name", "fullName", "displayName") or " ".join(
+            filter(None, [to_text(first), to_text(last)])
+        )
+
+        title = pick("title", "position", "role", "jobTitle")
+        practice = pick("practice", "practiceAreas", "practices", "services")
+        office = pick("office", "location", "officeName")
+        url = pick("url", "profileUrl", "link", "path")
+
+        url_text = to_text(url)
+        if url_text and not url_text.startswith("http"):
+            url_text = urljoin(base_url, url_text)
+
+        name_text = to_text(name)
+        if not name_text or len(name_text) < 4:
+            return None
+
+        return {
+            "name": name_text,
+            "title": to_text(title),
+            "practice": to_text(practice),
+            "office": to_text(office),
+            "url": url_text,
+        }
+
+    def _looks_like_person_name(self, text: str) -> bool:
+        """Check if text looks like person name"""
+        if not text or len(text) < 4:
+            return False
+        if any(ch in text for ch in ["_", "#", "{"]):
+            return False
+        parts = [p for p in text.split() if p and p[0].isupper()]
+        return len(parts) >= 2
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="High-coverage attorney scraper with stabilization-based discovery"
+    )
+    parser.add_argument("excel_path", nargs="?", help="Excel file path")
+    parser.add_argument(
+        "--limit", type=int, default=0, help="Max attorneys per firm (0=all)"
+    )
+    parser.add_argument(
+        "--max-firms", type=int, default=0, help="Max firms to process (0=all)"
+    )
+    parser.add_argument(
+        "--workers", type=int, default=MAX_WORKERS, help="Parallel workers"
+    )
+    parser.add_argument(
+        "--sheet",
+        default=DEFAULT_SHEET_NAME,
+        help=f"Output sheet (default: {DEFAULT_SHEET_NAME})",
+    )
+    parser.add_argument(
+        "--debug-firm", default="", help="Process only firms matching this name"
+    )
+    parser.add_argument(
+        "--debug-domain", default="", help="Process only domains matching this string"
+    )
+    parser.add_argument(
+        "--headful", type=bool, default=False, help="Run browser in headful mode"
+    )
+    parser.add_argument(
+        "--stabilization",
+        type=int,
+        default=DEFAULT_STABILIZATION,
+        help=f"Stabilization threshold (default: {DEFAULT_STABILIZATION})",
+    )
+    parser.add_argument(
+        "--max-scroll-seconds",
+        type=int,
+        default=DEFAULT_MAX_SCROLL_SECONDS,
+        help=f"Max seconds per directory mode (default: {DEFAULT_MAX_SCROLL_SECONDS})",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = _parse_args()
+    excel_path = args.excel_path
+    if not excel_path:
+        excel_path = input("Excel file path: ").strip().strip('"')
+    if not excel_path:
+        raise SystemExit(2)
+
+    finder = AttorneyFinder(
+        limit=args.limit,
+        sheet_name=args.sheet,
+        max_firms=args.max_firms,
+        workers=args.workers,
+        debug_firm=args.debug_firm,
+        debug_domain=args.debug_domain,
+        headful=args.headful,
+        stabilization=args.stabilization,
+        max_scroll_seconds=args.max_scroll_seconds,
+    )
+    start = time.time()
+    total = finder.run(excel_path)
+    elapsed = time.time() - start
+    finder.log(f"\nTotal runtime: {elapsed:.1f}s")
+    return 0 if total >= 0 else 1
+
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = FindAttorneyApp(root)
-    root.mainloop()
+    raise SystemExit(main())

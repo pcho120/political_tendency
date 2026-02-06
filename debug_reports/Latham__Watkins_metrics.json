@@ -1,0 +1,13 @@
+{
+  "directory_url": "https://www.lw.com/people",
+  "expected_total": 0,
+  "discovered_unique": 20,
+  "discovered_by_dom": 20,
+  "discovered_by_pagination": 20,
+  "discovered_by_loadmore": 20,
+  "discovered_by_scroll": 20,
+  "discovered_by_filters": 0,
+  "discovered_by_api": 0,
+  "failure_notes": [],
+  "coverage_ratio": 0.0
+}
