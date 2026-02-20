@@ -21,6 +21,41 @@ Automatically search and identify each company’s official website URL
 Output:
 An updated Excel file with official website URLs added
 
+### Official Website Discovery (firm_finder.py)
+
+This step uses deterministic, cached search to identify the official website domain for each firm.
+
+**Environment variables:**
+- `GOOGLE_CSE_API_KEY` (preferred)
+- `GOOGLE_CSE_CX`
+- `SERPAPI_KEY` (optional fallback)
+
+**Usage:**
+```bash
+python firm_finder.py "input.xlsx"
+python firm_finder.py "input.xlsx" --refresh
+python firm_finder.py "input.xlsx" --max-firms 50 --start-index 0
+```
+
+**Output columns:**
+- Firm
+- normalized_firm
+- official_website_url
+- discovery_method (cache | alias_match | google_cse | serpapi | fallback_guess)
+- confidence_score (0.0-1.0)
+- evidence
+- notes
+
+**Scoring summary:**
+- +0.50 if brand tokens appear in title/snippet
+- +0.20 if top result for “official website” query
+- +0.15 if domain appears multiple times
+- +0.10 if domain contains firm token
+- -0.50 for directory/news domains (Wikipedia, Chambers, etc.)
+- -0.30 for unrelated subdomains
+
+Domains are verified via HTTPS checks and homepage evidence (title/meta/nav). Failures are written to `discovery_failures.xlsx` with attempted queries and candidate domains.
+
 2. Attorney List Extraction
 
 Input:
