@@ -2,8 +2,8 @@
   "firm": "Kirkland",
   "base_url": "https://www.kirkland.com",
   "detected_types": [
-    "XML_SITEMAP",
-    "DIRECTORY_HTML"
+    "DIRECTORY_HTML",
+    "XML_SITEMAP"
   ],
   "signals": [
     "Classification: BOT_PROTECTED",

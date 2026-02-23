@@ -1,0 +1,15 @@
+{
+  "directory_url": "https://www.skadden.com/professionals",
+  "expected_total": 700,
+  "discovered_unique": 0,
+  "discovered_by_dom": 5,
+  "discovered_by_pagination": 5,
+  "discovered_by_loadmore": 5,
+  "discovered_by_scroll": 5,
+  "discovered_by_filters": 0,
+  "discovered_by_api": 0,
+  "failure_notes": [
+    "Low coverage: 0.0% (expected 700, got 0)"
+  ],
+  "coverage_ratio": 0.0
+}

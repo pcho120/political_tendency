@@ -1,0 +1,41 @@
+{
+  "firm": "Latham & Watkins",
+  "attorney_count": 5,
+  "attorneys": [
+    {
+      "name": "Michael T. Nieberg",
+      "title": "Associate",
+      "practice": "Real Estate",
+      "office": "New York",
+      "url": "https://www.lw.com/en/people/michael-nieberg"
+    },
+    {
+      "name": "Danielle Stobie",
+      "title": "Associate",
+      "practice": "Banking &amp; Private Credit",
+      "office": "London",
+      "url": "https://www.lw.com/en/people/danielle-stobie"
+    },
+    {
+      "name": "Megan M. Higgins",
+      "title": "Associate",
+      "practice": "Real Estate",
+      "office": "New York",
+      "url": "https://www.lw.com/en/people/megan-higgins"
+    },
+    {
+      "name": "Nikolaus Becker",
+      "title": "Associate",
+      "practice": "Mergers &amp; Acquisitions, Public Company Representation",
+      "office": "D&#252;sseldorf",
+      "url": "https://www.lw.com/en/people/nikolaus-becker"
+    },
+    {
+      "name": "Paul L. Bonewitz",
+      "title": "Partner",
+      "practice": "Banking &amp; Private Credit, Capital Markets, Private Equity Finance, Asset-Based Lending",
+      "office": "New York",
+      "url": "https://www.lw.com/en/people/paul-bonewitz"
+    }
+  ]
+}

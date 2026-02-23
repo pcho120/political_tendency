@@ -1,0 +1,13 @@
+{
+  "directory_url": "",
+  "expected_total": 0,
+  "discovered_unique": 753,
+  "discovered_by_dom": 0,
+  "discovered_by_pagination": 0,
+  "discovered_by_loadmore": 0,
+  "discovered_by_scroll": 0,
+  "discovered_by_filters": 0,
+  "discovered_by_api": 0,
+  "failure_notes": [],
+  "coverage_ratio": 0.0
+}

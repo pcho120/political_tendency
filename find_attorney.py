@@ -4821,4 +4821,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    #raise SystemExit(main())
+    from discovery import discover_attorneys
+    urls = discover_attorneys("https://www.kirkland.com")
+    print(len(urls))

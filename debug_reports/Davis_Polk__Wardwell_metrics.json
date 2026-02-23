@@ -1,0 +1,15 @@
+{
+  "directory_url": "https://www.davispolk.com/professionals",
+  "expected_total": 270,
+  "discovered_unique": 20,
+  "discovered_by_dom": 0,
+  "discovered_by_pagination": 0,
+  "discovered_by_loadmore": 0,
+  "discovered_by_scroll": 0,
+  "discovered_by_filters": 0,
+  "discovered_by_api": 20,
+  "failure_notes": [
+    "Low coverage: 7.4% (expected 270, got 20)"
+  ],
+  "coverage_ratio": 0.07407407407407407
+}
