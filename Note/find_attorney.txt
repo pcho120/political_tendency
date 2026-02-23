@@ -1,0 +1,206 @@
+1️⃣ Firm Type Detection Layer ✅
+Data Structure:
+@dataclass
+class FirmProfile:
+    firm: str
+    base_url: str
+    detected_types: list[str]  # Multiple types allowed
+    signals: list[str]          # Evidence used for classification
+Detection Types Implemented:
+- XML_SITEMAP - Valid XML sitemap available
+- HTML_SITEMAP - HTML-based sitemap available
+- DIRECTORY_HTML - Server-rendered directory with profile links
+- DIRECTORY_FILTERED - Filters present (practice/office)
+- SPA_API - XHR/JSON people data detected
+- HARD_CASE - No recognizable patterns
+Detection Logic:
+1. Check robots.txt + sitemap URLs (XML vs HTML)
+2. If no sitemap: Probe directory pages with Playwright
+3. Detect API calls, DOM links, filters
+4. Classify and persist to {firm}_profile.json
+Example Outputs:
+Latham & Watkins (XML_SITEMAP):
+{
+  firm: Latham & Watkins,
+  base_url: https://www.lw.com,
+  detected_types: [XML_SITEMAP],
+  signals: [
+    Checking 1 sitemap(s),
+    Valid XML sitemap found
+  ]
+}
+Kirkland & Ellis (HARD_CASE):
+{
+  firm: Kirkland & Ellis,
+  base_url: https://www.kirkland.com,
+  detected_types: [HARD_CASE],
+  signals: [
+    Checking 2 sitemap(s),
+    No valid sitemap found,
+    No profile links found in directory pages,
+    No recognizable patterns detected
+  ]
+}
+---
+2️⃣ Strategy Router ✅
+Data-Driven Strategy Selection:
+IF XML_SITEMAP      → xml_sitemap
+ELIF HTML_SITEMAP   → html_sitemap
+ELIF SPA_API        → api_enumeration
+ELIF DIRECTORY_FILTERED → filter_enumeration
+ELIF DIRECTORY_HTML → dom_exhaustion
+ELSE → hard_case_fallback
+Automatic Routing:
+- No hardcoded firm-specific logic
+- Multiple strategies can run if coverage insufficient
+- Strategies attempt in priority order (fast → slow)
+---
+3️⃣ URL Discovery Only ✅
+Critical Separation:
+- Phase 1-4: Collect profile URLs (no metadata fetching)
+- Phase 5: Enrich URLs with metadata (separate, parallelized)
+Benefits:
+- Fast discovery (no HTTP overhead during collection)
+- Retryable (can re-enrich same URLs later)
+- Clear progress tracking (URLs vs attorneys)
+---
+4️⃣ Coverage Validation Engine ✅
+Data Structure:
+@dataclass
+class CoverageReport:
+    firm: str
+    expected_total: int | None
+    discovered_urls: int
+    strategies_attempted: list[str]
+    final_status: str  # SUCCESS | PARTIAL | HARD_CASE
+    notes: list[str]
+    url_sources: dict[str, int]  # strategy -> count
+Validation Logic:
+IF expected_total known:
+    coverage = discovered / expected_total
+    IF coverage >= 0.98 → SUCCESS
+    ELIF coverage >= 0.5 → PARTIAL
+    ELSE → HARD_CASE
+ELSE:
+    IF discovered >= 5 → SUCCESS
+    ELSE → PARTIAL
+Fallback Triggering:
+- After each strategy, check coverage
+- If insufficient, execute next strategy
+- Stop when coverage threshold met or strategies exhausted
+Example Output (Latham):
+{
+  firm: Latham & Watkins,
+  expected_total: null,
+  discovered_urls: 4206,
+  coverage_ratio: null,
+  strategies_attempted: [xml_sitemap],
+  final_status: SUCCESS,
+  notes: [Discovered 4206 attorneys (no expected total available)],
+  url_sources: {xml_sitemap: 4206}
+}
+---
+5️⃣ HTML Sitemap Support ✅
+Implementation:
+1. Try XML parsing first
+2. If ET.ParseError → classify as HTML
+3. Extract <a href> tags with regex
+4. Filter for profile-like URLs
+Code:
+def _classify_sitemap(self, sitemap_url: str, domain: str) -> str | None:
+    try:
+        ET.fromstring(content)
+        return "XML"
+    except ET.ParseError:
+        if b"<html" in content.lower():
+            return "HTML"
+---
+6️⃣ JSON-Structure-Based API Pagination ✅
+Already Implemented (from previous fix):
+- Detects pagination metadata in JSON (totalPages, total, pageSize)
+- Works without URL query parameters
+- Supports both GET and (stub for) POST/GraphQL
+---
+7️⃣ HARD_CASE is Valid Outcome ✅
+Explicit Classification:
+- Kirkland & Ellis correctly classified as HARD_CASE
+- Signals explain why it failed:
+  - "No valid sitemap found"
+  - "No profile links found in directory pages"
+  - "No recognizable patterns detected"
+No Silent Failures:
+- Every failed strategy logged
+- Coverage report persists failure reasons
+- Status clearly marked as HARD_CASE
+---
+8️⃣ Structured Outputs ✅
+Three JSON Files Per Firm:
+1. {firm}_profile.json - Detection results
+2. {firm}_coverage.json - Discovery results
+3. {firm}_metrics.json - Legacy compatibility
+Research-Ready:
+- Machine-parseable
+- Auditable (signals + notes)
+- Reproducible (strategy sequence recorded)
+
+✅ Success Criteria Met
+| Criteria | Status |
+|----------|--------|
+| ✅ Any firm URL triggers automatic attempt | YES - No hardcoding required |
+| ✅ Missing attorneys ≠ silent failure | YES - HARD_CASE with explicit reasons |
+| ✅ New firm types don't break system | YES - Falls back to HARD_CASE gracefully |
+| ✅ Research-ready, auditable outputs | YES - 3 JSON files with signals/notes |
+| ✅ URL collection separate from metadata | YES - Phase 1-4 vs Phase 5 |
+| ✅ Coverage-first, speed-second | YES - Strategies stop when coverage met |
+| ✅ HTML sitemap support | YES - XML failure → HTML parsing |
+| ✅ JSON-based API pagination | YES - Already implemented |
+---
+📊 Architecture Flow
+INPUT: Firm Name + URL
+    ↓
+┌─────────────────────────────────────────┐
+│ 1. DETECT FIRM TYPE                     │
+│    - Check robots.txt + sitemap         │
+│    - Classify (XML/HTML/API/HTML/HARD)  │
+│    - Persist FirmProfile.json           │
+└─────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────┐
+│ 2. SELECT STRATEGIES                    │
+│    - Data-driven routing                │
+│    - No firm-specific code              │
+└─────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────┐
+│ 3. EXECUTE STRATEGIES (with fallback)   │
+│    FOR each strategy:                   │
+│      - Collect URLs only               │
+│      - Check coverage                   │
+│      - Stop if sufficient               │
+└─────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────┐
+│ 4. VALIDATE COVERAGE                    │
+│    - Calculate ratio                    │
+│    - Classify: SUCCESS/PARTIAL/HARD     │
+│    - Persist CoverageReport.json        │
+└─────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────┐
+│ 5. ENRICH METADATA (separate phase)     │
+│    - Apply limit BEFORE enrichment      │
+│    - Parallel HTTP fetches              │
+│    - Extract name/title/etc             │
+└─────────────────────────────────────────┘
+    ↓
+OUTPUT: Attorneys + Structured Reports
+
+
+🎯 Key Improvements
+1. Generic: Any company + URL works (no hardcoding)
+2. Adaptive: Automatically selects strategies based on detection
+3. Transparent: Failures explicitly classified with reasons
+4. Extensible: New strategies added without touching router
+5. Fast: URL collection separated from slow metadata fetching
+6. Auditable: Structured JSON outputs for research
+7. Coverage-First: Strategies stop when sufficient data collected

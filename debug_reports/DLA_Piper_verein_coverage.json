@@ -1,0 +1,14 @@
+{
+  "firm": "DLA Piper (verein)",
+  "expected_total": null,
+  "discovered_urls": 0,
+  "coverage_ratio": null,
+  "strategies_attempted": [],
+  "final_status": "UNKNOWN_PATTERN",
+  "discovery_status": "DISCOVERY_INCOMPLETE",
+  "failure_reason": "extraction_error",
+  "notes": [
+    "No attorneys discovered by any strategy"
+  ],
+  "url_sources": {}
+}

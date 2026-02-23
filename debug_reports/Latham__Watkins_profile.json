@@ -1,0 +1,15 @@
+{
+  "firm": "Latham & Watkins",
+  "base_url": "https://www.lw.com",
+  "detected_types": [
+    "XML_SITEMAP",
+    "DIRECTORY_HTML"
+  ],
+  "signals": [
+    "Classification: SPA_HEAVY",
+    "\u26a0 No clear discovery signals - will try all strategies",
+    "Found sitemap in robots.txt: https://www.lw.com/sitemap_index.xml",
+    "robots.txt disallows crawling",
+    "API endpoints mentioned in scripts"
+  ]
+}

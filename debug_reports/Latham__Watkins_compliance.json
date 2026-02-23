@@ -1,0 +1,38 @@
+{
+  "firm": "Latham & Watkins",
+  "base_url": "https://www.lw.com",
+  "domain": "www.lw.com",
+  "accessibility": "PARTIALLY_PUBLIC",
+  "homepage_status": 200,
+  "homepage_blocked": false,
+  "homepage_auth_required": false,
+  "robots_fetch_success": true,
+  "robots_crawl_delay": 0.0,
+  "robots_sitemap_urls": [
+    "https://www.lw.com/sitemap_index.xml"
+  ],
+  "disallowed_path_count": 12,
+  "disallowed_paths_sample": [
+    "/xsl/",
+    "/_DEV/",
+    "/temp/",
+    "/upload/",
+    "/sitecore",
+    "/Sitecore",
+    "/App_Data/",
+    "/App_config/",
+    "/App_Browsers/",
+    "/sitecore_files/",
+    "/sitecore modules/",
+    "/admin/upload/Bios/"
+  ],
+  "disallowed_paths_for_attorneys": [],
+  "path_checks": {
+    "/people": true,
+    "/attorneys": true,
+    "/professionals": true,
+    "/sitemap.xml": true
+  },
+  "legal_notes": [],
+  "compliance_version": "1.0"
+}

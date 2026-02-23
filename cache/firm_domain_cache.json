@@ -1,0 +1,1419 @@
+{
+  "gibson dunn": {
+    "domain": "gibsondunn.com",
+    "chosen_url": "https://www.gibsondunn.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.099009",
+    "evidence": "known_domain table"
+  },
+  "white and case": {
+    "domain": "whitecase.com",
+    "chosen_url": "https://www.whitecase.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.099366",
+    "evidence": "known_domain table"
+  },
+  "jones day": {
+    "domain": "jonesday.com",
+    "chosen_url": "https://www.jonesday.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.099689",
+    "evidence": "known_domain table"
+  },
+  "paul weiss": {
+    "domain": "paulweiss.com",
+    "chosen_url": "https://www.paulweiss.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.099827",
+    "evidence": "known_domain table"
+  },
+  "davis polk": {
+    "domain": "davispolk.com",
+    "chosen_url": "https://www.davispolk.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.099983",
+    "evidence": "known_domain table"
+  },
+  "quinn emanuel": {
+    "domain": "quinnemanuel.com",
+    "chosen_url": "https://www.quinnemanuel.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.100060",
+    "evidence": "known_domain table"
+  },
+  "norton rose": {
+    "domain": "norton.com",
+    "chosen_url": "https://us.norton.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:35:11.774493",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "king and spalding": {
+    "domain": "kslaw.com",
+    "chosen_url": "https://www.kslaw.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.100388",
+    "evidence": "known_domain table"
+  },
+  "paul hastings": {
+    "domain": "paulhastings.com",
+    "chosen_url": "https://www.paulhastings.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.100623",
+    "evidence": "known_domain table"
+  },
+  "mcdermott": {
+    "domain": "mcdermott.com",
+    "chosen_url": "https://www.mcdermott.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:35:16.283438",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "milbank": {
+    "domain": "milbank.com",
+    "chosen_url": "https://www.milbank.com/en/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:35:50.873779",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "willkie": {
+    "domain": "willkie.com",
+    "chosen_url": "https://www.willkie.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.101464",
+    "evidence": "known_domain table"
+  },
+  "covington": {
+    "domain": "cov.com",
+    "chosen_url": "https://www.cov.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.101563",
+    "evidence": "known_domain table"
+  },
+  "cleary gottlieb": {
+    "domain": "clearygottlieb.com",
+    "chosen_url": "https://www.clearygottlieb.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.101641",
+    "evidence": "known_domain table"
+  },
+  "orrick": {
+    "domain": "orrick.com",
+    "chosen_url": "https://www.orrick.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.101864",
+    "evidence": "known_domain table"
+  },
+  "dechert": {
+    "domain": "dechert.com",
+    "chosen_url": "https://www.dechert.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.101957",
+    "evidence": "known_domain table"
+  },
+  "reed smith": {
+    "domain": "reedsmith.com",
+    "chosen_url": "https://www.reedsmith.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.102047",
+    "evidence": "known_domain table"
+  },
+  "akin": {
+    "domain": "akin.com",
+    "chosen_url": "https://www.akin.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:36:11.861329",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "morrison and foerster": {
+    "domain": "mofo.com",
+    "chosen_url": "https://www.mofo.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.102287",
+    "evidence": "known_domain table"
+  },
+  "proskauer": {
+    "domain": "proskauer.com",
+    "chosen_url": "https://www.proskauer.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.102384",
+    "evidence": "known_domain table"
+  },
+  "k and l gates": {
+    "domain": "klgates.com",
+    "chosen_url": "https://www.klgates.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:36:32.218678",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "winston and strawn": {
+    "domain": "winston.com",
+    "chosen_url": "https://www.winston.com/en",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:36:38.590919",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "perkins coie": {
+    "domain": "perkinscoie.com",
+    "chosen_url": "https://www.perkinscoie.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.102890",
+    "evidence": "known_domain table"
+  },
+  "cravath": {
+    "domain": "cravath.com",
+    "chosen_url": "https://www.cravath.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.103085",
+    "evidence": "known_domain table"
+  },
+  "troutman pepper": {
+    "domain": "troutman.com",
+    "chosen_url": "https://www.troutman.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.103343",
+    "evidence": "known_domain table"
+  },
+  "fried frank": {
+    "domain": "fried.com",
+    "chosen_url": "https://fried.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:36:59.431607",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "nelson mullins": {
+    "domain": "nelsonmullins.com",
+    "chosen_url": "https://www.nelsonmullins.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:00.247346",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "seyfarth": {
+    "domain": "seyfarth.com",
+    "chosen_url": "https://www.seyfarth.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:02.029976",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "fragomen": {
+    "domain": "fragomen.com",
+    "chosen_url": "https://www.fragomen.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:03.867148",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "hunton andrews": {
+    "domain": "hunton.com",
+    "chosen_url": "https://www.hunton.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:05.442850",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "katten": {
+    "domain": "katten.com",
+    "chosen_url": "https://katten.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:06.291286",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "pillsbury": {
+    "domain": "pillsbury.com",
+    "chosen_url": "https://www.pillsbury.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:32.063576",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "fenwick": {
+    "domain": "fenwick.com",
+    "chosen_url": "https://www.fenwick.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:33.353642",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "fox rothschild": {
+    "domain": "fox.com",
+    "chosen_url": "https://www.fox.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:34.797962",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "lewis brisbois": {
+    "domain": "lewisbrisbois.com",
+    "chosen_url": "https://lewisbrisbois.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:37.410594",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "blank rome": {
+    "domain": "blankrome.com",
+    "chosen_url": "https://www.blankrome.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:51.439868",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "littler": {
+    "domain": "littler.com",
+    "chosen_url": "https://www.littler.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:52.704847",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "ogletree deakins": {
+    "domain": "ogletree.com",
+    "chosen_url": "https://ogletree.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:53.519027",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "cozen oconnor": {
+    "domain": "cozen.com",
+    "chosen_url": "https://www.cozen.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:55.404311",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "husch blackwell": {
+    "domain": "huschblackwell.com",
+    "chosen_url": "https://www.huschblackwell.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:38:59.312119",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "taft": {
+    "domain": "taft.com",
+    "chosen_url": "https://taft.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:39:00.119637",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "mintz levin": {
+    "domain": "mintz.com",
+    "chosen_url": "https://www.mintz.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.105507",
+    "evidence": "known_domain table"
+  },
+  "jackson lewis": {
+    "domain": "jackson.com",
+    "chosen_url": "https://www.jackson.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:39:03.363376",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "duane morris": {
+    "domain": "www.duanemorris.com",
+    "chosen_url": "https://www.duanemorris.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:39:20.018745",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "williams and connolly": {
+    "domain": "williams.com",
+    "chosen_url": "https://www.williams.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:39:35.150236",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "cadwalader": {
+    "domain": "cadwalader.com",
+    "chosen_url": "https://www.cadwalader.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:39:36.782055",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "haynes and boone": {
+    "domain": "haynesboone.com",
+    "chosen_url": "https://www.haynesboone.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.106049",
+    "evidence": "known_domain table"
+  },
+  "crowell and moring": {
+    "domain": "crowell.com",
+    "chosen_url": "https://www.crowell.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.106263",
+    "evidence": "known_domain table"
+  },
+  "nixon peabody": {
+    "domain": "nixon.com",
+    "chosen_url": "https://www.nixon.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:40:10.399922",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "schulte roth": {
+    "domain": "schulte.com",
+    "chosen_url": "https://www.evoline.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:40:12.645128",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "akerman": {
+    "domain": "akerman.com",
+    "chosen_url": "https://www.akerman.com/en/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:40:19.664188",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "wilson elser": {
+    "domain": "wilsonelser.com",
+    "chosen_url": "https://www.wilsonelser.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:40:21.695777",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "ballard spahr": {
+    "domain": "ballardspahr.com",
+    "chosen_url": "https://www.ballardspahr.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.106924",
+    "evidence": "known_domain table"
+  },
+  "steptoe": {
+    "domain": "steptoe.com",
+    "chosen_url": "https://www.steptoe.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.106996",
+    "evidence": "known_domain table"
+  },
+  "locke lord": {
+    "domain": "lockelord.com",
+    "chosen_url": "https://www.lockelord.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.107159",
+    "evidence": "known_domain table"
+  },
+  "baker donelson": {
+    "domain": "bakerdonelson.com",
+    "chosen_url": "https://www.bakerdonelson.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:40:44.631710",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "gunderson dettmer": {
+    "domain": "gunderson.com",
+    "chosen_url": "https://gundersons.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:40:50.094315",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "shook hardy": {
+    "domain": "shook.com",
+    "chosen_url": "https://shook.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:40:50.798186",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "cahill": {
+    "domain": "cahill.com",
+    "chosen_url": "https://www.cahill.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:40:57.866776",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "manatt": {
+    "domain": "manatt.com",
+    "chosen_url": "https://www.manatt.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:40:59.869054",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "jackson walker": {
+    "domain": "jw.com",
+    "chosen_url": "https://www.jw.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.108023",
+    "evidence": "known_domain table"
+  },
+  "lowenstein sandler": {
+    "domain": "lowenstein.com",
+    "chosen_url": "https://www.lowenstein.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:41:02.850297",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "holland and hart": {
+    "domain": "hollandhart.com",
+    "chosen_url": "https://www.hollandhart.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:41:57.927888",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "clark hill": {
+    "domain": "clark.com",
+    "chosen_url": "https://clark.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:41:58.681860",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "fisher and phillips": {
+    "domain": "fisher.com",
+    "chosen_url": "https://www.emerson.com/en-us/automation/fisher",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:42:00.035826",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "quarles and brady": {
+    "domain": "quarles.com",
+    "chosen_url": "https://www.quarles.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:42:01.496137",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "dinsmore": {
+    "domain": "dinsmore.com",
+    "chosen_url": "https://www.dinsmore.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:42:02.963812",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "boies schiller": {
+    "domain": "boiesschiller.com",
+    "chosen_url": "https://boiesschillerent.com",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:42:05.066693",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "munger tolles": {
+    "domain": "munger.com",
+    "chosen_url": "https://munger.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:42:10.426127",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "maynard nexsen": {
+    "domain": "maynardnexsen.com",
+    "chosen_url": "https://www.maynardnexsen.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:42:12.596583",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "honigman": {
+    "domain": "honigman.com",
+    "chosen_url": "https://www.honigman.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:42:31.323496",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "benesch": {
+    "domain": "benesch.com",
+    "chosen_url": "https://www.benesch.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:42:32.855060",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "buchanan ingersoll": {
+    "domain": "buchananingersoll.com",
+    "chosen_url": "https://www.bipc.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:42:54.628716",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "foley hoag": {
+    "domain": "foley.com",
+    "chosen_url": "https://www.foley.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.110345",
+    "evidence": "known_domain table"
+  },
+  "spencer fane": {
+    "domain": "spencerfane.com",
+    "chosen_url": "https://www.spencerfane.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:00.944421",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "stinson": {
+    "domain": "stinson.com",
+    "chosen_url": "https://www.stinson.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:02.489912",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "chapman and cutler": {
+    "domain": "chapman.com",
+    "chosen_url": "https://www.chapman.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:03.927291",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "saul ewing": {
+    "domain": "saul.com",
+    "chosen_url": "https://www.saul.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:05.355447",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "winstead": {
+    "domain": "winstead.com",
+    "chosen_url": "https://www.winstead.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:06.831658",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "moore and van allen": {
+    "domain": "moore.com",
+    "chosen_url": "https://moore.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:07.631841",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "knobbe martens": {
+    "domain": "knobbe.com",
+    "chosen_url": "https://www.knobbe.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:09.073889",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "mccarter and english": {
+    "domain": "mccarterenglish.com",
+    "chosen_url": "https://mccarterenglish.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:10.864972",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "brownstein": {
+    "domain": "brownstein.com",
+    "chosen_url": "https://brownstein.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:11.557574",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "thompson coburn": {
+    "domain": "thompson.com",
+    "chosen_url": "https://thompson.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:12.144413",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "marshall dennehey": {
+    "domain": "marshall.com",
+    "chosen_url": "https://www.marshall.com/us/en",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:14.775255",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "thompson hine": {
+    "domain": "thompson.com",
+    "chosen_url": "https://thompson.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:15.349009",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "ice miller": {
+    "domain": "ice.com",
+    "chosen_url": "https://www.ice.com/index",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:16.617272",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "brown rudnick": {
+    "domain": "brown.com",
+    "chosen_url": "https://brown.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:17.275718",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "stoel rives": {
+    "domain": "stoel.com",
+    "chosen_url": "https://www.stoel.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:18.751177",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "cole scott": {
+    "domain": "colescott.com",
+    "chosen_url": "https://www.hugedomains.com/domain_profile.cfm?d=colescott.com",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:25.074606",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "hughes hubbard": {
+    "domain": "hughes.com",
+    "chosen_url": "https://www.hughes.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:43:29.067535",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "epstein becker and green": {
+    "domain": "epstein.com",
+    "chosen_url": "https://jmail.world/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:01.784360",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "allen matkins": {
+    "domain": "allenmatkins.com",
+    "chosen_url": "https://www.allenmatkins.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:07.589443",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "burr and forman": {
+    "domain": "burr.com",
+    "chosen_url": "https://www.burr.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:08.981875",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "butler snow": {
+    "domain": "butlersnow.com",
+    "chosen_url": "https://www.butlersnow.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:11.627724",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "wiley rein": {
+    "domain": "wileyrein.com",
+    "chosen_url": "https://www.wiley.law/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:17.569097",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "dykema": {
+    "domain": "dykema.com",
+    "chosen_url": "https://www.dykema.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:23.708553",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "kasowitz": {
+    "domain": "kasowitz.com",
+    "chosen_url": "https://www.kasowitz.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:25.172320",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "vorys": {
+    "domain": "vorys.com",
+    "chosen_url": "https://www.vorys.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:26.827154",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "smith gambrell": {
+    "domain": "smith.com",
+    "chosen_url": "https://www.slb.com/legacy-companies/smith-bits",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:31.015222",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "kobre and kim": {
+    "domain": "kobrekim.com",
+    "chosen_url": "https://kobrekim.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:39.566687",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "goulston and storrs": {
+    "domain": "goulstonstorrs.com",
+    "chosen_url": "https://www.goulstonstorrs.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:49.011406",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "day pitney": {
+    "domain": "daypitney.com",
+    "chosen_url": "https://daypitney.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:55.190593",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "michael best": {
+    "domain": "michael.com",
+    "chosen_url": "https://www.michael.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:56.806916",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "phelps dunbar": {
+    "domain": "phelps.com",
+    "chosen_url": "https://www.phelps.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:58.525475",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "shutts and bowen": {
+    "domain": "shutts.com",
+    "chosen_url": "https://www.shutts.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:44:59.963492",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "pryor cashman": {
+    "domain": "pryor.com",
+    "chosen_url": "https://www.pryor.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:45:01.461141",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "goldberg segalla": {
+    "domain": "goldberg.com",
+    "chosen_url": "https://www.g2w2.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:45:05.999595",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "armstrong teasdale": {
+    "domain": "armstrong.com",
+    "chosen_url": "https://www.armstrong.com/?v_id=domain_/armstrong.com",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:45:07.482375",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "williams mullen": {
+    "domain": "williams.com",
+    "chosen_url": "https://www.williams.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:45:08.992510",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "robinson and cole": {
+    "domain": "robinson.com",
+    "chosen_url": "https://www.robinson.com/de/de/home/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:45:12.376330",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "seward and kissel": {
+    "domain": "seward.com",
+    "chosen_url": "https://www.seward.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:45:14.072795",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "adams and reese": {
+    "domain": "adamsandreese.com",
+    "chosen_url": "https://www.adamsandreese.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:45:55.502348",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "hanson bridgett": {
+    "domain": "hanson.com",
+    "chosen_url": "https://www.heidelbergmaterials.com/en",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:46:42.182754",
+    "evidence": "fallback guess; nav keywords present on homepage"
+  },
+  "irell": {
+    "domain": "irell.com",
+    "chosen_url": "https://www.irell.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:46:43.725944",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "robins kaplan": {
+    "domain": "robinskaplan.com",
+    "chosen_url": "https://www.robinskaplan.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:46:45.179089",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "tucker ellis": {
+    "domain": "tuckerellis.com",
+    "chosen_url": "https://www.tuckerellis.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:46:53.788190",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "rutan and tucker": {
+    "domain": "rutan.com",
+    "chosen_url": "https://www.rutan.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:46:59.788979",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "procopio cory": {
+    "domain": "procopio.com",
+    "chosen_url": "https://www.procopio.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:47:01.365823",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "hodgson russ": {
+    "domain": "hodgsonruss.com",
+    "chosen_url": "https://www.hodgsonruss.com/",
+    "confidence": 0.2,
+    "timestamp": "2026-02-21T23:47:05.753234",
+    "evidence": "fallback guess; token evidence in homepage"
+  },
+  "kirkland": {
+    "domain": "kirkland.com",
+    "chosen_url": "https://www.kirkland.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.098527",
+    "evidence": "known_domain table"
+  },
+  "baker mckenzie": {
+    "domain": "bakermckenzie.com",
+    "chosen_url": "https://www.bakermckenzie.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.099266",
+    "evidence": "known_domain table"
+  },
+  "simpson thacher": {
+    "domain": "stblaw.com",
+    "chosen_url": "https://www.stblaw.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.099618",
+    "evidence": "known_domain table"
+  },
+  "greenberg traurig": {
+    "domain": "gtlaw.com",
+    "chosen_url": "https://www.gtlaw.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.099903",
+    "evidence": "known_domain table"
+  },
+  "holland and knight": {
+    "domain": "holland.law",
+    "chosen_url": "https://holland.law/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:36:33.117578",
+    "evidence": "deterministic match (score=6)",
+    "validation_score": 6
+  },
+  "squire patton": {
+    "domain": "squire.law",
+    "chosen_url": "https://squire.law/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:36:59.601575",
+    "evidence": "deterministic match (score=5)",
+    "validation_score": 5
+  },
+  "arnold and porter": {
+    "domain": "arnoldand.com",
+    "chosen_url": "https://www.arnoldand.com/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:37:40.133949",
+    "evidence": "deterministic match (score=8)",
+    "validation_score": 8
+  },
+  "baker and hostetler": {
+    "domain": "bakerlaw.com",
+    "chosen_url": "https://www.bakerlaw.com/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:38:08.616239",
+    "evidence": "deterministic match (score=8)",
+    "validation_score": 8
+  },
+  "vinson and elkins": {
+    "domain": "velaw.com",
+    "chosen_url": "https://www.velaw.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.103790",
+    "evidence": "known_domain table"
+  },
+  "bryan cave": {
+    "domain": "bryanlaw.com",
+    "chosen_url": "https://bryanlaw.com/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:38:30.708857",
+    "evidence": "deterministic match (score=14)",
+    "validation_score": 14
+  },
+  "baker botts": {
+    "domain": "bakerbotts.com",
+    "chosen_url": "https://www.bakerbotts.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.104492",
+    "evidence": "known_domain table"
+  },
+  "gordon rees": {
+    "domain": "gordon.law",
+    "chosen_url": "https://jlgordonlaw.com/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:38:45.558952",
+    "evidence": "deterministic match (score=6)",
+    "validation_score": 6
+  },
+  "barnes and thornburg": {
+    "domain": "barneslaw.com",
+    "chosen_url": "https://www.barneslaw.com/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:38:50.698842",
+    "evidence": "deterministic match (score=6)",
+    "validation_score": 6
+  },
+  "arentfox schiff": {
+    "domain": "arentfox.com",
+    "chosen_url": "https://www.afslaw.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:39:12.010022",
+    "evidence": "deterministic match (score=6)",
+    "validation_score": 6
+  },
+  "davis wright": {
+    "domain": "davis.law",
+    "chosen_url": "https://davis.law/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:39:14.070473",
+    "evidence": "deterministic match (score=8)",
+    "validation_score": 8
+  },
+  "kramer levin": {
+    "domain": "kramerlaw.com",
+    "chosen_url": "https://www.kramerlaw.com/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:40:12.114549",
+    "evidence": "deterministic match (score=14)",
+    "validation_score": 14
+  },
+  "snell and wilmer": {
+    "domain": "snelllaw.com",
+    "chosen_url": "https://www.snelllaw.com/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:40:22.446535",
+    "evidence": "deterministic match (score=8)",
+    "validation_score": 8
+  },
+  "dickinson wright": {
+    "domain": "dickinsonlaw.com",
+    "chosen_url": "https://www.dickinsonbradshaw.com/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:40:48.819241",
+    "evidence": "deterministic match (score=7)",
+    "validation_score": 7
+  },
+  "frost brown": {
+    "domain": "frost.law",
+    "chosen_url": "https://askfrost.com/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:41:04.578924",
+    "evidence": "deterministic match (score=12)",
+    "validation_score": 12
+  },
+  "hinshaw": {
+    "domain": "hinshaw.law",
+    "chosen_url": "https://www.hinshawlaw.com/en",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:41:43.874550",
+    "evidence": "deterministic match (score=6)",
+    "validation_score": 6
+  },
+  "freeman mathis and gary": {
+    "domain": "freemanlaw.com",
+    "chosen_url": "https://freemanlaw.com/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:42:51.443288",
+    "evidence": "deterministic match (score=10)",
+    "validation_score": 10
+  },
+  "cox castle and nicholson": {
+    "domain": "coxcastle.com",
+    "chosen_url": "https://www.coxcastle.com/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:43:27.012481",
+    "evidence": "deterministic match (score=5)",
+    "validation_score": 5
+  },
+  "porter wright": {
+    "domain": "porter-wright.com",
+    "chosen_url": "https://www.porter-wright.com/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T00:43:32.752051",
+    "evidence": "deterministic match (score=8)",
+    "validation_score": 8
+  },
+  "latham": {
+    "domain": "lw.com",
+    "chosen_url": "https://www.lw.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.098692",
+    "evidence": "known_domain table"
+  },
+  "dla piper": {
+    "domain": "dlapiper.com",
+    "chosen_url": "https://www.dlapiper.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.098822",
+    "evidence": "known_domain table"
+  },
+  "skadden": {
+    "domain": "skadden.com",
+    "chosen_url": "https://www.skadden.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.098924",
+    "evidence": "known_domain table"
+  },
+  "sidley": {
+    "domain": "sidley.com",
+    "chosen_url": "https://www.sidley.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.099082",
+    "evidence": "known_domain table"
+  },
+  "ropes and gray": {
+    "domain": "ropesgray.com",
+    "chosen_url": "https://www.ropesgray.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.099170",
+    "evidence": "known_domain table"
+  },
+  "morgan lewis": {
+    "domain": "morganlewis.com",
+    "chosen_url": "https://www.morganlewis.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.099465",
+    "evidence": "known_domain table"
+  },
+  "hogan lovells": {
+    "domain": "hoganlovells.com",
+    "chosen_url": "https://www.hoganlovells.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.099545",
+    "evidence": "known_domain table"
+  },
+  "dentons": {
+    "domain": "dentons.com",
+    "chosen_url": "https://www.dentons.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.099758",
+    "evidence": "known_domain table"
+  },
+  "goodwin procter": {
+    "domain": "goodwinlaw.com",
+    "chosen_url": "https://www.goodwinlaw.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.100135",
+    "evidence": "known_domain table"
+  },
+  "cooley": {
+    "domain": "cooley.com",
+    "chosen_url": "https://www.cooley.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.100844",
+    "evidence": "known_domain table"
+  },
+  "sullivan and cromwell": {
+    "domain": "sullcrom.com",
+    "chosen_url": "https://www.sullcrom.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.100958",
+    "evidence": "known_domain table"
+  },
+  "weil": {
+    "domain": "weil.com",
+    "chosen_url": "https://www.weil.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.101213",
+    "evidence": "known_domain table"
+  },
+  "mayer brown": {
+    "domain": "mayerbrown.com",
+    "chosen_url": "https://www.mayerbrown.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.101292",
+    "evidence": "known_domain table"
+  },
+  "wilson sonsini": {
+    "domain": "wsgr.com",
+    "chosen_url": "https://www.wsgr.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.102198",
+    "evidence": "known_domain table"
+  },
+  "foley and lardner": {
+    "domain": "foley.com",
+    "chosen_url": "https://www.foley.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.102723",
+    "evidence": "known_domain table"
+  },
+  "omelveny": {
+    "domain": "omm.com",
+    "chosen_url": "https://www.omm.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.103555",
+    "evidence": "known_domain table"
+  },
+  "venable": {
+    "domain": "venable.com",
+    "chosen_url": "https://www.venable.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.104409",
+    "evidence": "known_domain table"
+  },
+  "bracewell": {
+    "domain": "bracewell.com",
+    "chosen_url": "https://www.bracewell.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.109264",
+    "evidence": "known_domain table"
+  },
+  "cole schotz": {
+    "domain": "cole.law",
+    "chosen_url": "https://michael.law/",
+    "confidence": 0.7,
+    "timestamp": "2026-02-22T03:54:01.560767",
+    "evidence": "deterministic"
+  },
+  "atkinson andelson loya ruud and romo": {
+    "domain": "aalrr.com",
+    "chosen_url": "https://www.aalrr.com/",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T03:55:11.189576",
+    "evidence": "deterministic"
+  },
+  "debevoise": {
+    "domain": "debevoise.com",
+    "chosen_url": "https://www.debevoise.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.101712",
+    "evidence": "known_domain table"
+  },
+  "alston and bird": {
+    "domain": "alston.com",
+    "chosen_url": "https://www.alston.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.102557",
+    "evidence": "known_domain table"
+  },
+  "sheppard mullin": {
+    "domain": "sheppardmullin.com",
+    "chosen_url": "https://www.sheppardmullin.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.102985",
+    "evidence": "known_domain table"
+  },
+  "wachtell": {
+    "domain": "wlrk.com",
+    "chosen_url": "https://www.wlrk.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.103173",
+    "evidence": "known_domain table"
+  },
+  "mcguirewoods": {
+    "domain": "mcguirewoods.com",
+    "chosen_url": "https://www.mcguirewoods.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.103486",
+    "evidence": "known_domain table"
+  },
+  "faegre drinker": {
+    "domain": "faegredrinker.com",
+    "chosen_url": "https://www.faegredrinker.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.103624",
+    "evidence": "known_domain table"
+  },
+  "polsinelli": {
+    "domain": "polsinelli.com",
+    "chosen_url": "https://www.polsinelli.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.103867",
+    "evidence": "known_domain table"
+  },
+  "jenner and block": {
+    "domain": "jenner.com",
+    "chosen_url": "https://www.jenner.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.105757",
+    "evidence": "known_domain table"
+  },
+  "womble bond": {
+    "domain": "wbd.com",
+    "chosen_url": "https://www.wbd.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.106601",
+    "evidence": "known_domain table"
+  },
+  "kilpatrick townsend": {
+    "domain": "kilpatricktownsend.com",
+    "chosen_url": "https://www.kilpatricktownsend.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.106694",
+    "evidence": "known_domain table"
+  },
+  "susman godfrey": {
+    "domain": "susmangodfrey.com",
+    "chosen_url": "https://www.susmangodfrey.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.107086",
+    "evidence": "known_domain table"
+  },
+  "fish": {
+    "domain": "fr.com",
+    "chosen_url": "https://www.fr.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.107226",
+    "evidence": "known_domain table"
+  },
+  "dorsey": {
+    "domain": "dorsey.com",
+    "chosen_url": "https://www.dorsey.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.107292",
+    "evidence": "known_domain table"
+  },
+  "bradley arant": {
+    "domain": "bradley.com",
+    "chosen_url": "https://www.bradley.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.107433",
+    "evidence": "known_domain table"
+  },
+  "loeb and loeb": {
+    "domain": "loeb.com",
+    "chosen_url": "https://www.loeb.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.108309",
+    "evidence": "known_domain table"
+  },
+  "choate hall": {
+    "domain": "choate.com",
+    "chosen_url": "https://www.choate.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.109020",
+    "evidence": "known_domain table"
+  },
+  "vedder price": {
+    "domain": "vedderprice.com",
+    "chosen_url": "https://www.vedderprice.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.109422",
+    "evidence": "known_domain table"
+  },
+  "finnegan": {
+    "domain": "finnegan.com",
+    "chosen_url": "https://www.finnegan.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.109501",
+    "evidence": "known_domain table"
+  },
+  "buchalter": {
+    "domain": "buchalter.com",
+    "chosen_url": "https://www.buchalter.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.110064",
+    "evidence": "known_domain table"
+  },
+  "kutak rock": {
+    "domain": "kutakrock.com",
+    "chosen_url": "https://www.kutakrock.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.110162",
+    "evidence": "known_domain table"
+  },
+  "patterson belknap": {
+    "domain": "pbwt.com",
+    "chosen_url": "https://www.pbwt.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.111894",
+    "evidence": "known_domain table"
+  },
+  "kelley drye": {
+    "domain": "kelleydrye.com",
+    "chosen_url": "https://www.kelleydrye.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.112040",
+    "evidence": "known_domain table"
+  },
+  "carlton fields": {
+    "domain": "carltonfields.com",
+    "chosen_url": "https://www.carltonfields.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.112355",
+    "evidence": "known_domain table"
+  },
+  "lathrop gpm": {
+    "domain": "lathropgpm.com",
+    "chosen_url": "https://www.lathropgpm.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.113806",
+    "evidence": "known_domain table"
+  },
+  "shumaker": {
+    "domain": "shumaker.com",
+    "chosen_url": "https://www.shumaker.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.114446",
+    "evidence": "known_domain table"
+  },
+  "fennemore craig": {
+    "domain": "fennemorelaw.com",
+    "chosen_url": "https://www.fennemorelaw.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.114536",
+    "evidence": "known_domain table"
+  },
+  "greenspoon marder": {
+    "domain": "greenspoonlaw.com",
+    "chosen_url": "https://www.greenspoonlaw.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.114619",
+    "evidence": "known_domain table"
+  },
+  "lewis roca": {
+    "domain": "lewisroca.com",
+    "chosen_url": "https://www.lewisroca.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.114701",
+    "evidence": "known_domain table"
+  },
+  "arnall golden gregory": {
+    "domain": "agg.com",
+    "chosen_url": "https://www.agg.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.114781",
+    "evidence": "known_domain table"
+  },
+  "grayrobinson": {
+    "domain": "gray-robinson.com",
+    "chosen_url": "https://www.gray-robinson.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.114854",
+    "evidence": "known_domain table"
+  },
+  "offit kurman": {
+    "domain": "offitkurman.com",
+    "chosen_url": "https://www.offitkurman.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.115002",
+    "evidence": "known_domain table"
+  },
+  "morris manning": {
+    "domain": "mmmlaw.com",
+    "chosen_url": "https://www.mmmlaw.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.115183",
+    "evidence": "known_domain table"
+  },
+  "bond schoeneck": {
+    "domain": "bsk.com",
+    "chosen_url": "https://www.bsk.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.115354",
+    "evidence": "known_domain table"
+  },
+  "ub greensfelder": {
+    "domain": "ubglaw.com",
+    "chosen_url": "https://www.ubglaw.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.115883",
+    "evidence": "known_domain table"
+  },
+  "miles and stockbridge": {
+    "domain": "milesstockbridge.com",
+    "chosen_url": "https://www.milesstockbridge.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.116359",
+    "evidence": "known_domain table"
+  },
+  "herrick feinstein": {
+    "domain": "herrick.com",
+    "chosen_url": "https://www.herrick.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.116452",
+    "evidence": "known_domain table"
+  },
+  "wilmer": {
+    "domain": "wilmerhale.com",
+    "chosen_url": "https://www.wilmerhale.com",
+    "confidence": 1.0,
+    "timestamp": "2026-02-22T04:11:54.101781",
+    "evidence": "known_domain table"
+  }
+}

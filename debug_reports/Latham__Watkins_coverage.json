@@ -1,0 +1,18 @@
+{
+  "firm": "Latham & Watkins",
+  "expected_total": null,
+  "discovered_urls": 20,
+  "coverage_ratio": null,
+  "strategies_attempted": [
+    "xml_sitemap"
+  ],
+  "final_status": "SUCCESS",
+  "discovery_status": "SUCCESS",
+  "failure_reason": null,
+  "notes": [
+    "Discovered 20 attorneys (no expected total available)"
+  ],
+  "url_sources": {
+    "xml_sitemap": 4206
+  }
+}

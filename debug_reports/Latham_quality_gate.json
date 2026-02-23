@@ -1,0 +1,18 @@
+{
+  "total_candidates": 3711,
+  "sampled_count": 200,
+  "positive_samples": 0,
+  "filtered_count": 3711,
+  "rejected_count": 0,
+  "rejection_reasons": {},
+  "inferred_pattern": {
+    "regex": "",
+    "path_prefix": "",
+    "slug_pattern": "",
+    "confidence": 0.0,
+    "sample_urls": []
+  },
+  "diagnostics": {
+    "warning": "Only 0 positive samples, using basic filtering"
+  }
+}

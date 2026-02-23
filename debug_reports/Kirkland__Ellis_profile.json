@@ -1,0 +1,18 @@
+{
+  "firm": "Kirkland & Ellis",
+  "base_url": "https://www.kirkland.com",
+  "detected_types": [
+    "XML_SITEMAP",
+    "DIRECTORY_HTML"
+  ],
+  "signals": [
+    "Classification: BOT_PROTECTED",
+    "\u26a0 Bot protection detected - may require special handling",
+    "\u26a0 HTTP 403 encountered - authentication may be required",
+    "403 Forbidden on /attorneys",
+    "403 Forbidden on /lawyers",
+    "403 Forbidden on /people",
+    "403 Forbidden on /professionals",
+    "403 Forbidden on /team"
+  ]
+}

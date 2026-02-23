@@ -1,0 +1,16 @@
+[
+  {
+    "firm": "Kirkland",
+    "expected_total": null,
+    "expected_total_source": "unknown",
+    "discovered_attorney_count": 490,
+    "extracted_attorney_count": 490,
+    "missing_fields_ratio": 0.0,
+    "blocked_ratio": 0.0,
+    "coverage_ratio": null,
+    "needs_additional_sources": true,
+    "legally_incomplete": false,
+    "legally_incomplete_reason": null,
+    "notes": []
+  }
+]
