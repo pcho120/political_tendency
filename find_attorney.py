@@ -555,8 +555,6 @@ class AttorneyFinder:
 
         # Firm-level enrichment mode
         self.enrichment_mode: str = "REQUESTS"  # REQUESTS | PLAYWRIGHT | PLAYWRIGHT_ONLY
-        # Kirkland-specific: pre-filled profiles from API intercept (skip per-profile Playwright)
-        self._kirkland_prefilled_profiles: dict[str, dict] = {}  # full_url -> API record
 
         # Phase 1-3 Observation System
         self.observation_logger = ObservationLogger("firm_observations.jsonl")
@@ -1035,8 +1033,8 @@ class AttorneyFinder:
 
         # Fix 3: Kirkland override — xml_sitemap returns 0 URLs; force directory strategies
         if "kirkland" in firm_name.lower():
-            self.log("  [KIRKLAND_OVERRIDE] Disabling xml_sitemap; using JSON intercept + directory strategies")
-            strategies.extend(["kirkland_json_intercept", "directory_listing", "alphabet_enumeration", "dom_exhaustion"])
+            self.log("  [KIRKLAND_OVERRIDE] Disabling xml_sitemap; using Playwright DOM scroll strategy")
+            strategies.extend(["kirkland_scroll", "directory_listing", "alphabet_enumeration", "dom_exhaustion"])
             self.log(f"  Selected strategies: {', '.join(strategies)}")
             return strategies
 
@@ -1154,7 +1152,7 @@ class AttorneyFinder:
                     if hasattr(att, 'full_name'):  # New AttorneyProfile format
                         # Format list fields as comma-separated strings
                         offices_str = ", ".join(att.offices) if att.offices else ""
-                        departments_str = ", ".join(att.department) if att.department else ""
+                        departments_str = att.department if att.department else ""
                         practices_str = ", ".join(att.practice_areas) if att.practice_areas else ""
                         industries_str = ", ".join(att.industries) if att.industries else ""
                         bars_str = ", ".join(att.bar_admissions) if att.bar_admissions else ""
@@ -1455,9 +1453,9 @@ class AttorneyFinder:
 
         strategy_fns = {s: _make_strategy_fn(s) for s in strategies}
         # Use extended timeout for Playwright-based strategies (they legitimately take longer)
-        _PLAYWRIGHT_STRATEGIES = {"kirkland_json_intercept"}
+        _PLAYWRIGHT_STRATEGIES = {"kirkland_scroll"}
         _uses_playwright = bool(set(strategies) & _PLAYWRIGHT_STRATEGIES)
-        firm_hard_timeout = 300 if _uses_playwright else MAX_FIRM_TIME
+        firm_hard_timeout = 7200 if _uses_playwright else MAX_FIRM_TIME
 
         # Resolve expected_total before loop (use directory page text if available)
         page_text = getattr(profile, 'directory_page_text', None)
@@ -1562,16 +1560,16 @@ class AttorneyFinder:
         if len(urls_to_enrich) < _pre_locale:
             self.log(f"  [LOCALE_FILTER] Removed {_pre_locale - len(urls_to_enrich)} non-English locale URLs")
 
-        # Kirkland API bypass: use pre-populated profiles from JSON intercept
-        if self._kirkland_prefilled_profiles and "kirkland" in firm_name.lower():
-            self.log(
-                f"  [KIRKLAND_API] Using pre-populated API data for {len(urls_to_enrich)} profiles"
-                f" (skipping Playwright)"
-            )
-            attorneys = self._build_kirkland_profiles_from_api(urls_to_enrich, firm_name)
-        else:
-            self.log(f"\n--- Enriching {len(urls_to_enrich)} profile URLs ---")
-            attorneys = self._enrich_profile_urls(urls_to_enrich, base_url, firm_name)
+
+        self.log(f"\n--- Enriching {len(urls_to_enrich)} profile URLs ---")
+        # Kirkland (and other JS-SPA firms) require Playwright rendering for profile pages.
+        # requests.get() returns an empty shell HTML for these sites.
+        _js_spa_firms = ['kirkland']
+        if any(tok in firm_name.lower() for tok in _js_spa_firms):
+            if self.enrichment_mode != 'PLAYWRIGHT_ONLY':
+                self.enrichment_mode = 'PLAYWRIGHT_ONLY'
+                self.log(f"  [ENRICHMENT] Force PLAYWRIGHT_ONLY for JS-SPA firm: {firm_name}")
+        attorneys = self._enrich_profile_urls(urls_to_enrich, base_url, firm_name)
 
         # Phase 5.5: Determine Discovery Status and External Directory Fallback
         discovery_status, failure_reason = self._determine_discovery_status(coverage_report, attorneys)
@@ -2263,8 +2261,8 @@ class AttorneyFinder:
             return self._strategy_alphabet_enumeration(base_url)
         elif strategy == "xml_sitemap_navigation":
             return self._strategy_xml_sitemap_navigation(base_url)
-        elif strategy == "kirkland_json_intercept":
-            return self._strategy_kirkland_json_intercept(base_url)
+        elif strategy == "kirkland_scroll":
+            return self._strategy_kirkland_scroll(base_url)
         else:
             print(f"[ERROR] Unknown strategy: {strategy}")
             return set(), None
@@ -2599,57 +2597,29 @@ class AttorneyFinder:
         self.log("  XML Sitemap Navigation: delegating to xml_sitemap")
         return self._strategy_xml_sitemap(base_url)
 
-    def _strategy_kirkland_json_intercept(self, base_url: str) -> tuple[set[str], int | None]:
-        """Strategy: Kirkland & Ellis SPA attorney discovery via A-Z letter enumeration.
+    def _strategy_kirkland_scroll(self, base_url: str) -> tuple[set[str], int | None]:
+        """Strategy: Kirkland & Ellis attorney discovery via per-letter Playwright DOM scroll.
 
-        Kirkland's /lawyers page is a Sitecore SPA. Attorneys are loaded by clicking
-        each letter A-Z, which triggers a POST to:
-            /api/sitecore/ProfessionalsApi/Lawyers?letter={X}[&page={N}]
-        returning JSON: {"Results": [{"Url": "/lawyers/a/name", ...}], "TotalSearchResults": N}
-        Pagination is scroll-triggered: scrolling to bottom loads &page=1, &page=2, etc.
-
-        Strategy:
-          1. Navigate to /lawyers to establish session
-          2. Intercept all ProfessionalsApi/Lawyers responses
-          3. For each letter A-Z: click letter, then scroll-paginate until no new results
-          4. Collect all profile URLs and max TotalSearchResults
+        For each letter A-Z:
+          1. Navigate to https://www.kirkland.com/lawyers?letter={letter}
+          2. Wait for initial lawyer cards to load
+          3. Scroll to bottom repeatedly until no new anchor tags appear for 3 consecutive scrolls
+          4. Extract all href attributes containing /lawyers/{letter.lower()}/
+          5. Normalize to absolute URLs and deduplicate globally
         """
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
-            self.log("  [KIRKLAND_JSON] Playwright not available \u2014 skipping")
+            self.log("  [KIRKLAND_SCROLL] Playwright not available — skipping")
             return set(), None
-        urls: set[str] = set()
-        expected_total: int | None = None
-        domain = "www.kirkland.com"
-        lawyers_page = "https://www.kirkland.com/lawyers"
 
-        # Accumulate JSON payloads per URL to avoid duplicates
-        captured_by_url: dict[str, list] = {}
-        def _on_response(response) -> None:
-            nonlocal expected_total
-            try:
-                if "ProfessionalsApi/Lawyers" not in response.url:
-                    return
-                if not response.ok:
-                    return
-                ct = response.headers.get("content-type", "").lower()
-                if "json" not in ct:
-                    return
-                data = response.json()
-                results = data.get("Results", [])
-                if results and response.url not in captured_by_url:
-                    captured_by_url[response.url] = results
-                    self.log(f"  [KIRKLAND_JSON] Captured {len(results)} records from {response.url}")
-                    total = data.get("TotalSearchResults")
-                    if isinstance(total, int) and (expected_total is None or total > expected_total):
-                        expected_total = total
-            except Exception:
-                pass
+        urls: set[str] = set()
+        domain = "www.kirkland.com"
 
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=not self.headful)
+                self.log(f"  [KIRKLAND_SCROLL] Playwright launch | headful={self.headful} headless={not self.headful}")
                 context = browser.new_context(
                     user_agent=(
                         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -2657,144 +2627,125 @@ class AttorneyFinder:
                         "Chrome/121.0.0.0 Safari/537.36"
                     )
                 )
-                # Block heavyweight assets
+                # Do NOT block stylesheets — Sitecore SPA needs them to render cards
                 def _handle_route(route) -> None:
-                    if route.request.resource_type in ("image", "font", "media", "stylesheet"):
+                    if route.request.resource_type in ("image", "font", "media"):
                         route.abort()
                     else:
                         route.continue_()
                 context.route("**/*", _handle_route)
-                page = context.new_page()
-                page.on("response", _on_response)
-                # Step 1: Load /lawyers to establish session + cookies
-                try:
-                    self.rate_limit_manager.wait(domain)
-                except Exception:
-                    pass
-                page.goto(lawyers_page, timeout=30000, wait_until="networkidle")
-                page.wait_for_timeout(1500)
-                # Step 2: Click each letter A-Z and scroll-paginate
-                letters = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-                for letter in letters:
-                    try:
-                        # Click the letter button
-                        page.click(f'text="{letter}"', timeout=5000)
-                        page.wait_for_timeout(1500)
-                        # Scroll-paginate: scroll to bottom until no new responses fire
-                        prev_count = len(captured_by_url)
-                        for _ in range(20):  # max 20 scroll pages per letter (~200 attorneys)
-                            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                            page.wait_for_timeout(1200)
-                            if len(captured_by_url) == prev_count:
-                                break  # no new API responses fired
-                            prev_count = len(captured_by_url)
-                        # Scroll back to top for next letter
-                        page.evaluate("window.scrollTo(0, 0)")
-                        page.wait_for_timeout(300)
-                        try:
-                            self.rate_limit_manager.wait(domain)
-                        except Exception:
-                            pass
+                pg = context.new_page()
+                letter_counts: dict[str, dict] = {}  # TASK E: per-letter debug artifact
 
+                for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+                    letter_url = f"https://www.kirkland.com/lawyers?letter={letter}"
+                    letter_lower = letter.lower()
+                    path_prefix = f"/lawyers/{letter_lower}/"
+
+                    try:
+                        self.rate_limit_manager.wait(domain)
                     except Exception:
-                        pass  # letter may not exist or page changed
-                page.close()
+                        pass
+
+                    try:
+                        pg.goto(letter_url, timeout=30000, wait_until="domcontentloaded")
+                        # Wait for initial person-result cards to appear (Vue SPA rendering)
+                        try:
+                            pg.wait_for_selector(".person-result", timeout=12000)
+                        except Exception:
+                            pg.wait_for_timeout(3000)  # fallback
+                    except Exception as e:
+                        self.log(
+                            f"  [KIRKLAND_SCROLL] Letter={letter} navigation error: {type(e).__name__}: {e}"
+                        )
+                        continue
+
+                    # Scroll + click 'See More' until exhausted.
+                    # After each action wait for new .person-result cards to appear.
+                    consecutive_no_new = 0
+                    prev_card_count = 0
+                    max_scrolls = 200  # safety cap per letter
+                    scroll_count = 0
+                    while consecutive_no_new < 3 and scroll_count < max_scrolls:
+                        # Click 'See More' button if visible (preferred over scroll)
+                        try:
+                            see_more = pg.locator(".search-results__load-more")
+                            if see_more.is_visible(timeout=500):
+                                see_more.click()
+                                pg.wait_for_timeout(2000)  # wait for new cards to load
+                        except Exception:
+                            pass  # button not present — fall through to scroll
+                        pg.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                        pg.wait_for_timeout(2000)  # give Vue time to render new cards
+                        card_count = pg.eval_on_selector_all(
+                            ".person-result",
+                            "els => els.length",
+                        )
+                        if card_count > prev_card_count:
+                            consecutive_no_new = 0
+                            prev_card_count = card_count
+                        else:
+                            consecutive_no_new += 1
+                        scroll_count += 1
+                    # Collect all matching hrefs after scroll is complete
+                    # Use precise selector: person-result name links only
+                    final_hrefs: list[str] = pg.eval_on_selector_all(
+                        ".person-result__name a",
+                        "els => els.map(el => el.getAttribute('href'))",
+                    )
+                    # Fallback: also collect all /lawyers/ links in case selector misses some
+                    all_hrefs: list[str] = pg.eval_on_selector_all(
+                        "a[href*='/lawyers/']",
+                        "els => els.map(el => el.getAttribute('href'))",
+                    )
+                    combined = set(final_hrefs + all_hrefs)
+                    letter_urls: set[str] = set()
+                    for href in combined:
+                        if href and path_prefix in href:
+                            full_url = (
+                                href if href.startswith("http")
+                                else f"https://www.kirkland.com{href}"
+                            )
+                            letter_urls.add(full_url)
+                    before_letter_count = len(urls)
+                    urls.update(letter_urls)
+                    added_this_letter = len(urls) - before_letter_count
+                    letter_counts[letter] = {
+                        'profiles_added': added_this_letter,
+                        'sample_urls': sorted(letter_urls)[:5],
+                    }
+                    self.log(
+                        f"  [KIRKLAND_SCROLL] Letter={letter} profiles_added={added_this_letter} total={len(urls)}"
+                    )
+                pg.close()
+                context.close()
+                browser.close()
+                # TASK E: write per-letter debug artifact
+                try:
+                    debug_dir = Path('debug_reports')
+                    debug_dir.mkdir(parents=True, exist_ok=True)
+                    firm_slug = re.sub(r'[^\w]+', '_', self.firm or 'unknown').strip('_')
+                    artifact_path = debug_dir / f'{firm_slug}_letter_counts.json'
+                    with artifact_path.open('w', encoding='utf-8') as _fh:
+                        json.dump(letter_counts, _fh, indent=2)
+                    self.log(f"  [KIRKLAND_SCROLL] Per-letter debug artifact: {artifact_path}")
+                except Exception as _write_err:
+                    self.log(f"  [KIRKLAND_SCROLL] Could not write letter_counts artifact: {_write_err}")
                 context.close()
                 browser.close()
         except Exception as e:
-            self.log(f"  [KIRKLAND_JSON] Playwright error: {type(e).__name__}: {e}")
+            self.log(f"  [KIRKLAND_SCROLL] Fatal error: {type(e).__name__}: {e}")
+            if urls:
+                self.log(f"  [KIRKLAND_SCROLL] Returning {len(urls)} URLs collected before error")
+                return urls, None
             return set(), None
-
-        # Extract profile URLs from all captured payloads
-        for entry_url, results in captured_by_url.items():
-            for rec in results:
-                rel_url = rec.get("Url", "")
-                if rel_url:
-                    full_url = (
-                        rel_url if rel_url.startswith("http")
-                        else f"https://www.kirkland.com{rel_url}"
-                    )
-                    urls.add(full_url)
-                    # Cache full API record for enrichment bypass
-                    self._kirkland_prefilled_profiles[full_url] = rec
 
         if not urls:
-            self.log("  [KIRKLAND_JSON] No attorney-list JSON responses detected")
+            self.log("  [KIRKLAND_SCROLL] No attorney URLs discovered")
             return set(), None
 
-        self.log(
-            f"  [KIRKLAND_JSON] Total profile URLs discovered: {len(urls)}"
-            # Note: TotalSearchResults from API is per-letter count, not firm total.
-            # Return None so CoverageLoop treats this as 'no expected total known'.
-        )
+        self.log(f"  [KIRKLAND_SCROLL] Total profile URLs discovered: {len(urls)}")
         return urls, None
-    def _build_kirkland_profiles_from_api(
-        self, urls_to_enrich: list, firm_name: str
-    ) -> list:
-        """Build AttorneyProfile objects directly from Kirkland directory API data.
-
-        Uses pre-populated records from _kirkland_prefilled_profiles (captured
-        during discovery via JSON intercept) to skip per-profile Playwright fetches.
-
-        Field mapping:
-            Name       -> full_name
-            Position   -> title
-            Offices[].Name -> offices (list)
-            Email      -> diagnostics['email']
-            Url        -> profile_url
-        """
-        from attorney_extractor import AttorneyProfile
-
-        profiles = []
-        success_count = 0
-        partial_count = 0
-
-        for url in urls_to_enrich:
-            rec = self._kirkland_prefilled_profiles.get(url)
-            profile = AttorneyProfile(firm=firm_name, profile_url=url)
-
-            if rec:
-                profile.full_name = rec.get("Name") or ""
-                profile.title = rec.get("Position") or ""
-                # Offices is a list of dicts with "Name" key
-                raw_offices = rec.get("Offices") or []
-                profile.offices = [
-                    o.get("Name", "") for o in raw_offices
-                    if isinstance(o, dict) and o.get("Name")
-                ]
-                # Store email in diagnostics (not a standard profile field)
-                email = rec.get("Email") or ""
-                if email:
-                    profile.diagnostics["email"] = email
-                profile.diagnostics["source"] = "kirkland_api_intercept"
-
-                # Determine extraction status
-                has_name = bool(profile.full_name and profile.full_name.strip())
-                has_title = bool(profile.title and profile.title.strip())
-
-                if has_name and has_title:
-                    profile.extraction_status = "SUCCESS"
-                    profile.missing_fields = []
-                    success_count += 1
-                elif has_name:
-                    profile.extraction_status = "PARTIAL"
-                    profile.missing_fields = ["title"]
-                    partial_count += 1
-                else:
-                    profile.extraction_status = "FAILED"
-                    profile.missing_fields = ["full_name", "title", "offices"]
-            else:
-                profile.extraction_status = "FAILED"
-                profile.missing_fields = ["full_name", "title", "offices"]
-
-            profiles.append(profile)
-
-        self.log(
-            f"  [KIRKLAND_API] Built {len(profiles)} profiles from API data: "
-            f"{success_count} SUCCESS, {partial_count} PARTIAL, "
-            f"{len(profiles) - success_count - partial_count} FAILED"
-        )
-        return profiles
 
     # ========================================================================
     # COVERAGE VALIDATION
@@ -4821,7 +4772,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    #raise SystemExit(main())
-    from discovery import discover_attorneys
-    urls = discover_attorneys("https://www.kirkland.com")
-    print(len(urls))
+    raise SystemExit(main())
+    #from discovery import discover_attorneys
+    #urls = discover_attorneys("https://www.kirkland.com")
+    #print(len(urls))

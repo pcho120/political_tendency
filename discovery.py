@@ -643,7 +643,46 @@ class _DiscoveryEngine:
                         pw_page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                         pw_page.wait_for_timeout(1500)
                     html = pw_page.content()
+                    # --- DOM direct extraction fallback (for sites like Kirkland) ---
+                    # After scroll + html acquisition, extract anchors directly from the rendered DOM.
+                    try:
+                        dom_hrefs = pw_page.eval_on_selector_all(
+                            "a[href]",
+                            "els => els.map(e => e.getAttribute('href')).filter(Boolean)"
+                        )
+                    except Exception:
+                        dom_hrefs = []
+
+                    # Normalize + filter to likely profile URLs.
+                    for href in dom_hrefs:
+                        href = str(href)
+                        if href.startswith("/lawyers/"):
+                            u = self._base + href
+                        elif href.startswith("http"):
+                            u = href
+                        else:
+                            continue
+
+                        # Strong filter: prefer the exact Kirkland pattern /lawyers/{letter}/...
+                        # but keep a softer fallback for other firms.
+                        low = u.lower()
+                        if f"/lawyers/{letter.lower()}/" in low or "/lawyers/" in low:
+                            if u not in self._seen_urls:
+                                urls.append(u)
+                                self._seen_urls.add(u)
+
                     pw_page.close()
+                    before = len(self._seen_urls)
+
+                    # === 여기서 URL 추출 ===
+
+                    after = len(self._seen_urls)
+
+                    self._logger.log_discovery_letter(
+                        letter=letter,
+                        total_search_results=0,
+                        extracted_count=(after - before),
+                    )
                     # Extract from intercepted JSON first
                     json_found = False
                     for item in captured_json:

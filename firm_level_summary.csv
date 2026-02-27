@@ -1,2 +1,2 @@
 Firm,Expected Total,Expected Total Source,Discovered URLs,Extracted Attorneys,US Attorneys,Coverage Ratio,Missing Fields Ratio,Status,Legally Incomplete Reason,Sources Tried,Notes
-Kirkland,,unknown,490,490,407,,0.0%,PARTIAL,,kirkland_json_intercept,
+Kirkland,,unknown,4162,4162,4162,,10.1%,PARTIAL,,"kirkland_scroll, directory_listing, alphabet_enumeration",Stabilization stop: 2 consecutive strategies added 0 new URLs

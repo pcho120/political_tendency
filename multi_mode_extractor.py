@@ -186,7 +186,9 @@ class MultiModeExtractor:
                 "attention required",
                 "checking your browser",
                 "captcha",
-                "cloudflare",
+                "cloudflare-challenge",
+                "__cf_chl_",
+                "cf-challenge-running",
                 "bot protection",
                 "challenge-platform",
                 "cf-browser-verification",
@@ -302,15 +304,22 @@ class MultiModeExtractor:
                 domain = urlparse(profile_url).netloc
                 if rate_limit_fn:
                     rate_limit_fn(domain)
-                
-                # Navigate and wait for networkidle
-                page.goto(profile_url, timeout=30000, wait_until="networkidle")
-                
-                # Wait for potential profile content selectors
+
+                # Navigate: use domcontentloaded for JS-SPA sites (networkidle can timeout)
                 try:
-                    page.wait_for_selector("h1, [class*='name'], main, article", timeout=5000)
-                except:
-                    pass  # No selector found
+                    page.goto(profile_url, timeout=30000, wait_until="domcontentloaded")
+                except Exception:
+                    # Already timed out but page may still have loaded content
+                    pass
+
+                # Wait for profile content to appear (Kirkland: .profile-heading; generic: h1)
+                try:
+                    page.wait_for_selector(
+                        ".profile-heading, h1, [class*='name'], main, article",
+                        timeout=15000
+                    )
+                except Exception:
+                    page.wait_for_timeout(4000)  # last-resort wait
                 
                 # Auto-detect and click accordions/tabs for hidden fields
                 # (Education, Bar Admissions, etc. often hidden behind accordions)
@@ -375,7 +384,9 @@ class MultiModeExtractor:
                     "attention required",
                     "checking your browser",
                     "captcha",
-                    "cloudflare",
+                    "cloudflare-challenge",
+                    "__cf_chl_",
+                    "cf-challenge-running",
                     "bot protection",
                     "challenge-platform",
                     "cf-browser-verification",
@@ -638,11 +649,23 @@ class MultiModeExtractor:
             'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
             'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
         }
-        
+        # Known US cities (without state code) used by law firms
+        US_CITIES = {
+            'new york', 'chicago', 'los angeles', 'houston', 'dallas', 'san francisco',
+            'washington', 'boston', 'miami', 'seattle', 'austin', 'denver', 'atlanta',
+            'philadelphia', 'silicon valley', 'palo alto', 'menlo park', 'century city',
+            'san diego', 'minneapolis', 'charlotte', 'detroit', 'pittsburgh', 'baltimore',
+            'nashville', 'phoenix', 'salt lake city', 'portland', 'richmond', 'raleigh',
+            'wilmington', 'hartford', 'new orleans', 'cincinnati', 'indianapolis',
+            'kansas city', 'st. louis', 'columbus', 'cleveland', 'rochester', 'buffalo',
+            'sacramento', 'san jose', 'las vegas', 'orlando', 'tampa', 'jacksonville',
+            'fort worth', 'oklahoma city', 'tucson', 'albuquerque', 'memphis', 'louisville',
+        }
+
         us_offices = []
         for office in offices:
             office_clean = office.strip()
-            
+
             # Pattern: "City, ST" where ST is US state code
             if ', ' in office_clean:
                 parts = office_clean.split(', ')
@@ -653,7 +676,10 @@ class MultiModeExtractor:
             # Pattern: "Washington DC" (without comma)
             elif office_clean.lower() in ['washington dc', 'washington, dc']:
                 us_offices.append('Washington, DC')
-        
+            # Pattern: bare US city name (e.g., "Chicago", "New York")
+            elif office_clean.lower() in US_CITIES:
+                us_offices.append(office_clean)
+
         return us_offices
     
     def _validate_and_add_reasons(self, profile: AttorneyProfile, mode: str) -> AttorneyProfile:

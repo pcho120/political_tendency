@@ -66,7 +66,7 @@ DEGREE_PATTERNS = {
 }
 
 # Strict name validation: must look like "First Last" (allows hyphen, apostrophe, period in names)
-_VALID_NAME_RE = re.compile(r"^[A-Z][a-z]+(?:[\s][A-Z][a-z\.\-']+)+$")
+_VALID_NAME_RE = re.compile(r"^[A-Z][a-zA-Z\-]+(?:[\s][A-Z][a-zA-Z\.\-']+)+$")
 
 
 @dataclass
@@ -141,11 +141,13 @@ class AttorneyProfile:
 
         self.missing_fields = []
 
-        # Validate full_name with strict regex (not just non-empty)
+        # Validate full_name - strip known professional suffixes before regex check
+        _name_for_check = self.full_name.strip() if self.full_name else ''
+        _name_for_check = re.sub(r',\s*(?:P\.C\.|Jr\.?|Sr\.?|II|III|IV|Esq\.?)\s*$', '', _name_for_check, flags=re.IGNORECASE).strip()
         name_valid = (
-            bool(self.full_name)
-            and _VALID_NAME_RE.match(self.full_name.strip())
-            and self.full_name.strip().lower() not in _HEADER_TERMS
+            bool(_name_for_check)
+            and _VALID_NAME_RE.match(_name_for_check)
+            and _name_for_check.lower() not in _HEADER_TERMS
         )
         if not name_valid:
             self.missing_fields.append("full_name")
@@ -199,30 +201,125 @@ class AttorneyExtractor:
             AttorneyProfile with all available data (missing fields = null)
         """
         profile = AttorneyProfile(firm=firm_name, profile_url=profile_url)
-        
+
+        # STAGE 0: Firm-specific extraction (highest priority — exact CSS selectors)
+        if self.use_bs4:
+            soup_stage0 = BeautifulSoup(html, 'html.parser')
+            if self._is_kirkland_profile(soup_stage0, profile_url):
+                self._extract_kirkland_profile(profile, soup_stage0)
+                profile.calculate_status()
+                if profile.extraction_status == 'SUCCESS':
+                    return profile
+                # Partial — fall through to generic stages for remaining fields
+
         # STAGE 1: JSON-LD extraction (highest priority)
         json_ld_data = self._extract_json_ld(html)
         if json_ld_data:
             self._merge_json_ld_data(profile, json_ld_data)
-        
+
         # STAGE 2: Embedded state objects (React/Next.js)
         embedded_data = self._extract_embedded_state(html)
         if embedded_data:
             self._merge_embedded_data(profile, embedded_data)
-        
+
         # STAGE 3: BeautifulSoup semantic extraction
         if self.use_bs4:
             soup = BeautifulSoup(html, 'html.parser')
             self._extract_with_bs4(profile, soup, profile_url)
-        
+
         # STAGE 4: Regex fallback extraction
         self._extract_with_regex(profile, html, profile_url)
-        
+
         # Calculate final status
         profile.calculate_status()
-        
+
         return profile
     
+    # ========================================================================
+    # STAGE 0: FIRM-SPECIFIC EXTRACTION (Kirkland & Ellis)
+    # ========================================================================
+
+    def _is_kirkland_profile(self, soup: 'BeautifulSoup', profile_url: str) -> bool:
+        """Detect if this is a Kirkland & Ellis profile page."""
+        if 'kirkland.com' in profile_url:
+            return True
+        # Also detect by page class
+        body = soup.find('body')
+        if body and 'page__people-detail' in (body.get('class') or []):
+            return True
+        return False
+
+    def _extract_kirkland_profile(self, profile: 'AttorneyProfile', soup: 'BeautifulSoup') -> None:
+        """Extract all fields from a Kirkland & Ellis profile using confirmed CSS selectors."""
+        # Name
+        if not profile.full_name:
+            el = soup.select_one('.profile-heading__name-label, .profile-heading__name')
+            if el:
+                name = el.get_text(strip=True)
+                # Strip professional suffixes before validation
+                _clean = re.sub(r',\s*(?:P\.C\.|Jr\.?|Sr\.?|II|III|IV|Esq\.?)\s*$', '', name, flags=re.IGNORECASE).strip()
+                if _clean and self._looks_like_person_name(_clean):
+                    profile.full_name = name  # store original (with suffix)
+
+        # Title (position/level)
+        if not profile.title:
+            el = soup.select_one('.profile-heading__position')
+            if el:
+                profile.title = el.get_text(strip=True)
+
+        # Department (specialty/practice group)
+        if not profile.department:
+            el = soup.select_one('.profile-heading__specialty')
+            if el:
+                profile.department = el.get_text(strip=True)
+
+        # Office locations
+        if not profile.offices:
+            offices = [el.get_text(strip=True) for el in soup.select('.profile-heading__location-link')]
+            if offices:
+                profile.offices = offices
+
+        # Practice areas (.prominent-services__link)
+        if not profile.practice_areas:
+            practices = [el.get_text(strip=True) for el in soup.select('.prominent-services__link')]
+            if practices:
+                profile.practice_areas = practices
+
+        # Bar admissions
+        if not profile.bar_admissions:
+            admissions = []
+            for li in soup.select('.normalized-rte-list--admissions li'):
+                year_el = li.select_one('.normalized-rte-list__admission-year')
+                loc_el  = li.select_one('.normalized-rte-list__admission-location')
+                parts = []
+                if year_el:
+                    parts.append(year_el.get_text(strip=True))
+                if loc_el:
+                    parts.append(loc_el.get_text(strip=True))
+                entry = ' '.join(parts).strip()
+                if entry:
+                    admissions.append(entry)
+            if admissions:
+                profile.bar_admissions = admissions
+
+        # Education
+        if not profile.education:
+            edu_records = []
+            for li in soup.select('.normalized-rte-list--education li'):
+                school_el = li.select_one('.normalized-rte-list__item--edu-name')
+                school_el = li.select_one('.normalized-rte-list__item--edu-name')
+                degree_el = li.select_one('.normalized-rte-list__item--edu-degree')
+                year_el   = li.select_one('.normalized-rte-list__item--edu-year')
+                if school_el or degree_el:
+                    rec = EducationRecord()
+                    rec.school = school_el.get_text(strip=True) if school_el else None
+                    rec.degree = degree_el.get_text(strip=True) if degree_el else None
+                    rec.year   = year_el.get_text(strip=True) if year_el else None
+                    edu_records.append(rec)
+            if edu_records:
+                profile.education = edu_records
+
+
     # ========================================================================
     # STAGE 1: JSON-LD EXTRACTION
     # ========================================================================
@@ -437,17 +534,10 @@ class AttorneyExtractor:
             if bar not in profile.bar_admissions:
                 profile.bar_admissions.append(bar)
         
-        # Education
-        education_records = self._extract_education_bs4(soup)
-        for edu in education_records:
-            # Avoid duplicates
-            is_duplicate = False
-            for existing_edu in profile.education:
-                if (existing_edu.school == edu.school and 
-                    existing_edu.degree == edu.degree):
-                    is_duplicate = True
-                    break
-            if not is_duplicate:
+        # Education — skip generic extraction if Kirkland-specific extractor already populated it
+        if not profile.education:
+            education_records = self._extract_education_bs4(soup)
+            for edu in education_records:
                 profile.education.append(edu)
     
     def _extract_name_bs4(self, soup: BeautifulSoup, url: str) -> str | None:
@@ -1024,11 +1114,13 @@ class AttorneyProfile:
 
         self.missing_fields = []
 
-        # Validate full_name with strict regex (not just non-empty)
+        # Validate full_name - strip known professional suffixes before regex check
+        _name_for_check = self.full_name.strip() if self.full_name else ''
+        _name_for_check = re.sub(r',\s*(?:P\.C\.|Jr\.?|Sr\.?|II|III|IV|Esq\.?)\s*$', '', _name_for_check, flags=re.IGNORECASE).strip()
         name_valid = (
-            bool(self.full_name)
-            and _VALID_NAME_RE.match(self.full_name.strip())
-            and self.full_name.strip().lower() not in _HEADER_TERMS
+            bool(_name_for_check)
+            and _VALID_NAME_RE.match(_name_for_check)
+            and _name_for_check.lower() not in _HEADER_TERMS
         )
         if not name_valid:
             self.missing_fields.append("full_name")
@@ -1082,30 +1174,123 @@ class AttorneyExtractor:
             AttorneyProfile with all available data (missing fields = null)
         """
         profile = AttorneyProfile(firm=firm_name, profile_url=profile_url)
-        
+
+        # STAGE 0: Firm-specific extraction (highest priority — exact CSS selectors)
+        if self.use_bs4:
+            soup_stage0 = BeautifulSoup(html, 'html.parser')
+            if self._is_kirkland_profile(soup_stage0, profile_url):
+                self._extract_kirkland_profile(profile, soup_stage0)
+                profile.calculate_status()
+                if profile.extraction_status == 'SUCCESS':
+                    return profile
+                # Partial — fall through to generic stages for remaining fields
+
         # STAGE 1: JSON-LD extraction (highest priority)
         json_ld_data = self._extract_json_ld(html)
         if json_ld_data:
             self._merge_json_ld_data(profile, json_ld_data)
-        
+
         # STAGE 2: Embedded state objects (React/Next.js)
         embedded_data = self._extract_embedded_state(html)
         if embedded_data:
             self._merge_embedded_data(profile, embedded_data)
-        
+
         # STAGE 3: BeautifulSoup semantic extraction
         if self.use_bs4:
             soup = BeautifulSoup(html, 'html.parser')
             self._extract_with_bs4(profile, soup, profile_url)
-        
+
         # STAGE 4: Regex fallback extraction
         self._extract_with_regex(profile, html, profile_url)
-        
+
         # Calculate final status
         profile.calculate_status()
-        
+
         return profile
     
+    # ========================================================================
+    # STAGE 0: FIRM-SPECIFIC EXTRACTION (Kirkland & Ellis)
+    # ========================================================================
+
+    def _is_kirkland_profile(self, soup: BeautifulSoup, profile_url: str) -> bool:
+        """Detect if this is a Kirkland & Ellis profile page."""
+        if 'kirkland.com' in profile_url:
+            return True
+        body = soup.find('body')
+        if body and 'page__people-detail' in (body.get('class') or []):
+            return True
+        return False
+
+    def _extract_kirkland_profile(self, profile: AttorneyProfile, soup: BeautifulSoup) -> None:
+        """Extract all fields from a Kirkland & Ellis profile using confirmed CSS selectors."""
+        # Name
+        if not profile.full_name:
+            el = soup.select_one('.profile-heading__name-label, .profile-heading__name')
+            if el:
+                name = el.get_text(strip=True)
+                # Strip professional suffixes before validation
+                _clean = re.sub(r',\s*(?:P\.C\.|Jr\.?|Sr\.?|II|III|IV|Esq\.?)\s*$', '', name, flags=re.IGNORECASE).strip()
+                if _clean and self._looks_like_person_name(_clean):
+                    profile.full_name = name  # store original (with suffix)
+
+        # Title (position/level)
+        if not profile.title:
+            el = soup.select_one('.profile-heading__position')
+            if el:
+                profile.title = el.get_text(strip=True)
+
+        # Department (specialty/practice group)
+        if not profile.department:
+            el = soup.select_one('.profile-heading__specialty')
+            if el:
+                profile.department = el.get_text(strip=True)
+
+        # Office locations
+        if not profile.offices:
+            offices = [el.get_text(strip=True) for el in soup.select('.profile-heading__location-link')]
+            if offices:
+                profile.offices = offices
+
+        # Practice areas (.prominent-services__link)
+        if not profile.practice_areas:
+            practices = [el.get_text(strip=True) for el in soup.select('.prominent-services__link')]
+            if practices:
+                profile.practice_areas = practices
+
+        # Bar admissions
+        if not profile.bar_admissions:
+            admissions = []
+            for li in soup.select('.normalized-rte-list--admissions li'):
+                year_el = li.select_one('.normalized-rte-list__admission-year')
+                loc_el  = li.select_one('.normalized-rte-list__admission-location')
+                parts = []
+                if year_el:
+                    parts.append(year_el.get_text(strip=True))
+                if loc_el:
+                    parts.append(loc_el.get_text(strip=True))
+                entry = ' '.join(parts).strip()
+                if entry:
+                    admissions.append(entry)
+            if admissions:
+                profile.bar_admissions = admissions
+
+        # Education
+        if not profile.education:
+            edu_records = []
+            for li in soup.select('.normalized-rte-list--education li'):
+                school_el = li.select_one('.normalized-rte-list__item--edu-name')
+                degree_el = li.select_one('.normalized-rte-list__item--edu-degree')
+                year_el   = li.select_one('.normalized-rte-list__item--edu-year')
+                if school_el or degree_el:
+                    rec = EducationRecord()
+                    rec.school = school_el.get_text(strip=True) if school_el else None
+                    rec.degree = degree_el.get_text(strip=True) if degree_el else None
+                    rec.year   = year_el.get_text(strip=True) if year_el else None
+                    edu_records.append(rec)
+            if edu_records:
+                profile.education = edu_records
+
+
     # ========================================================================
     # STAGE 1: JSON-LD EXTRACTION
     # ========================================================================
@@ -1320,17 +1505,10 @@ class AttorneyExtractor:
             if bar not in profile.bar_admissions:
                 profile.bar_admissions.append(bar)
         
-        # Education
-        education_records = self._extract_education_bs4(soup)
-        for edu in education_records:
-            # Avoid duplicates
-            is_duplicate = False
-            for existing_edu in profile.education:
-                if (existing_edu.school == edu.school and 
-                    existing_edu.degree == edu.degree):
-                    is_duplicate = True
-                    break
-            if not is_duplicate:
+        # Education — skip generic extraction if Kirkland-specific extractor already populated it
+        if not profile.education:
+            education_records = self._extract_education_bs4(soup)
+            for edu in education_records:
                 profile.education.append(edu)
     
     def _extract_name_bs4(self, soup: BeautifulSoup, url: str) -> str | None:
@@ -1489,6 +1667,41 @@ class AttorneyExtractor:
         
         return practices
     
+    def _extract_section_items_after_header(
+        self,
+        soup: BeautifulSoup,
+        header_keywords: list[str],
+    ) -> list[str]:
+        """Generic section-header-based extractor.
+
+        Locates h2/h3/h4 tags whose text (case-insensitive) contains ANY of the
+        supplied keywords, then walks forward siblings until the next heading,
+        collecting text from <li>, <a>, <p>, and <dd> elements.
+
+        Returns a deduplicated list of stripped strings (<= 200 chars each).
+        """
+        seen: set[str] = set()
+        results: list[str] = []
+
+        for header in soup.find_all(['h2', 'h3', 'h4']):
+            header_text = header.get_text(strip=True).lower()
+            if not any(kw.lower() in header_text for kw in header_keywords):
+                continue
+
+            # Walk forward siblings until we hit another heading
+            for sibling in header.find_all_next():
+                # Stop at the next heading at the same (or higher) level
+                if sibling.name in ('h2', 'h3', 'h4') and sibling is not header:
+                    break
+                # Collect leaf text nodes from list items, links, paragraphs, dd
+                if sibling.name in ('li', 'a', 'dd', 'p'):
+                    text = sibling.get_text(strip=True)
+                    if text and len(text) <= 200 and text not in seen:
+                        seen.add(text)
+                        results.append(text)
+
+        return results
+
     def _extract_industries_bs4(self, soup: BeautifulSoup) -> list[str]:
         """Extract industries using BeautifulSoup"""
         # Section-header approach: find h2/h3/h4 whose text contains 'industr'

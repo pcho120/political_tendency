@@ -33,3 +33,7 @@ Thumbs.db
 *.temp
 
 nul
+
+# Debug artifacts
+debug_reports/
+nul

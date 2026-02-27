@@ -1,18 +1,18 @@
 {
   "firm": "Kirkland",
   "expected_total": null,
-  "discovered_urls": 490,
+  "discovered_urls": 4162,
   "coverage_ratio": null,
   "strategies_attempted": [
-    "kirkland_json_intercept"
+    "kirkland_scroll"
   ],
   "final_status": "SUCCESS",
   "discovery_status": "SUCCESS",
   "failure_reason": null,
   "notes": [
-    "Discovered 490 attorneys (no expected total available)"
+    "Discovered 4162 attorneys (no expected total available)"
   ],
   "url_sources": {
-    "kirkland_json_intercept": 490
+    "kirkland_scroll": 4162
   }
 }

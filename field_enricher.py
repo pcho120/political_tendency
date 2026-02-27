@@ -36,6 +36,13 @@ try:
 except ImportError:
     EXTRUCT_AVAILABLE = False
 
+try:
+    from bs4 import BeautifulSoup
+    BS4_AVAILABLE = True
+except ImportError:
+    BeautifulSoup = None  # type: ignore[assignment,misc]
+    BS4_AVAILABLE = False
+
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -450,45 +457,130 @@ class FieldEnricher:
         elog: EnrichmentLog,
     ) -> None:
         """
-        Heuristic HTML extraction for fields still missing after structured data passes.
-        Uses regex-based extraction — less reliable but better than nothing.
+        Section-based HTML extraction using BeautifulSoup heading maps.
+        Builds a heading_text -> section_content map from h1-h4 tags,
+        then extracts each field from the relevant section.
+        Non-destructive: only adds values not already present.
+        Falls back to regex for name/title only.
         """
         missing = profile._missing_field_names()
+        html_source = source_type + '_html'
 
+        # ── name / title via regex (no heading needed) ──────────────────────
         if 'full_name' in missing:
             name = _html_extract_name(html)
             if name:
                 profile.full_name = name
-                elog.add('full_name', source_type + '_html', source_url, name)
+                elog.add('full_name', html_source, source_url, name)
 
         if 'title' in missing:
             title = _html_extract_title(html)
             if title:
                 profile.title = title
-                elog.add('title', source_type + '_html', source_url, title)
+                elog.add('title', html_source, source_url, title)
 
-        if 'bar_admissions' in missing or not profile.bar_admissions:
-            bars = _html_extract_bar_admissions(html)
-            new_bars = [b for b in bars if b not in profile.bar_admissions]
-            if new_bars:
-                profile.bar_admissions.extend(new_bars)
-                elog.add('bar_admissions', source_type + '_html', source_url, new_bars)
+        # ── section-based extraction ─────────────────────────────────────────
+        sections = _html_extract_sections(html)
+        if not sections:
+            # bs4 unavailable — fall back to legacy regex helpers
+            if 'bar_admissions' in missing or not profile.bar_admissions:
+                bars = _html_extract_bar_admissions(html)
+                new_bars = [b for b in bars if b not in profile.bar_admissions]
+                if new_bars:
+                    profile.bar_admissions.extend(new_bars)
+                    elog.add('bar_admissions', html_source, source_url, new_bars)
+            if 'education' in missing or not profile.education:
+                edu_records = _html_extract_education(html)
+                for rec in edu_records:
+                    if not any(e.school == rec.school for e in profile.education):
+                        profile.education.append(rec)
+                        elog.add('education', html_source, source_url,
+                                 {'degree': rec.degree, 'school': rec.school, 'year': rec.year})
+            if 'practice_areas' in missing or not profile.practice_areas:
+                pas = _html_extract_practice_areas(html)
+                new_pas = [p for p in pas if p not in profile.practice_areas]
+                if new_pas:
+                    profile.practice_areas.extend(new_pas)
+                    elog.add('practice_areas', html_source, source_url, new_pas)
+            # industries: no legacy fallback — set sentinel
+            if not profile.industries:
+                profile.industries = ['no industry field']
+                elog.add('industries', html_source, source_url, ['no industry field'])
+            return
 
-        if 'education' in missing or not profile.education:
-            edu_records = _html_extract_education(html)
-            for rec in edu_records:
-                if not any(e.school == rec.school for e in profile.education):
-                    profile.education.append(rec)
-                    elog.add('education', source_type + '_html', source_url,
-                             {'degree': rec.degree, 'school': rec.school, 'year': rec.year})
+        # ── departments ──────────────────────────────────────────────────────
+        if not profile.department:
+            dept_keywords = {'department', 'group', 'teams', 'team'}
+            dept_items = _items_from_sections(sections, dept_keywords)
+            if dept_items:
+                profile.department = dept_items[:5]
+                elog.add('department', html_source, source_url, dept_items[:5])
 
+        # ── practice areas ───────────────────────────────────────────────────
         if 'practice_areas' in missing or not profile.practice_areas:
-            pas = _html_extract_practice_areas(html)
-            new_pas = [p for p in pas if p not in profile.practice_areas]
+            pa_keywords = {'practice', 'services', 'capabilities', 'areas', 'expertise'}
+            pa_items = _items_from_sections(sections, pa_keywords)
+            new_pas = [p for p in pa_items if p not in profile.practice_areas]
             if new_pas:
-                profile.practice_areas.extend(new_pas)
-                elog.add('practice_areas', source_type + '_html', source_url, new_pas)
+                profile.practice_areas.extend(new_pas[:20])
+                elog.add('practice_areas', html_source, source_url, new_pas[:20])
 
+        # ── industries ───────────────────────────────────────────────────────
+        ind_keywords = {'industry', 'industries', 'sectors', 'sector'}
+        ind_items = _items_from_sections(sections, ind_keywords)
+        new_inds = [i for i in ind_items if i not in profile.industries]
+        if new_inds:
+            profile.industries.extend(new_inds[:20])
+            elog.add('industries', html_source, source_url, new_inds[:20])
+        elif not profile.industries:
+            # Explicit sentinel: this page has no industry section
+            profile.industries = ['no industry field']
+            elog.add('industries', html_source, source_url, ['no industry field'])
+
+        # ── bar admissions ────────────────────────────────────────────────────
+        if 'bar_admissions' in missing or not profile.bar_admissions:
+            bar_keywords = {'bar', 'admission', 'admissions', 'licensed', 'qualifications', 'licensure'}
+            bar_items = _items_from_sections(sections, bar_keywords)
+            valid_bars = [b for b in bar_items if _is_bar_admission(b) and b not in profile.bar_admissions]
+            if valid_bars:
+                profile.bar_admissions.extend(valid_bars[:20])
+                elog.add('bar_admissions', html_source, source_url, valid_bars[:20])
+            elif not profile.bar_admissions:
+                # Legacy regex fallback for bar admissions
+                bars = _html_extract_bar_admissions(html)
+                new_bars = [b for b in bars if b not in profile.bar_admissions]
+                if new_bars:
+                    profile.bar_admissions.extend(new_bars)
+                    elog.add('bar_admissions', html_source, source_url, new_bars)
+
+        # ── education ─────────────────────────────────────────────────────────
+        if 'education' in missing or not profile.education:
+            edu_keywords = {'education', 'credentials', 'academic', 'schools', 'academic background'}
+            edu_items = _items_from_sections(sections, edu_keywords)
+            for text in edu_items:
+                rec = _parse_edu_text(text)
+                if rec and not any(e.school == rec.school for e in profile.education):
+                    profile.education.append(rec)
+                    elog.add('education', html_source, source_url,
+                             {'degree': rec.degree, 'school': rec.school, 'year': rec.year})
+            if not profile.education:
+                # Legacy regex fallback for education
+                edu_records = _html_extract_education(html)
+                for rec in edu_records:
+                    if not any(e.school == rec.school for e in profile.education):
+                        profile.education.append(rec)
+                        elog.add('education', html_source, source_url,
+                                 {'degree': rec.degree, 'school': rec.school, 'year': rec.year})
+
+        # ── missing_fields marker for JD ──────────────────────────────────────
+        has_jd = any(
+            (rec.degree or '').upper().startswith('J') and 'D' in (rec.degree or '').upper()
+            for rec in profile.education
+        )
+        if not has_jd and profile.education is not None:
+            diag = profile.diagnostics.setdefault('missing_fields', [])
+            if 'JD' not in diag:
+                diag.append('JD')
 
 # ---------------------------------------------------------------------------
 # AttorneyProfile helper methods (monkey-patched onto the dataclass)
@@ -719,6 +811,87 @@ _NON_US_FAST_REJECT = {
     'australia', 'toronto', 'canada', 'brussels', 'amsterdam', 'madrid',
     'milan', 'rome', 'moscow', 'korea', 'seoul',
 }
+
+
+# ---------------------------------------------------------------------------
+# Section-based HTML extraction helpers (BeautifulSoup)
+# ---------------------------------------------------------------------------
+
+
+def _html_extract_sections(html: str) -> dict[str, list[str]]:
+    """
+    Parse HTML with BeautifulSoup and build a heading -> items map.
+
+    Returns: {normalized_heading_text: [item_text, ...], ...}
+    where item_text comes from <li> inside the section, then <a>, then
+    comma/pipe-split text of the section paragraph.
+
+    Returns empty dict if BeautifulSoup is unavailable.
+    """
+    if not BS4_AVAILABLE or BeautifulSoup is None:
+        return {}
+
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+    except Exception:
+        return {}
+
+    sections: dict[str, list[str]] = {}
+    headings = soup.find_all(['h1', 'h2', 'h3', 'h4'])
+
+    for heading in headings:
+        heading_text = heading.get_text(separator=' ', strip=True).lower()
+        if not heading_text:
+            continue
+
+        # Gather content until the next heading at the same or higher level
+        items: list[str] = []
+        sibling = heading.find_next_sibling()
+        while sibling and sibling.name not in ('h1', 'h2', 'h3', 'h4'):
+            # Prefer <li> tags
+            for li in sibling.find_all('li'):
+                text = li.get_text(separator=' ', strip=True)
+                if 2 < len(text) < 200:
+                    items.append(text)
+            # If section container has no <li>, try <a>
+            if not items:
+                for a in sibling.find_all('a'):
+                    text = a.get_text(strip=True)
+                    if 2 < len(text) < 200 and text not in items:
+                        items.append(text)
+            # If still no items, split paragraph text by comma / pipe
+            if not items:
+                text = sibling.get_text(separator=' ', strip=True)
+                for part in re.split(r'[,|;\n]+', text):
+                    part = part.strip()
+                    if 2 < len(part) < 200:
+                        items.append(part)
+            sibling = sibling.find_next_sibling()
+
+        if items:
+            sections[heading_text] = items
+
+    return sections
+
+
+def _items_from_sections(
+    sections: dict[str, list[str]],
+    keywords: set[str],
+) -> list[str]:
+    """
+    Find all sections whose heading contains ANY of the keywords,
+    and return all items from those sections (deduplicated, order-preserved).
+    """
+    seen: set[str] = set()
+    result: list[str] = []
+    for heading, items in sections.items():
+        if any(kw in heading for kw in keywords):
+            for item in items:
+                if item not in seen:
+                    seen.add(item)
+                    result.append(item)
+    return result
+
 
 
 def _html_extract_name(html: str) -> str | None:

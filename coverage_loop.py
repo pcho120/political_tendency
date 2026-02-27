@@ -324,7 +324,11 @@ class CoverageLoop:
         if expected:
             self._log(f"  [CoverageLoop] Expected total: {expected} (source: {self.expected_result.source}, conf: {self.expected_result.confidence:.2f})")
         else:
-            self._log(f"  [CoverageLoop] Expected total unknown — will stop at first working strategy")
+            self._log(f"  [CoverageLoop] Expected total unknown — will run all strategies until timeout or stabilization (N=2 consecutive zero-yield)")
+
+        # Stabilization tracking: consecutive strategies that added 0 new URLs
+        _consecutive_no_new: int = 0
+        _stabilization_threshold: int = 2  # configurable: stop after N consecutive zero-yield strategies
 
         for strategy in self.strategy_order:
             # Hard timeout guard
@@ -349,6 +353,7 @@ class CoverageLoop:
             except Exception as exc:
                 self._log(f"  [CoverageLoop] {strategy} ERROR: {exc}")
                 notes.append(f"{strategy} failed: {exc}")
+                added = set()
                 continue
 
             after = len(self.all_urls)
@@ -371,10 +376,17 @@ class CoverageLoop:
                     self._log(f"  [CoverageLoop] No new URLs from {strategy}, continuing...")
                     continue
             else:
-                # No expected total — stop once we have meaningful results
-                if len(self.all_urls) >= COVERAGE_MINIMUM_ABS:
-                    self._log(f"  [CoverageLoop] No expected total — stopping at {len(self.all_urls)} URLs")
-                    break
+                # No expected total — use stabilization to decide when to stop
+                # Do NOT stop just because we have some URLs; run all strategies
+                if len(added) == 0:
+                    _consecutive_no_new += 1
+                    self._log(f"  [CoverageLoop] No new URLs from {strategy} ({_consecutive_no_new}/{_stabilization_threshold} consecutive zero-yield)")
+                    if _consecutive_no_new >= _stabilization_threshold:
+                        notes.append(f"Stabilization stop: {_consecutive_no_new} consecutive strategies added 0 new URLs")
+                        self._log(f"  [CoverageLoop] STABILIZED — stopping at {len(self.all_urls)} URLs (reason: {_consecutive_no_new} consecutive zero-yield strategies)")
+                        break
+                else:
+                    _consecutive_no_new = 0  # reset on any new URLs
 
         # Build result
         discovered = len(self.all_urls)
