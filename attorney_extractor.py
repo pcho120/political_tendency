@@ -271,7 +271,7 @@ class AttorneyExtractor:
         if not profile.department:
             el = soup.select_one('.profile-heading__specialty')
             if el:
-                profile.department = el.get_text(strip=True)
+                profile.department = [el.get_text(strip=True)]
 
         # Office locations
         if not profile.offices:
@@ -1243,7 +1243,7 @@ class AttorneyExtractor:
         if not profile.department:
             el = soup.select_one('.profile-heading__specialty')
             if el:
-                profile.department = el.get_text(strip=True)
+                profile.department = [el.get_text(strip=True)]
 
         # Office locations
         if not profile.offices:

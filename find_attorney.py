@@ -1150,22 +1150,36 @@ class AttorneyFinder:
                 for att in attorneys:
                     # Handle new AttorneyProfile dataclass
                     if hasattr(att, 'full_name'):  # New AttorneyProfile format
-                        # Format list fields as comma-separated strings
-                        offices_str = ", ".join(att.offices) if att.offices else ""
-                        departments_str = att.department if att.department else ""
-                        practices_str = ", ".join(att.practice_areas) if att.practice_areas else ""
-                        industries_str = ", ".join(att.industries) if att.industries else ""
-                        bars_str = ", ".join(att.bar_admissions) if att.bar_admissions else ""
+                        # Helper: safely convert any field to comma-separated string
+                        def _to_str(v):
+                            if v is None:
+                                return ""
+                            if isinstance(v, list):
+                                return ", ".join(str(x) for x in v if x)
+                            return str(v)
+
+                        offices_str     = _to_str(att.offices)
+                        departments_str = _to_str(att.department)
+                        practices_str   = _to_str(att.practice_areas)
+                        industries_str  = _to_str(att.industries)
+                        bars_str        = _to_str(att.bar_admissions)
+                        missing_fields_str = _to_str(att.missing_fields)
 
                         # Education as JSON-stringified list of dicts (Step 2f)
-                        education_str = json.dumps(
-                            [e.to_dict() for e in att.education], ensure_ascii=False
-                        ) if att.education else "[]"
-
-                        missing_fields_str = ", ".join(att.missing_fields) if att.missing_fields else ""
+                        try:
+                            education_str = json.dumps(
+                                [e.to_dict() for e in att.education], ensure_ascii=False
+                            ) if att.education else "[]"
+                        except Exception:
+                            education_str = json.dumps(
+                                [str(e) for e in att.education], ensure_ascii=False
+                            ) if att.education else "[]"
 
                         # Extract data_source from diagnostics
-                        data_source = att.diagnostics.get('data_source', 'firm_website')
+                        try:
+                            data_source = att.diagnostics.get('data_source', 'firm_website')
+                        except Exception:
+                            data_source = 'firm_website'
 
                         out_ws.append([
                             firm,
