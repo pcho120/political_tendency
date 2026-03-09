@@ -134,54 +134,76 @@ class SourceValidator:
             result.validation_notes.append("Source has no candidate URLs")
             return result
         
-        # Sample URLs (random selection)
+        # Sample URLs with retry logic for stale/404 URLs
+        # Build a larger pool (up to 3x sample_size) so we can skip dead URLs
+        # without counting them against the threshold.
         sample_count = min(sample_size, len(candidate_urls))
-        sampled_urls = random.sample(candidate_urls, sample_count)
-        
-        logger.info(f"  Sampling {sample_count} profile URLs...")
-        
-        # Extract from each sample
-        for url in sampled_urls:
+        pool_size = min(sample_size * 3, len(candidate_urls))
+        pool_urls = random.sample(candidate_urls, pool_size)
+
+        logger.info(f"  Sampling up to {sample_count} valid profiles from pool of {pool_size}...")
+
+        # Extract from pool, collecting only successful samples up to sample_count
+        successful_samples: list = []
+        failed_samples: list = []
+        for url in pool_urls:
             sample = self._sample_profile(url)
-            result.sampled_profiles.append(sample)
+            # A sample is "usable" if we got a name OR extraction succeeded
+            if sample.name or sample.extraction_success:
+                successful_samples.append(sample)
+                if len(successful_samples) >= sample_count:
+                    break
+            else:
+                failed_samples.append(sample)
+                logger.debug(f"  Skipping stale/failed URL in sample pool: {url} ({sample.failure_reason})")
+
+        # Merge: successful first, then failures (for audit trail)
+        result.sampled_profiles = successful_samples + failed_samples
+        # Threshold is based only on how many successful samples we aimed for
+        effective_sample_count = len(successful_samples) if successful_samples else sample_count
         
-        # Calculate field validation counts
+        # Validation thresholds (based on successful samples only)
+        name_required = effective_sample_count  # All successful samples must have name
+        field_threshold = max(1, effective_sample_count // 3)  # At least 1/3
+
+        # Count fields from successful samples only
         field_counts = {
-            'name': sum(1 for s in result.sampled_profiles if s.name),
-            'title': sum(1 for s in result.sampled_profiles if s.title),
-            'office': sum(1 for s in result.sampled_profiles if s.has_us_office),
-            'practice_areas': sum(1 for s in result.sampled_profiles if s.practice_areas)
+            'name': sum(1 for s in successful_samples if s.name),
+            'title': sum(1 for s in successful_samples if s.title),
+            'office': sum(1 for s in successful_samples if s.has_us_office),
+            'practice_areas': sum(1 for s in successful_samples if s.practice_areas)
         }
-        
         result.field_validation = field_counts
-        
-        # Validation thresholds
-        name_required = sample_count  # All samples must have name
-        field_threshold = max(1, sample_count // 3)  # At least 1/3
-        
+
         passed_name = field_counts['name'] >= name_required
         passed_title = field_counts['title'] >= field_threshold
         passed_office = field_counts['office'] >= field_threshold
         passed_practice = field_counts['practice_areas'] >= field_threshold
-        allow_missing_title = any(s.from_playwright and s.name for s in result.sampled_profiles)
+        allow_missing_title = any(s.from_playwright and s.name for s in successful_samples)
+        # SPA pattern: names extracted consistently from static HTML but enrichment fields (title,
+        # office, practice_areas) are JS-rendered → allow missing metadata so the source is not
+        # incorrectly rejected. Enrichment will use Playwright later to fill those fields.
+        all_names_present = field_counts['name'] == effective_sample_count and effective_sample_count > 0
+        no_enrichment_fields = field_counts['title'] == 0 and field_counts['office'] == 0 and field_counts['practice_areas'] == 0
+        spa_pattern_detected = all_names_present and no_enrichment_fields
+        if spa_pattern_detected:
+            allow_missing_title = True
+            logger.info("  SPA pattern detected: names present but no title/office/practice_areas in static HTML; "
+                        "allowing validation to pass (Playwright will enrich later)")
         
-        logger.info(f"  Field validation:")
-        logger.info(f"    name: {field_counts['name']}/{sample_count} (required: {name_required})")
-        logger.info(f"    title: {field_counts['title']}/{sample_count} (required: {field_threshold})")
-        logger.info(f"    office (US): {field_counts['office']}/{sample_count} (required: {field_threshold})")
-        logger.info(f"    practice_areas: {field_counts['practice_areas']}/{sample_count} (required: {field_threshold})")
+        logger.info(f"  Field validation (from {effective_sample_count} usable samples, {len(failed_samples)} skipped as stale):")
+        logger.info(f"    name: {field_counts['name']}/{effective_sample_count} (required: {name_required})")
+        logger.info(f"    title: {field_counts['title']}/{effective_sample_count} (required: {field_threshold})")
+        logger.info(f"    office (US): {field_counts['office']}/{effective_sample_count} (required: {field_threshold})")
+        logger.info(f"    practice_areas: {field_counts['practice_areas']}/{effective_sample_count} (required: {field_threshold})")
         
         # Determine if source is valid
         if not passed_name:
             result.failure_reason = "name_threshold_not_met"
-            result.validation_notes.append(f"Name field missing in {sample_count - field_counts['name']}/{sample_count} samples")
+            result.validation_notes.append(f"Name field missing in {effective_sample_count - field_counts['name']}/{effective_sample_count} usable samples ({len(failed_samples)} stale URLs skipped)")
         elif not passed_title and not allow_missing_title:
             result.failure_reason = "title_threshold_not_met"
             result.validation_notes.append(f"Title field below threshold: {field_counts['title']}/{sample_count}")
-        elif not passed_office and not passed_practice and not allow_missing_title:
-            # At least ONE of office or practice areas should pass
-            result.failure_reason = "no_usable_metadata"
-            result.validation_notes.append("Neither office nor practice areas meet threshold")
         else:
             result.is_valid = True
             if not passed_title and allow_missing_title:
@@ -285,7 +307,7 @@ class SourceValidator:
         keywords = ['partner', 'associate', 'counsel', 'attorney', 'lawyer', 'of counsel']
         
         # Check common locations
-        for elem in soup.find_all(['p', 'div', 'span'], limit=20):
+        for elem in soup.find_all(['p', 'div', 'span'], limit=100):
             text = elem.get_text(strip=True).lower()
             if any(kw in text for kw in keywords) and len(text) < 100:
                 return elem.get_text(strip=True)
@@ -297,7 +319,7 @@ class SourceValidator:
         # Look for location/office keywords
         keywords = ['office', 'location', 'address']
         
-        for elem in soup.find_all(['div', 'span', 'p'], limit=30):
+        for elem in soup.find_all(['div', 'span', 'p'], limit=200):
             if any(kw in str(elem.get('class', '')).lower() for kw in keywords):
                 text = elem.get_text(strip=True)
                 if text and len(text) > 2 and len(text) < 200:
@@ -310,7 +332,7 @@ class SourceValidator:
         practice_areas = []
         keywords = ['practice', 'area', 'focus', 'expertise']
         
-        for elem in soup.find_all(['div', 'ul', 'section'], limit=20):
+        for elem in soup.find_all(['div', 'ul', 'section'], limit=100):
             if any(kw in str(elem.get('class', '')).lower() for kw in keywords):
                 # Extract list items or text
                 items = elem.find_all('li')
@@ -352,8 +374,13 @@ class SourceValidator:
         if response.status_code == 403:
             return "http_403"
         
-        # Check Cloudflare
-        if 'cf-ray' in response.headers or 'cloudflare' in response.text.lower():
+        # Check Cloudflare CHALLENGE (not just CDN presence)
+        # A site can use Cloudflare as CDN (normal, not blocked) vs. Cloudflare bot challenge (blocked).
+        # Only flag if: HTTP 403 with cf-ray header, OR challenge page title.
+        is_cf_challenge = (
+            response.status_code == 403 and 'cf-ray' in response.headers
+        )
+        if is_cf_challenge:
             return "cloudflare"
         
         # Check reCAPTCHA

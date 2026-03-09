@@ -1,0 +1,320 @@
+[
+  {
+    "firm": "DLA Piper",
+    "url": "https://www.dlapiper.com",
+    "sitemap": null,
+    "robots_disallow": [],
+    "attorney_path": null,
+    "notes": [],
+    "rank": 3
+  },
+  {
+    "firm": "Norton Rose",
+    "url": "https://www.nortonrosefulbright.com",
+    "sitemap": "https://www.nortonrosefulbright.com/sitemap-NRFWeb.xml",
+    "robots_disallow": [
+      "/sitecore/",
+      "/sitecore_modules/",
+      "/sitecore/api/",
+      "/sitecore/shell/",
+      "/sitecore/client/"
+    ],
+    "attorney_path": null,
+    "notes": [
+      "/people => 200 but only 0 atty links"
+    ],
+    "rank": 20
+  },
+  {
+    "firm": "Squire Patton",
+    "url": "https://www.squirepb.com",
+    "sitemap": null,
+    "robots_disallow": [],
+    "attorney_path": null,
+    "notes": [
+      "robots error: HTTPSConnectionPool(host='www.squirepb.com', port=443): Max retries exceeded with url: /robots.txt (Caused by SSLError(SSLError(1, '[SSL: TLSV1_UNRECOGNIZED_NAME] tlsv1 unrecognized name (_ssl.c:1000)')))"
+    ],
+    "rank": 42
+  },
+  {
+    "firm": "Sheppard Mullin",
+    "url": "https://www.sheppardmullin.com",
+    "sitemap": null,
+    "robots_disallow": [],
+    "attorney_path": null,
+    "notes": [],
+    "rank": 48
+  },
+  {
+    "firm": "Troutman Pepper",
+    "url": "https://www.troutman.com",
+    "sitemap": "https://www.troutman.com/sitemap_index.xml",
+    "robots_disallow": [
+      "/wp-json/oembed/",
+      "/global-search*"
+    ],
+    "attorney_path": null,
+    "notes": [
+      "sitemap at /sitemap.xml: attorney_urls=False",
+      "/our-people => 200 but only 0 atty links"
+    ],
+    "rank": 52
+  },
+  {
+    "firm": "Fried Frank",
+    "url": "https://www.friedfrank.com",
+    "sitemap": null,
+    "robots_disallow": [],
+    "attorney_path": null,
+    "notes": [],
+    "rank": 53
+  },
+  {
+    "firm": "Fox Rothschild",
+    "url": "https://www.foxrothschild.com",
+    "sitemap": "https://www.foxrothschild.com/sitemap_index.xml",
+    "robots_disallow": [
+      "/?s=*"
+    ],
+    "attorney_path": null,
+    "notes": [],
+    "rank": 70
+  },
+  {
+    "firm": "Schulte Roth",
+    "url": "https://www.srz.com",
+    "sitemap": "https://www.srz.com/sitemap.xml",
+    "robots_disallow": [],
+    "attorney_path": null,
+    "notes": [
+      "sitemap at /sitemap.xml: attorney_urls=True",
+      "/attorneys => 200 but only 2 atty links",
+      "/lawyers => 200 but only 2 atty links",
+      "/people => 200 but only 2 atty links",
+      "/professionals => 200 but only 2 atty links",
+      "/our-people => 200 but only 2 atty links",
+      "/our-attorneys => 200 but only 2 atty links",
+      "/our-lawyers => 200 but only 2 atty links",
+      "/team => 200 but only 2 atty links"
+    ],
+    "rank": 91
+  },
+  {
+    "firm": "Womble Bond",
+    "url": "https://www.wbd.com",
+    "sitemap": null,
+    "robots_disallow": [
+      "/core/",
+      "/profiles/",
+      "/README.md",
+      "/composer/Metapackage/README.txt",
+      "/composer/Plugin/ProjectMessage/README.md"
+    ],
+    "attorney_path": null,
+    "notes": [],
+    "rank": 92
+  },
+  {
+    "firm": "Locke Lord",
+    "url": "https://www.lockelord.com",
+    "sitemap": "https://www.troutman.com/sitemap_index.xml",
+    "robots_disallow": [
+      "/wp-json/oembed/",
+      "/global-search*"
+    ],
+    "attorney_path": null,
+    "notes": [
+      "sitemap at /sitemap.xml: attorney_urls=False",
+      "/our-people => 200 but only 0 atty links"
+    ],
+    "rank": 99
+  },
+  {
+    "firm": "Dickinson Wright",
+    "url": "https://www.dickinson-wright.com",
+    "sitemap": "https://www.dickinson-wright.com/sitemap",
+    "robots_disallow": [
+      "/*?format=vcard"
+    ],
+    "attorney_path": null,
+    "notes": [
+      "/our-people => 200 but only 0 atty links"
+    ],
+    "rank": 123
+  },
+  {
+    "firm": "Vedder Price",
+    "url": "https://www.vedderprice.com",
+    "sitemap": null,
+    "robots_disallow": [],
+    "attorney_path": null,
+    "notes": [],
+    "rank": 124
+  },
+  {
+    "firm": "Moore & Van Allen",
+    "url": "https://www.mvalaw.com",
+    "sitemap": "https://www.mvalaw.com/sitemap.xml",
+    "robots_disallow": [
+      "/assets/pdf/",
+      "/assets/pp_repository/",
+      "/*.vcf$",
+      "/*.pdf",
+      "/tmp/"
+    ],
+    "attorney_path": null,
+    "notes": [
+      "sitemap at /sitemap.xml: attorney_urls=False",
+      "/people => 200 but only 0 atty links",
+      "/professionals => 200 but only 0 atty links"
+    ],
+    "rank": 138
+  },
+  {
+    "firm": "Thompson Hine",
+    "url": "https://www.thompsonhine.com",
+    "sitemap": "https://www.thompsonhine.com/sitemap.xml",
+    "robots_disallow": [],
+    "attorney_path": null,
+    "notes": [
+      "sitemap at /sitemap.xml: attorney_urls=False",
+      "/professionals => 200 but only 1 atty links"
+    ],
+    "rank": 144
+  },
+  {
+    "firm": "Ice Miller",
+    "url": "https://www.icemiller.com",
+    "sitemap": "https://www.icemiller.com/sitemap_index.xml",
+    "robots_disallow": [
+      "/?s=*"
+    ],
+    "attorney_path": null,
+    "notes": [],
+    "rank": 145
+  },
+  {
+    "firm": "Hughes Hubbard",
+    "url": "https://www.hugheshubbard.com",
+    "sitemap": "https://www.hugheshubbard.com/sitemaps-2-sitemap.xml",
+    "robots_disallow": [
+      "/cpresources/",
+      "/vendor/",
+      "/.env",
+      "/cache/",
+      "/attorneys/*/vcard*"
+    ],
+    "attorney_path": null,
+    "notes": [
+      "sitemap at /sitemap.xml: attorney_urls=False",
+      "/attorneys => 200 but only 0 atty links"
+    ],
+    "rank": 149
+  },
+  {
+    "firm": "Michael Best",
+    "url": "https://www.michaelbest.com",
+    "sitemap": null,
+    "robots_disallow": [],
+    "attorney_path": null,
+    "notes": [],
+    "rank": 166
+  },
+  {
+    "firm": "Pryor Cashman",
+    "url": "https://www.pryorcashman.com",
+    "sitemap": "https://www.pryorcashman.com/sitemap_index.xml",
+    "robots_disallow": [
+      "/?s=*"
+    ],
+    "attorney_path": null,
+    "notes": [],
+    "rank": 169
+  },
+  {
+    "firm": "Robinson & Cole",
+    "url": "https://www.rc.com",
+    "sitemap": "https://www.rc.com/sitemap_index.xml",
+    "robots_disallow": [
+      "/?s=*"
+    ],
+    "attorney_path": null,
+    "notes": [],
+    "rank": 174
+  },
+  {
+    "firm": "Seward & Kissel",
+    "url": "https://www.sewkis.com",
+    "sitemap": "https://www.sewkis.com/sitemap_index.xml",
+    "robots_disallow": [],
+    "attorney_path": "/attorneys",
+    "notes": [
+      "sitemap at /sitemap.xml: attorney_urls=False",
+      "directory at /attorneys: 7 links, sample: ['https://www.sewkis.com/people/', 'https://www.sewkis.com/people/bruce-paulsen/', 'https://www.sewkis.com/people/brian-p-maloney/']"
+    ],
+    "rank": 175
+  },
+  {
+    "firm": "GrayRobinson",
+    "url": "https://www.gray-robinson.com",
+    "sitemap": null,
+    "robots_disallow": [
+      "/templates/"
+    ],
+    "attorney_path": null,
+    "notes": [],
+    "rank": 182
+  },
+  {
+    "firm": "Atkinson Andelson",
+    "url": "https://www.aalrr.com",
+    "sitemap": "https://www.aalrr.com/sitemap.xml",
+    "robots_disallow": [
+      "/assets/pdf/",
+      "/assets/pp_repository/",
+      "/*.vcf$",
+      "/*.pdf",
+      "/tmp/"
+    ],
+    "attorney_path": null,
+    "notes": [
+      "sitemap at /sitemap.xml: attorney_urls=False",
+      "/attorneys => 200 but only 0 atty links"
+    ],
+    "rank": 187
+  },
+  {
+    "firm": "Porter Wright",
+    "url": "https://www.porterwright.com",
+    "sitemap": "https://www.porterwright.com/sitemap.xml",
+    "robots_disallow": [
+      "/cms/wp-admin/",
+      "/?s=*"
+    ],
+    "attorney_path": null,
+    "notes": [],
+    "rank": 197
+  },
+  {
+    "firm": "Miles & Stockbridge",
+    "url": "https://www.milesstockbridge.com",
+    "sitemap": null,
+    "robots_disallow": [],
+    "attorney_path": null,
+    "notes": [
+      "robots error: HTTPSConnectionPool(host='www.milesstockbridge.com', port=443): Max retries exceeded with url: /robots.txt (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7ecd9ee0fce0>: Failed to establish a new connection: [Errno 111] Connection refused'))"
+    ],
+    "rank": 199
+  },
+  {
+    "firm": "Herrick Feinstein",
+    "url": "https://www.herrick.com",
+    "sitemap": "https://www.herrick.com/sitemap.xml",
+    "robots_disallow": [
+      "/cms/wp-admin/"
+    ],
+    "attorney_path": null,
+    "notes": [],
+    "rank": 200
+  }
+]

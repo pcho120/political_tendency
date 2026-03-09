@@ -91,6 +91,33 @@ _US_STATE_ABBR: set[str] = {
     "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC",
 }
 
+# Major US cities commonly used as law firm office names (no state suffix needed)
+_US_MAJOR_LAW_CITIES: frozenset[str] = frozenset({
+    # Northeast
+    "New York", "Boston", "Philadelphia", "Pittsburgh", "Hartford", "Providence",
+    "Albany", "Buffalo", "Newark", "Baltimore", "Washington", "Washington D.C.",
+    "Washington DC", "Wilmington",
+    # Southeast
+    "Atlanta", "Miami", "Tampa", "Orlando", "Jacksonville", "Charlotte",
+    "Raleigh", "Richmond", "Nashville", "Memphis", "Louisville", "Birmingham",
+    "New Orleans", "Jacksonville",
+    # Midwest
+    "Chicago", "Detroit", "Cleveland", "Columbus", "Cincinnati", "Indianapolis",
+    "Milwaukee", "Minneapolis", "Saint Paul", "St. Paul", "Kansas City",
+    "St. Louis", "Omaha", "Des Moines",
+    # Southwest / Mountain
+    "Dallas", "Houston", "Austin", "San Antonio", "Denver", "Phoenix",
+    "Albuquerque", "Salt Lake City", "Las Vegas", "Tucson",
+    # West Coast
+    "Los Angeles", "San Francisco", "San Diego", "Seattle", "Portland",
+    "Sacramento", "San Jose", "Palo Alto", "Silicon Valley", "Menlo Park",
+    "Oakland", "Irvine", "Century City", "Bay Area",
+    # Other notable
+    "Anchorage", "Honolulu",
+    # Abbreviations / alt forms used by firms
+    "NYC", "D.C.", "DC", "LA",
+})
+
 # Pre-compile state patterns for fast scanning
 _US_STATE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(rf'\b{re.escape(s)}\b', re.IGNORECASE)
@@ -134,10 +161,24 @@ _KNOWN_ATTORNEY_TITLES: frozenset[str] = frozenset({
     "equity partner", "non-equity partner", "senior director",
 })
 
-_NAME_VALID_RE = re.compile(r"^[A-Z][a-z]+(?:[\s][A-Z][a-z\.\-']+)+$")
+_NAME_VALID_RE = re.compile(
+    r"^"
+    r"(?:Dr\.?\s+|Prof\.?\s+|Hon\.?\s+)?"     # optional honorific
+    r"(?:[A-Z]\.?\s+)?"                         # optional leading initial: "J. " or "J "
+    r"[A-ZÀ-Ö][a-zA-ZÀ-öø-ÿ\u0100-\u024F\-']+"  # first name (Unicode Latin)
+    r"(?:"
+        r"\s+"
+        r"(?:[A-ZÀ-Ö]\.?|[A-ZÀ-Ö][a-zA-ZÀ-öø-ÿ\u0100-\u024F\.\-']+|[a-z]{1,4})"
+    r")+"
+    r"$"
+)
 _HEADER_TERMS: frozenset[str] = frozenset({
     "last name", "first name", "firm name", "attorney", "name", "title",
     "lawyer", "partner", "associate", "counsel", "full name", "contact",
+    "practice areas", "practice area", "professionals", "our people",
+    "people", "attorneys", "lawyers", "team", "biography", "profile",
+    "who are you looking for", "search results", "search professionals",
+    "meet our team", "our attorneys", "our lawyers", "legal team",
 })
 
 
@@ -150,7 +191,8 @@ def validate_name(raw: str | None) -> tuple[str | None, str | None]:
 
     Rules:
     - 4–100 characters
-    - Must match ^[A-Z][a-z]+(\\s[A-Z][a-z\\.\\-']+)+$ (First Last pattern)
+    - Must match name pattern: optional honorific (Dr./Prof./Hon.) followed by
+      capitalized name parts, allowing lowercase particles (de, van, von, la, etc.)
     - No digits, underscores, braces
     - Not a known header term
 
@@ -265,6 +307,13 @@ def validate_offices(raw: list[str]) -> tuple[list[str], str | None]:
                     seen.add(normalized)
                     cleaned.append(normalized)
                 continue
+
+        # Known major US law firm city (no state suffix needed)
+        if text in _US_MAJOR_LAW_CITIES or text.lower() in {c.lower() for c in _US_MAJOR_LAW_CITIES}:
+            if text not in seen:
+                seen.add(text)
+                cleaned.append(text)
+            continue
 
         # US state full name check (e.g. "New York office")
         for state in US_STATES:

@@ -2,14 +2,15 @@
   "firm": "Latham",
   "base_url": "https://www.lw.com",
   "detected_types": [
-    "XML_SITEMAP",
-    "DIRECTORY_HTML"
+    "DIRECTORY_HTML",
+    "XML_SITEMAP"
   ],
   "signals": [
     "Classification: SPA_HEAVY",
     "\u26a0 No clear discovery signals - will try all strategies",
     "Found sitemap in robots.txt: https://www.lw.com/sitemap_index.xml",
     "robots.txt disallows crawling",
+    "Sitemap index at https://www.lw.com/sitemap_index.xml \u2014 following sub-sitemaps",
     "API endpoints mentioned in scripts"
   ]
 }

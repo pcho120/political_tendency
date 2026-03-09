@@ -1,18 +1,14 @@
 {
   "firm": "Kirkland",
   "expected_total": null,
-  "discovered_urls": 4162,
+  "discovered_urls": 0,
   "coverage_ratio": null,
-  "strategies_attempted": [
-    "kirkland_scroll"
-  ],
-  "final_status": "SUCCESS",
-  "discovery_status": "SUCCESS",
-  "failure_reason": null,
+  "strategies_attempted": [],
+  "final_status": "UNKNOWN_PATTERN",
+  "discovery_status": "DISCOVERY_INCOMPLETE",
+  "failure_reason": "extraction_error",
   "notes": [
-    "Discovered 4162 attorneys (no expected total available)"
+    "No attorneys discovered by any strategy"
   ],
-  "url_sources": {
-    "kirkland_scroll": 4162
-  }
+  "url_sources": {}
 }

@@ -63,10 +63,36 @@ DEGREE_PATTERNS = {
     r'\bM\.?A\.?\b': 'MA',
     r'\bM\.?S\.?\b': 'MS',
     r'\bPh\.?D\.?\b': 'PhD',
+    # Spelled-out degree names (Gibson Dunn: 'Juris Doctor', 'Bachelor of Arts', etc.)
+    r'\bJuris\s+Doctor\b': 'JD',
+    r'\bJuris\s+Doctorate\b': 'JD',
+    r'\bBachelor\s+of\s+Arts\b': 'BA',
+    r'\bBachelor\s+of\s+Science\b': 'BS',
+    r'\bMaster\s+of\s+Laws\b': 'LLM',
+    r'\bMaster\s+of\s+Arts\b': 'MA',
+    r'\bMaster\s+of\s+Science\b': 'MS',
+    r'\bMaster\s+of\s+Business\s+Administration\b': 'MBA',
+    r'\bBachelor\s+of\s+Commerce\b': 'BCom',
+    r'\bB\.?Com\.?\b': 'BCom',
+    r'\bBachelor\s+of\s+Laws\b': 'LLB',
+    r'\bMaster\s+of\s+Public\s+Health\b': 'MPH',
+    r'\bMaster\s+of\s+Public\s+Policy\b': 'MPP',
+    r'\bDoctor\s+of\s+Philosophy\b': 'PhD',
 }
 
-# Strict name validation: must look like "First Last" (allows hyphen, apostrophe, period in names)
-_VALID_NAME_RE = re.compile(r"^[A-Z][a-zA-Z\-]+(?:[\s][A-Z][a-zA-Z\.\-']+)+$")
+# Name validation: handles honorifics (Dr./Prof./Hon.), leading initials, particles (de/van/etc.),
+# and Unicode Latin characters (accented names like Jean-François, Müller, etc.)
+_VALID_NAME_RE = re.compile(
+    r"^"
+    r"(?:Dr\.?\s+|Prof\.?\s+|Hon\.?\s+)?"     # optional honorific
+    r"(?:[A-Z]\.?\s+)?"                         # optional leading initial: "J. " or "J "
+    r"[A-ZÀ-Ö][a-zA-ZÀ-öø-ÿ\u0100-\u024F\-']+"  # first name (Unicode Latin)
+    r"(?:"
+        r"\s+"
+        r"(?:[A-ZÀ-Ö]\.?|[A-ZÀ-Ö][a-zA-ZÀ-öø-ÿ\u0100-\u024F\.\-']+|[a-z]{1,4})"
+    r")+"
+    r"$"
+)
 
 
 @dataclass
@@ -587,32 +613,67 @@ class AttorneyExtractor:
     
     def _extract_title_bs4(self, soup: BeautifulSoup) -> str | None:
         """Extract title/position using BeautifulSoup"""
-        title_selectors = [
-            {'class': re.compile(r'.*\b(title|position|role|job)\b.*', re.I)},
-        ]
-        
-        for selector in title_selectors:
-            elem = soup.find(['div', 'span', 'p'], selector)
-            if elem:
-                title = elem.get_text(strip=True)
-                if title and len(title) < 200:
-                    return title
-        
-        # Look for common title keywords
+        # Strategy 0a: Cleary Gottlieb — <h2 class='person-info__position'>
+        cleary_pos = soup.find('h2', class_='person-info__position')
+        if cleary_pos:
+            t = cleary_pos.get_text(strip=True)
+            if t and len(t) < 100 and not re.search(r'(cookie|consent|privacy choices)', t, re.I):
+                return t
+        # Strategy 0b: Paul Weiss — <div class='contact-block'> <p class='detail-label'>Partner</p>
+        contact_block = soup.find('div', class_=lambda c: c and 'contact-block' in ' '.join(c if isinstance(c,list) else [c]))
+        if contact_block:
+            lbl = contact_block.find('p', class_='detail-label')
+            if lbl:
+                t = lbl.get_text(strip=True)
+                if t and len(t) < 80 and not re.search(r'(tel:|email|@|cookie|privacy)', t, re.I):
+                    return t
+        # Strategy 0: Drupal field_job_title (Davis Polk pattern)
+        # <div class='field-name--field_job_title field-item'>Partner</div>
+        job_title_elem = soup.find(
+            ['div', 'span', 'p'],
+            class_=lambda c: c and any('field_job_title' in cls for cls in (c if isinstance(c, list) else [c]))
+        )
+        if job_title_elem:
+            t = job_title_elem.get_text(strip=True)
+            if t and len(t) < 100:
+                return t
+        # Strategy 1: class-based title selector (skip nav/menu elements)
+        for elem in soup.find_all(['div', 'span', 'p'], class_=re.compile(r'(title|position|role|job)', re.I)):
+            cls = ' '.join(elem.get('class', []))
+            # Skip nav/menu/footer elements
+            if re.search(r'(menu|nav|footer|breadcrumb|modal|share|card|insight|teaser|cookie|consent|privacy)', cls, re.I):
+                continue
+            # Skip if inside a nav or header tag
+            if elem.find_parent(['nav', 'header']):
+                continue
+            title = elem.get_text(strip=True)
+            if title and len(title) < 100 and not re.search(r'(cookie|consent|privacy choices)', title, re.I):
+                return title
+
+        # Strategy 2: White & Case hero pattern — 'fs-5' div with 'Title, City' format
+        fs5 = soup.find('div', class_=lambda c: c and 'fs-5' in c)
+        if fs5:
+            text = fs5.get_text(strip=True)
+            # 'Partner, Los Angeles' — split on first comma
+            if ',' in text and len(text) < 100:
+                return text.split(',')[0].strip()
+
+        # Strategy 3: keyword scan (skip script/style/meta parents)
         title_keywords = [
-            "Partner", "Associate", "Counsel", "Of Counsel", 
+            "Partner", "Associate", "Counsel", "Of Counsel",
             "Senior Associate", "Managing Partner", "Senior Partner",
-            "Member", "Shareholder", "Principal"
+            "Member", "Shareholder", "Principal",
+            "Attorney",
         ]
         
         for keyword in title_keywords:
-            elem = soup.find(string=re.compile(rf'\b{keyword}\b', re.I))
-            if elem:
-                # Get parent text
+            for elem in soup.find_all(string=re.compile(rf'\b{keyword}\b', re.I)):
                 parent = elem.parent
-                if parent:
+                if parent and parent.name not in ('script', 'style', 'meta', 'head'):
+                    if parent.find_parent(['nav', 'header', 'footer']):
+                        continue
                     title = parent.get_text(strip=True)
-                    if len(title) < 200:
+                    if title and len(title) < 100 and not re.search(r'(cookie|consent|privacy choices)', title, re.I):
                         return title
         
         return None
@@ -620,18 +681,71 @@ class AttorneyExtractor:
     def _extract_offices_bs4(self, soup: BeautifulSoup) -> list[str]:
         """Extract office locations using BeautifulSoup"""
         offices = []
-        
+        # Strategy 0a: Cleary Gottlieb — <h4 class='location__city'>
+        for city_tag in soup.find_all('h4', class_='location__city'):
+            city = city_tag.get_text(strip=True)
+            if city and city not in offices:
+                offices.append(city)
+        if offices:
+            return offices
+
+        # Strategy 0b: Paul Weiss — <div class='location-block'> <a>Washington, DC</a>
+        pw_loc = soup.find('div', class_=lambda c: c and 'location-block' in ' '.join(c if isinstance(c,list) else [c]))
+        if pw_loc:
+            for a in pw_loc.find_all('a'):
+                city = a.get_text(strip=True)
+                if city and len(city) < 60 and city not in offices:
+                    offices.append(city)
+            if offices:
+                return offices
         office_selectors = [
-            {'class': re.compile(r'.*\b(office|location|city)\b.*', re.I)},
+            {'class': re.compile(r'(office|location|city)', re.I)},
         ]
         
+        FOOTER_CLASSES = re.compile(r'footer', re.I)
         for selector in office_selectors:
-            elems = soup.find_all(['div', 'span', 'p', 'li'], selector)
+            elems = soup.find_all(['div', 'span', 'p', 'li', 'button', 'a'], selector)
             for elem in elems:
+                # Skip footer/nav/menu elements
+                elem_classes = ' '.join(elem.get('class', []))
+                if FOOTER_CLASSES.search(elem_classes):
+                    continue
+                if elem.find_parent(['nav', 'header', 'footer']):
+                    continue
                 text = elem.get_text(strip=True)
                 if text and len(text) < 100:
                     offices.append(text)
-        
+
+        # Secondary: links to /office/{city-slug}/ (e.g. Gibson Dunn: /office/palo-alto/)
+        if not offices:
+            for a in soup.find_all('a', href=True):
+                href = a.get('href', '')
+                if re.search(r'/office/[a-z0-9-]+/?$', href, re.I):
+                    text = a.get_text(strip=True)
+                    if text and len(text) < 60:
+                        offices.append(text)
+
+        # Tertiary: White & Case fs-5 hero pattern — 'Title, City'
+        if not offices:
+            fs5 = soup.find('div', class_=lambda c: c and 'fs-5' in c)
+            if fs5:
+                text = fs5.get_text(strip=True)
+                if ',' in text and len(text) < 150:
+                    parts = text.split(',')
+                    # parts[0] is title, rest are city names
+                    # Merge state abbreviations (e.g. 'Washington', 'DC') back into city
+                    cities: list[str] = []
+                    for part in parts[1:]:
+                        part = re.sub(r'\+\d.*', '', part).strip()
+                        if not part:
+                            continue
+                        # If part looks like a state/country suffix (2-3 uppercase chars or 'DC')
+                        if re.fullmatch(r'[A-Z\.]{1,3}', part) and cities:
+                            cities[-1] = cities[-1] + ', ' + part
+                        elif len(part) < 50:
+                            cities.append(part)
+                    offices.extend(cities)
+
         return offices
     
     def _extract_departments_bs4(self, soup: BeautifulSoup) -> list[str]:
@@ -639,7 +753,7 @@ class AttorneyExtractor:
         departments = []
         
         dept_selectors = [
-            {'class': re.compile(r'.*\b(department|group|division|section)\b.*', re.I)},
+            {'class': re.compile(r'(department|group|division|section)', re.I)},
         ]
         
         for selector in dept_selectors:
@@ -682,18 +796,27 @@ class AttorneyExtractor:
         seen: set[str] = set()
         results: list[str] = []
 
-        for header in soup.find_all(['h2', 'h3', 'h4']):
+        for header in soup.find_all(['h2', 'h3', 'h4', 'h5']):
+            # Skip headers inside nav/header/footer
+            if header.find_parent(['nav', 'header', 'footer']):
+                continue
             header_text = header.get_text(strip=True).lower()
             if not any(kw.lower() in header_text for kw in header_keywords):
                 continue
 
-            # Walk forward siblings until we hit another heading
+            # Walk forward siblings until we hit another heading or footer
             for sibling in header.find_all_next():
                 # Stop at the next heading at the same (or higher) level
-                if sibling.name in ('h2', 'h3', 'h4') and sibling is not header:
+                if sibling.name in ('h2', 'h3', 'h4', 'h5') and sibling is not header:
                     break
+                # Stop when we enter the footer
+                if sibling.name == 'footer':
+                    break
+                # Skip elements inside nav/header/footer
+                if sibling.find_parent(['nav', 'header', 'footer']):
+                    continue
                 # Collect leaf text nodes from list items, links, paragraphs, dd
-                if sibling.name in ('li', 'a', 'dd', 'p'):
+                if sibling.name in ('li', 'dd', 'p'):
                     text = sibling.get_text(strip=True)
                     if text and len(text) <= 200 and text not in seen:
                         seen.add(text)
@@ -703,26 +826,76 @@ class AttorneyExtractor:
     def _extract_practices_bs4(self, soup: BeautifulSoup) -> list[str]:
         """Extract practice areas using BeautifulSoup"""
         practices: list[str] = []
+        # Strategy 0a: Cleary Gottlieb — <aside> 'Areas of Experience'
+        # Partners use simple-list__item > <a>, associates use complex-list__item > <p class='complex-list__item-title'>
+        # If page has side-section asides (Cleary structure) but no 'Areas of Experience', return empty.
+        cleary_asides = soup.find_all('aside', class_='side-section')
+        if cleary_asides:
+            for aside in cleary_asides:
+                hdr = aside.find('h3', class_='side-section__header')
+                if hdr and re.search(r'areas?\s+of\s+experience|practice', hdr.get_text(strip=True), re.I):
+                    # Try complex-list__item (associate structure)
+                    for li in aside.find_all('li', class_='complex-list__item'):
+                        title_p = li.find('p', class_='complex-list__item-title')
+                        item = (title_p or li).get_text(strip=True)
+                        if item and len(item) < 120 and item not in practices:
+                            practices.append(item)
+                    # Try simple-list__item (partner structure)
+                    for li in aside.find_all('li', class_='simple-list__item'):
+                        a = li.find('a')
+                        item = (a or li).get_text(strip=True)
+                        if item and len(item) < 120 and item not in practices:
+                            practices.append(item)
+                    if practices:
+                        return practices
+            # Cleary page but no 'Areas of Experience' aside — attorney with no listed practices.
+            return []
+
+        # Strategy 0b: Paul Weiss — <div class='practices-block'> <p class='detail-item'>Litigation</p>
+        pw_practices = soup.find('div', class_=lambda c: c and 'practices-block' in ' '.join(c if isinstance(c,list) else [c]))
+        if pw_practices:
+            for item in pw_practices.find_all('p', class_='detail-item'):
+                t = item.get_text(strip=True)
+                if t and len(t) < 100 and t not in practices:
+                    practices.append(t)
+            if practices:
+                return practices
+        # Strategy 0: Davis Polk Drupal field_primary_practice (field-name--field_primary_practice)
+        primary_practice_div = soup.find(
+            lambda tag: tag.name in ('div', 'span', 'p') and any(
+                'primary_practice' in cls
+                for cls in (tag.get('class') or [])
+            )
+        )
+        if primary_practice_div:
+            t = primary_practice_div.get_text(strip=True)
+            if t and len(t) < 100 and t not in practices:
+                practices.append(t)
 
         # Strategy 1: section-header approach (works for Kirkland and most AmLaw firms)
         header_items = self._extract_section_items_after_header(
             soup,
-            ['practice', 'practices', 'areas', 'expertise', 'specialt', 'competen', 'service'],
+            ['practice', 'practices', 'areas', 'expertise', 'specialt', 'competen', 'service', 'capabilit'],
         )
         for item in header_items:
             if item not in practices:
                 practices.append(item)
 
-        # Strategy 2: Drupal CMS class fields (DLA Piper, etc.) - kept as fallback
+        # Strategy 2: Drupal CMS class fields (DLA Piper, White & Case, etc.) - kept as fallback
         if not practices:
             drupal_fields = soup.find_all(
                 'div',
                 class_=lambda c: c and (
-                    'field--name-field-services' in c
-                    or 'field--name-field-sub-services' in c
+                    'field--name-field-services' in ' '.join(c if isinstance(c, list) else [c])
+                    or 'field--name-field-sub-services' in ' '.join(c if isinstance(c, list) else [c])
+                    or 'field--name-field-related-services' in ' '.join(c if isinstance(c, list) else [c])
                 ),
             )
             for field_div in drupal_fields:
+                for item_div in field_div.find_all('div', class_=lambda c: c and 'field--item' in ' '.join(c if isinstance(c, list) else [c])):
+                    practice = item_div.get_text(strip=True)
+                    if practice and len(practice) < 100 and practice not in practices:
+                        practices.append(practice)
                 for link in field_div.find_all('a'):
                     practice = link.get_text(strip=True)
                     if practice and len(practice) < 100 and practice not in practices:
@@ -737,14 +910,36 @@ class AttorneyExtractor:
 
     def _extract_bar_admissions_bs4(self, soup: BeautifulSoup) -> list[str]:
         """Extract bar admissions using BeautifulSoup"""
+        # Strategy 0a: Cleary Gottlieb — <aside> 'Bar Admissions' with complex-list__item-title
         bars: list[str] = []
-
-        # Primary: section-header approach
+        for aside in soup.find_all('aside', class_='side-section'):
+            hdr = aside.find('h3', class_='side-section__header')
+            if hdr and re.search(r'bar\s+admission|admission', hdr.get_text(strip=True), re.I):
+                for li in aside.find_all('li', class_='complex-list__item'):
+                    title_p = li.find('p', class_='complex-list__item-title')
+                    item = (title_p or li).get_text(strip=True)
+                    if item and len(item) <= 80 and item not in bars:
+                        bars.append(item)
+                if bars:
+                    return bars
+        # Strategy 0b: Paul Weiss — <div class='admissions-block'> <p class='detail-item'>New York</p>
+        pw_adm = soup.find('div', class_=lambda c: c and 'admissions-block' in ' '.join(c if isinstance(c,list) else [c]))
+        if pw_adm:
+            for item in pw_adm.find_all('p', class_='detail-item'):
+                t = item.get_text(strip=True)
+                if t and len(t) < 80 and t not in bars:
+                    bars.append(t)
+            if bars:
+                return bars
+        # Primary: section-header approach (h2/h3/h4 with bar/admission keywords)
         raw_items = self._extract_section_items_after_header(
             soup, ['bar admission', 'bar admissions', 'bar', 'admission']
         )
         if raw_items:
             for item in raw_items:
+                # Skip news/insight headlines (too long or contain typical news patterns)
+                if len(item) > 50 or re.search(r'(news|insight|publication|article|alert|advises|acquires|announces|represents|secures|wins)', item, re.I):
+                    continue
                 extracted = self._extract_states_from_text(item)
                 if extracted:
                     for state in extracted:
@@ -753,6 +948,33 @@ class AttorneyExtractor:
                 else:
                     # Keep raw item if no US state name matched
                     if item not in bars:
+                        bars.append(item)
+
+        # Secondary: h5/h6 'Admissions:' sub-header (Gibson Dunn pattern)
+        # <h5>Admissions:</h5><ul><li>Colorado Bar</li>...</ul>
+        if not bars:
+            for sub_hdr in soup.find_all(['h5', 'h6']):
+                sub_text = sub_hdr.get_text(strip=True).lower()
+                if 'admission' in sub_text:
+                    # Collect <li> items from the immediately following <ul>
+                    nxt = sub_hdr.find_next_sibling()
+                    while nxt and nxt.name not in ('h2', 'h3', 'h4', 'h5', 'h6'):
+                        if nxt.name in ('ul', 'ol'):
+                            for li in nxt.find_all('li'):
+                                item = li.get_text(strip=True)
+                                # Filter out news headlines / long items
+                                if item and len(item) <= 50 and not re.search(r'(news|insight|publication|article|alert|advises|acquires|announces|represents|secures|wins)', item, re.I) and item not in bars:
+                                    bars.append(item)
+                            break
+                        nxt = nxt.find_next_sibling()
+
+        # Tertiary: Drupal CMS field--name-field-admissions (White & Case pattern)
+        if not bars:
+            drupal_field = soup.find('div', class_=lambda c: c and 'field--name-field-admissions' in ' '.join(c if isinstance(c, list) else [c]))
+            if drupal_field:
+                for item_div in drupal_field.find_all('div', class_=lambda c: c and 'field--item' in ' '.join(c if isinstance(c, list) else [c])):
+                    item = item_div.get_text(strip=True)
+                    if item and item not in bars:
                         bars.append(item)
 
         # Legacy fallback: find_all(string=...) + find_parent
@@ -772,25 +994,106 @@ class AttorneyExtractor:
     def _extract_education_bs4(self, soup: BeautifulSoup) -> list[EducationRecord]:
         """Extract education records using BeautifulSoup"""
         education_records: list[EducationRecord] = []
+        # Strategy 0a: Cleary Gottlieb — <aside> 'Education' with complex-list__item
+        # Structure: <li class='complex-list__item'>
+        #   <p class='complex-list__item-title'>School</p>
+        #   <p><em>J.D.</em></p>  <p><em>2023</em></p>
+        for aside in soup.find_all('aside', class_='side-section'):
+            hdr = aside.find('h3', class_='side-section__header')
+            if hdr and re.search(r'education', hdr.get_text(strip=True), re.I):
+                for li in aside.find_all('li', class_='complex-list__item'):
+                    title_p = li.find('p', class_='complex-list__item-title')
+                    school = title_p.get_text(strip=True) if title_p else None
+                    remaining_texts = []
+                    for p in li.find_all('p'):
+                        if p == title_p:
+                            continue
+                        remaining_texts.append(p.get_text(strip=True))
+                    combined = ' '.join(remaining_texts)
+                    deg = self._extract_degree_from_text(combined)
+                    yr = self._extract_year_from_text(combined)
+                    if school or deg:
+                        education_records.append(EducationRecord(degree=deg, school=school, year=yr))
+                if education_records:
+                    return education_records
 
-        # Primary: section-header approach
-        raw_items = self._extract_section_items_after_header(soup, ['education', 'academic'])
-        for text in raw_items:
-            degree = self._extract_degree_from_text(text)
-            year = self._extract_year_from_text(text)
-            school = text
-            if degree:
-                school = re.sub(
-                    r'\b' + re.escape(degree) + r'\b', '', school, flags=re.IGNORECASE
-                )
-            if year:
-                school = school.replace(str(year), '')
-            school = school.strip(' ,-')
-            education_records.append(EducationRecord(
-                degree=degree,
-                school=school if school else None,
-                year=year,
-            ))
+        # Strategy 0b: Paul Weiss — <div class='education-block'> <p class='detail-item'>J.D., Harvard, magna cum laude</p>
+        pw_edu = soup.find('div', class_=lambda c: c and 'education-block' in ' '.join(c if isinstance(c,list) else [c]))
+        if pw_edu:
+            for item in pw_edu.find_all('p', class_='detail-item'):
+                text = item.get_text(strip=True)
+                if not text or len(text) > 200:
+                    continue
+                # Format: 'J.D., Harvard Law School, magna cum laude'
+                parts = [p.strip() for p in text.split(',', 2)]
+                deg = self._extract_degree_from_text(parts[0]) if parts else None
+                school = parts[1].strip() if len(parts) > 1 else None
+                yr = self._extract_year_from_text(text)
+                if school or deg:
+                    education_records.append(EducationRecord(degree=deg, school=school, year=yr))
+            if education_records:
+                return education_records
+        # Strategy 0: Davis Polk — field-name--field_degrees with div.degree per entry
+        deg_field = soup.find(
+            lambda tag: tag.name in ('div', 'span', 'p') and any(
+                'field_degrees' in cls
+                for cls in (tag.get('class') or [])
+            )
+        )
+        if deg_field:
+            for item in deg_field.find_all('div', class_='field-item'):
+                degree_div = item.find('div', class_='degree')
+                if degree_div:
+                    line = degree_div.get_text(strip=True)
+                    deg = self._extract_degree_from_text(line)
+                    yr = self._extract_year_from_text(line)
+                    sch = re.sub(r'' + re.escape(deg) + r'', '', line, flags=re.IGNORECASE).strip(' ,-') if deg else line
+                    sch = re.sub(r'^[A-Z]\.(?:[A-Z]\.)+,?\s*', '', sch).strip(' ,-')
+                    if yr:
+                        sch = sch.replace(str(yr), '').strip(' ,-')
+                    if sch or deg:
+                        education_records.append(EducationRecord(degree=deg, school=sch or None, year=yr))
+            # Fallback: lines that start with a degree abbreviation
+            if not education_records:
+                for line in deg_field.get_text(separator='\n', strip=True).split('\n'):
+                    line = line.strip()
+                    if not line or len(line) > 150:
+                        continue
+                    if re.match(r'^(J\.D\.|LL\.M\.|LL\.B\.|B\.A\.|B\.S\.|M\.B\.A\.|Ph\.D\.|A\.B\.)', line):
+                        deg = self._extract_degree_from_text(line)
+                        yr = self._extract_year_from_text(line)
+                        sch = re.sub(r'\b' + re.escape(deg) + r'\b', '', line, flags=re.IGNORECASE).strip(' ,-') if deg else line
+                        if yr:
+                            sch = sch.replace(str(yr), '').strip(' ,-')
+                        if sch or deg:
+                            education_records.append(EducationRecord(degree=deg, school=sch or None, year=yr))
+        # Primary: section-header approach (skip if already populated by Strategy 0)
+        if not education_records:
+            raw_items = self._extract_section_items_after_header(soup, ['education', 'academic'])
+            for text in raw_items:
+                degree = self._extract_degree_from_text(text)
+                year = self._extract_year_from_text(text)
+                school = text
+                if degree:
+                    school = re.sub(
+                        r'\b' + re.escape(degree) + r'\b', '', school, flags=re.IGNORECASE
+                    )
+                    # Also strip spelled-out degree forms (Gibson Dunn: 'Juris Doctor', 'Bachelor of Arts')
+                    for pat in DEGREE_PATTERNS:
+                        school = re.sub(pat, '', school, flags=re.IGNORECASE)
+                # Strip residual parenthetical notes (Gibson Dunn: 'University of Houston - (some notes)')
+                school = re.sub(r'\s*\([^)]*\)\s*', ' ', school)
+                # Strip dash separator (Gibson Dunn: 'Georgetown University - 2019 Juris Doctor')
+                school = re.sub(r'\s*-\s*$', '', school)
+                if year:
+                    school = school.replace(str(year), '')
+                school = re.sub(r'\s{2,}', ' ', school)  # collapse multiple spaces
+                school = school.strip(' ,-')
+                education_records.append(EducationRecord(
+                    degree=degree,
+                    school=school if school else None,
+                    year=year,
+                ))
 
         # Legacy fallback: find_all(string=...) + find_parent
         if not education_records:
@@ -829,16 +1132,56 @@ class AttorneyExtractor:
                                 year=year,
                             ))
 
-        # Apply no-JD sentinel
-        if education_records:
-            has_jd = any(
-                rec.degree and 'JD' in rec.degree.upper()
-                for rec in education_records
-            )
-            if not has_jd:
-                education_records.append(
-                    EducationRecord(degree='no JD', school='unknown', year=None)
+        # Davis Polk: field-name--field_degrees — each field-item has a div.degree with "J.D., School Name"
+        if not education_records:
+            deg_field = soup.find(
+                lambda tag: tag.name in ('div', 'span', 'p') and any(
+                    'field_degrees' in cls
+                    for cls in (tag.get('class') or [])
                 )
+            )
+            if deg_field:
+                for item in deg_field.find_all('div', class_='field-item'):
+                    degree_div = item.find('div', class_='degree')
+                    if degree_div:
+                        line = degree_div.get_text(strip=True)
+                        degree = self._extract_degree_from_text(line)
+                        year = self._extract_year_from_text(line)
+                        school = re.sub(r'\b' + re.escape(degree) + r'\b', '', line, flags=re.IGNORECASE).strip(' ,-') if degree else line
+                        if year:
+                            school = school.replace(str(year), '').strip(' ,-')
+                        if school or degree:
+                            education_records.append(EducationRecord(degree=degree, school=school or None, year=year))
+                # Fallback: try lines starting with a degree abbreviation
+                if not education_records:
+                    for line in deg_field.get_text(separator='\n', strip=True).split('\n'):
+                        line = line.strip()
+                        if not line or len(line) > 150:
+                            continue
+                        if re.match(r'^(J\.D\.|LL\.M\.|LL\.B\.|B\.A\.|B\.S\.|M\.B\.A\.|Ph\.D\.|A\.B\.)', line):
+                            degree = self._extract_degree_from_text(line)
+                            year = self._extract_year_from_text(line)
+                            school = re.sub(r'\b' + re.escape(degree) + r'\b', '', line, flags=re.IGNORECASE).strip(' ,-') if degree else line
+                            if year:
+                                school = school.replace(str(year), '').strip(' ,-')
+                            if school or degree:
+                                education_records.append(EducationRecord(degree=degree, school=school or None, year=year))
+
+        # Drupal CMS: field--name-field-education with nested degree+school (White & Case pattern)
+        if not education_records:
+            edu_field = soup.find('div', class_=lambda c: c and 'field--name-field-education' in ' '.join(c if isinstance(c, list) else [c]))
+            if edu_field:
+                for item in edu_field.find_all('div', class_=lambda c: c and 'paragraph--type--education' in ' '.join(c if isinstance(c, list) else [c])):
+                    deg_div = item.find('div', class_=lambda c: c and 'field--name-field-degree' in ' '.join(c if isinstance(c, list) else [c]))
+                    school_div = item.find('div', class_=lambda c: c and 'field--name-field-school' in ' '.join(c if isinstance(c, list) else [c]))
+                    year_div = item.find('div', class_=lambda c: c and 'field--name-field-year' in ' '.join(c if isinstance(c, list) else [c]))
+                    degree = deg_div.get_text(strip=True) if deg_div else None
+                    school = school_div.get_text(strip=True) if school_div else None
+                    year_text = year_div.get_text(strip=True) if year_div else None
+                    year = self._extract_year_from_text(year_text) if year_text else None
+                    if school or degree:
+                        education_records.append(EducationRecord(degree=degree, school=school, year=year))
+
 
         return education_records
     
@@ -936,7 +1279,7 @@ class AttorneyExtractor:
         """Check if text looks like a person name.
 
         Strict validation:
-        - Must match ^[A-Z][a-z]+(\s[A-Z][a-z\.\-']+)+$ (First Last pattern)
+        - Must match First Last pattern (e.g. "John Smith", "Mary O'Brien")
         - Must not be a known header/label term
         - Must not contain digits
         - Length 4–100
@@ -1558,32 +1901,67 @@ class AttorneyExtractor:
     
     def _extract_title_bs4(self, soup: BeautifulSoup) -> str | None:
         """Extract title/position using BeautifulSoup"""
-        title_selectors = [
-            {'class': re.compile(r'.*\b(title|position|role|job)\b.*', re.I)},
-        ]
-        
-        for selector in title_selectors:
-            elem = soup.find(['div', 'span', 'p'], selector)
-            if elem:
-                title = elem.get_text(strip=True)
-                if title and len(title) < 200:
-                    return title
-        
-        # Look for common title keywords
+        # Strategy 0a: Cleary Gottlieb — <h2 class='person-info__position'>
+        cleary_pos = soup.find('h2', class_='person-info__position')
+        if cleary_pos:
+            t = cleary_pos.get_text(strip=True)
+            if t and len(t) < 100 and not re.search(r'(cookie|consent|privacy choices)', t, re.I):
+                return t
+        # Strategy 0b: Paul Weiss — <div class='contact-block'> <p class='detail-label'>Partner</p>
+        contact_block = soup.find('div', class_=lambda c: c and 'contact-block' in ' '.join(c if isinstance(c,list) else [c]))
+        if contact_block:
+            lbl = contact_block.find('p', class_='detail-label')
+            if lbl:
+                t = lbl.get_text(strip=True)
+                if t and len(t) < 80 and not re.search(r'(tel:|email|@|cookie|privacy)', t, re.I):
+                    return t
+        # Strategy 0: Drupal field_job_title (Davis Polk pattern)
+        # <div class='field-name--field_job_title field-item'>Partner</div>
+        job_title_elem = soup.find(
+            ['div', 'span', 'p'],
+            class_=lambda c: c and any('field_job_title' in cls for cls in (c if isinstance(c, list) else [c]))
+        )
+        if job_title_elem:
+            t = job_title_elem.get_text(strip=True)
+            if t and len(t) < 100:
+                return t
+        # Strategy 1: class-based title selector (skip nav/menu elements)
+        for elem in soup.find_all(['div', 'span', 'p'], class_=re.compile(r'(title|position|role|job)', re.I)):
+            cls = ' '.join(elem.get('class', []))
+            # Skip nav/menu/footer elements
+            if re.search(r'(menu|nav|footer|breadcrumb|modal|share|card|insight|teaser|cookie|consent|privacy)', cls, re.I):
+                continue
+            # Skip if inside a nav or header tag
+            if elem.find_parent(['nav', 'header']):
+                continue
+            title = elem.get_text(strip=True)
+            if title and len(title) < 100 and not re.search(r'(cookie|consent|privacy choices)', title, re.I):
+                return title
+
+        # Strategy 2: White & Case hero pattern — 'fs-5' div with 'Title, City' format
+        fs5 = soup.find('div', class_=lambda c: c and 'fs-5' in c)
+        if fs5:
+            text = fs5.get_text(strip=True)
+            # 'Partner, Los Angeles' — split on first comma
+            if ',' in text and len(text) < 100:
+                return text.split(',')[0].strip()
+
+        # Strategy 3: keyword scan (skip script/style/meta parents)
         title_keywords = [
-            "Partner", "Associate", "Counsel", "Of Counsel", 
+            "Partner", "Associate", "Counsel", "Of Counsel",
             "Senior Associate", "Managing Partner", "Senior Partner",
-            "Member", "Shareholder", "Principal"
+            "Member", "Shareholder", "Principal",
+            "Attorney",
         ]
         
         for keyword in title_keywords:
-            elem = soup.find(string=re.compile(rf'\b{keyword}\b', re.I))
-            if elem:
-                # Get parent text
+            for elem in soup.find_all(string=re.compile(rf'\b{keyword}\b', re.I)):
                 parent = elem.parent
-                if parent:
+                if parent and parent.name not in ('script', 'style', 'meta', 'head'):
+                    if parent.find_parent(['nav', 'header', 'footer']):
+                        continue
                     title = parent.get_text(strip=True)
-                    if len(title) < 200:
+                    if title and len(title) < 100 and not re.search(r'(cookie|consent|privacy choices)', title, re.I):
                         return title
         
         return None
@@ -1591,18 +1969,71 @@ class AttorneyExtractor:
     def _extract_offices_bs4(self, soup: BeautifulSoup) -> list[str]:
         """Extract office locations using BeautifulSoup"""
         offices = []
-        
+        # Strategy 0a: Cleary Gottlieb — <h4 class='location__city'>
+        for city_tag in soup.find_all('h4', class_='location__city'):
+            city = city_tag.get_text(strip=True)
+            if city and city not in offices:
+                offices.append(city)
+        if offices:
+            return offices
+
+        # Strategy 0b: Paul Weiss — <div class='location-block'> <a>Washington, DC</a>
+        pw_loc = soup.find('div', class_=lambda c: c and 'location-block' in ' '.join(c if isinstance(c,list) else [c]))
+        if pw_loc:
+            for a in pw_loc.find_all('a'):
+                city = a.get_text(strip=True)
+                if city and len(city) < 60 and city not in offices:
+                    offices.append(city)
+            if offices:
+                return offices
         office_selectors = [
-            {'class': re.compile(r'.*\b(office|location|city)\b.*', re.I)},
+            {'class': re.compile(r'(office|location|city)', re.I)},
         ]
         
+        FOOTER_CLASSES = re.compile(r'footer', re.I)
         for selector in office_selectors:
-            elems = soup.find_all(['div', 'span', 'p', 'li'], selector)
+            elems = soup.find_all(['div', 'span', 'p', 'li', 'button', 'a'], selector)
             for elem in elems:
+                # Skip footer/nav/menu elements
+                elem_classes = ' '.join(elem.get('class', []))
+                if FOOTER_CLASSES.search(elem_classes):
+                    continue
+                if elem.find_parent(['nav', 'header', 'footer']):
+                    continue
                 text = elem.get_text(strip=True)
                 if text and len(text) < 100:
                     offices.append(text)
-        
+
+        # Secondary: links to /office/{city-slug}/ (e.g. Gibson Dunn: /office/palo-alto/)
+        if not offices:
+            for a in soup.find_all('a', href=True):
+                href = a.get('href', '')
+                if re.search(r'/office/[a-z0-9-]+/?$', href, re.I):
+                    text = a.get_text(strip=True)
+                    if text and len(text) < 60:
+                        offices.append(text)
+
+        # Tertiary: White & Case fs-5 hero pattern — 'Title, City'
+        if not offices:
+            fs5 = soup.find('div', class_=lambda c: c and 'fs-5' in c)
+            if fs5:
+                text = fs5.get_text(strip=True)
+                if ',' in text and len(text) < 150:
+                    parts = text.split(',')
+                    # parts[0] is title, rest are city names
+                    # Merge state abbreviations (e.g. 'Washington', 'DC') back into city
+                    cities: list[str] = []
+                    for part in parts[1:]:
+                        part = re.sub(r'\+\d.*', '', part).strip()
+                        if not part:
+                            continue
+                        # If part looks like a state/country suffix (2-3 uppercase chars or 'DC')
+                        if re.fullmatch(r'[A-Z\.]{1,3}', part) and cities:
+                            cities[-1] = cities[-1] + ', ' + part
+                        elif len(part) < 50:
+                            cities.append(part)
+                    offices.extend(cities)
+
         return offices
     
     def _extract_departments_bs4(self, soup: BeautifulSoup) -> list[str]:
@@ -1610,7 +2041,7 @@ class AttorneyExtractor:
         departments = []
         
         dept_selectors = [
-            {'class': re.compile(r'.*\b(department|group|division|section)\b.*', re.I)},
+            {'class': re.compile(r'(department|group|division|section)', re.I)},
         ]
         
         for selector in dept_selectors:
@@ -1635,35 +2066,94 @@ class AttorneyExtractor:
     
     def _extract_practices_bs4(self, soup: BeautifulSoup) -> list[str]:
         """Extract practice areas using BeautifulSoup"""
-        practices = []
+        practices: list[str] = []
+        # Strategy 0a: Cleary Gottlieb — <aside> 'Areas of Experience'
+        # Partners use simple-list__item > <a>, associates use complex-list__item > <p class='complex-list__item-title'>
+        # If page has side-section asides (Cleary structure) but no 'Areas of Experience', return empty.
+        cleary_asides = soup.find_all('aside', class_='side-section')
+        if cleary_asides:
+            for aside in cleary_asides:
+                hdr = aside.find('h3', class_='side-section__header')
+                if hdr and re.search(r'areas?\s+of\s+experience|practice', hdr.get_text(strip=True), re.I):
+                    # Try complex-list__item (associate structure)
+                    for li in aside.find_all('li', class_='complex-list__item'):
+                        title_p = li.find('p', class_='complex-list__item-title')
+                        item = (title_p or li).get_text(strip=True)
+                        if item and len(item) < 120 and item not in practices:
+                            practices.append(item)
+                    # Try simple-list__item (partner structure)
+                    for li in aside.find_all('li', class_='simple-list__item'):
+                        a = li.find('a')
+                        item = (a or li).get_text(strip=True)
+                        if item and len(item) < 120 and item not in practices:
+                            practices.append(item)
+                    if practices:
+                        return practices
+            # Cleary page but no 'Areas of Experience' aside — attorney with no listed practices.
+            return []
+
+        # Strategy 0b: Paul Weiss — <div class='practices-block'> <p class='detail-item'>Litigation</p>
+        pw_practices = soup.find('div', class_=lambda c: c and 'practices-block' in ' '.join(c if isinstance(c,list) else [c]))
+        if pw_practices:
+            for item in pw_practices.find_all('p', class_='detail-item'):
+                t = item.get_text(strip=True)
+                if t and len(t) < 100 and t not in practices:
+                    practices.append(t)
+            if practices:
+                return practices
+        # Strategy 0: Davis Polk Drupal field_primary_practice (field-name--field_primary_practice)
+        primary_practice_div = soup.find(
+            lambda tag: tag.name in ('div', 'span', 'p') and any(
+                'primary_practice' in cls
+                for cls in (tag.get('class') or [])
+            )
+        )
+        if primary_practice_div:
+            t = primary_practice_div.get_text(strip=True)
+            if t and len(t) < 100 and t not in practices:
+                practices.append(t)
+
+        # Strategy 1: section-header approach (works for Kirkland, Gibson Dunn, most AmLaw firms)
+        header_items = self._extract_section_items_after_header(
+            soup,
+            ['practice', 'practices', 'areas', 'expertise', 'specialt', 'competen', 'service', 'capabilit'],
+        )
+        for item in header_items:
+            if item not in practices:
+                practices.append(item)
         
-        # Strategy 1: Drupal CMS fields (DLA Piper, etc.)
-        drupal_service_fields = soup.find_all('div', class_=lambda c: c and ('field--name-field-services' in c or 'field--name-field-sub-services' in c))
-        for field_div in drupal_service_fields:
-            links = field_div.find_all('a')
-            for link in links:
-                practice = link.get_text(strip=True)
-                if practice and len(practice) < 100 and practice not in practices:
-                    practices.append(practice)
-        
-        # Strategy 2: Look for practice/service/expertise headers
-        practice_headers = soup.find_all(string=re.compile(r'(practice|service|expertise|specialt|competen)\s*(area|focus|s)?', re.I))
-        
-        for header in practice_headers:
-            parent = header.find_parent(['div', 'section', 'ul'])
-            if parent:
-                links = parent.find_all('a')
-                for link in links:
+        # Strategy 2: Drupal CMS fields (DLA Piper, White & Case, etc.) - fallback
+        if not practices:
+            drupal_service_fields = soup.find_all('div', class_=lambda c: c and (
+                'field--name-field-services' in ' '.join(c if isinstance(c, list) else [c])
+                or 'field--name-field-sub-services' in ' '.join(c if isinstance(c, list) else [c])
+                or 'field--name-field-related-services' in ' '.join(c if isinstance(c, list) else [c])
+            ))
+            for field_div in drupal_service_fields:
+                for item_div in field_div.find_all('div', class_=lambda c: c and 'field--item' in ' '.join(c if isinstance(c, list) else [c])):
+                    practice = item_div.get_text(strip=True)
+                    if practice and len(practice) < 100 and practice not in practices:
+                        practices.append(practice)
+                for link in field_div.find_all('a'):
                     practice = link.get_text(strip=True)
                     if practice and len(practice) < 100 and practice not in practices:
                         practices.append(practice)
-                
-                # Also check list items
-                items = parent.find_all('li')
-                for item in items:
-                    practice = item.get_text(strip=True)
-                    if practice and len(practice) < 100 and practice not in practices:
-                        practices.append(practice)
+        # Strategy 3: Look for practice/service/expertise/capabilities string headers
+        if not practices:
+            practice_headers = soup.find_all(string=re.compile(r'(practice|service|expertise|specialt|competen|capabilit)\s*(area|focus|s)?', re.I))
+            for header in practice_headers:
+                parent = header.find_parent(['div', 'section', 'ul'])
+                if parent:
+                    links = parent.find_all('a')
+                    for link in links:
+                        practice = link.get_text(strip=True)
+                        if practice and len(practice) < 100 and practice not in practices:
+                            practices.append(practice)
+                    items = parent.find_all('li')
+                    for item in items:
+                        practice = item.get_text(strip=True)
+                        if practice and len(practice) < 100 and practice not in practices:
+                            practices.append(practice)
         
         return practices
     
@@ -1683,18 +2173,27 @@ class AttorneyExtractor:
         seen: set[str] = set()
         results: list[str] = []
 
-        for header in soup.find_all(['h2', 'h3', 'h4']):
+        for header in soup.find_all(['h2', 'h3', 'h4', 'h5']):
+            # Skip headers inside nav/header/footer
+            if header.find_parent(['nav', 'header', 'footer']):
+                continue
             header_text = header.get_text(strip=True).lower()
             if not any(kw.lower() in header_text for kw in header_keywords):
                 continue
 
-            # Walk forward siblings until we hit another heading
+            # Walk forward siblings until we hit another heading or footer
             for sibling in header.find_all_next():
                 # Stop at the next heading at the same (or higher) level
-                if sibling.name in ('h2', 'h3', 'h4') and sibling is not header:
+                if sibling.name in ('h2', 'h3', 'h4', 'h5') and sibling is not header:
                     break
+                # Stop when we enter the footer
+                if sibling.name == 'footer':
+                    break
+                # Skip elements inside nav/header/footer
+                if sibling.find_parent(['nav', 'header', 'footer']):
+                    continue
                 # Collect leaf text nodes from list items, links, paragraphs, dd
-                if sibling.name in ('li', 'a', 'dd', 'p'):
+                if sibling.name in ('li', 'dd', 'p'):
                     text = sibling.get_text(strip=True)
                     if text and len(text) <= 200 and text not in seen:
                         seen.add(text)
@@ -1710,14 +2209,36 @@ class AttorneyExtractor:
 
     def _extract_bar_admissions_bs4(self, soup: BeautifulSoup) -> list[str]:
         """Extract bar admissions using BeautifulSoup"""
+        # Strategy 0a: Cleary Gottlieb — <aside> 'Bar Admissions' with complex-list__item-title
         bars: list[str] = []
-
-        # Primary: section-header approach
+        for aside in soup.find_all('aside', class_='side-section'):
+            hdr = aside.find('h3', class_='side-section__header')
+            if hdr and re.search(r'bar\s+admission|admission', hdr.get_text(strip=True), re.I):
+                for li in aside.find_all('li', class_='complex-list__item'):
+                    title_p = li.find('p', class_='complex-list__item-title')
+                    item = (title_p or li).get_text(strip=True)
+                    if item and len(item) <= 80 and item not in bars:
+                        bars.append(item)
+                if bars:
+                    return bars
+        # Strategy 0b: Paul Weiss — <div class='admissions-block'> <p class='detail-item'>New York</p>
+        pw_adm = soup.find('div', class_=lambda c: c and 'admissions-block' in ' '.join(c if isinstance(c,list) else [c]))
+        if pw_adm:
+            for item in pw_adm.find_all('p', class_='detail-item'):
+                t = item.get_text(strip=True)
+                if t and len(t) < 80 and t not in bars:
+                    bars.append(t)
+            if bars:
+                return bars
+        # Primary: section-header approach (h2/h3/h4 with bar/admission keywords)
         raw_items = self._extract_section_items_after_header(
             soup, ['bar admission', 'bar admissions', 'bar', 'admission']
         )
         if raw_items:
             for item in raw_items:
+                # Skip news/insight headlines (too long or contain typical news patterns)
+                if len(item) > 50 or re.search(r'(news|insight|publication|article|alert|advises|acquires|announces|represents|secures|wins)', item, re.I):
+                    continue
                 extracted = self._extract_states_from_text(item)
                 if extracted:
                     for state in extracted:
@@ -1726,6 +2247,33 @@ class AttorneyExtractor:
                 else:
                     # Keep raw item if no US state name matched
                     if item not in bars:
+                        bars.append(item)
+
+        # Secondary: h5/h6 'Admissions:' sub-header (Gibson Dunn pattern)
+        # <h5>Admissions:</h5><ul><li>Colorado Bar</li>...</ul>
+        if not bars:
+            for sub_hdr in soup.find_all(['h5', 'h6']):
+                sub_text = sub_hdr.get_text(strip=True).lower()
+                if 'admission' in sub_text:
+                    # Collect <li> items from the immediately following <ul>
+                    nxt = sub_hdr.find_next_sibling()
+                    while nxt and nxt.name not in ('h2', 'h3', 'h4', 'h5', 'h6'):
+                        if nxt.name in ('ul', 'ol'):
+                            for li in nxt.find_all('li'):
+                                item = li.get_text(strip=True)
+                                # Filter out news headlines / long items
+                                if item and len(item) <= 50 and not re.search(r'(news|insight|publication|article|alert|advises|acquires|announces|represents|secures|wins)', item, re.I) and item not in bars:
+                                    bars.append(item)
+                            break
+                        nxt = nxt.find_next_sibling()
+
+        # Tertiary: Drupal CMS field--name-field-admissions (White & Case pattern)
+        if not bars:
+            drupal_field = soup.find('div', class_=lambda c: c and 'field--name-field-admissions' in ' '.join(c if isinstance(c, list) else [c]))
+            if drupal_field:
+                for item_div in drupal_field.find_all('div', class_=lambda c: c and 'field--item' in ' '.join(c if isinstance(c, list) else [c])):
+                    item = item_div.get_text(strip=True)
+                    if item and item not in bars:
                         bars.append(item)
 
         # Legacy fallback: find_all(string=...) + find_parent
@@ -1745,25 +2293,103 @@ class AttorneyExtractor:
     def _extract_education_bs4(self, soup: BeautifulSoup) -> list[EducationRecord]:
         """Extract education records using BeautifulSoup"""
         education_records: list[EducationRecord] = []
+        # Strategy 0a: Cleary Gottlieb — <aside> 'Education' with complex-list__item
+        for aside in soup.find_all('aside', class_='side-section'):
+            hdr = aside.find('h3', class_='side-section__header')
+            if hdr and re.search(r'education', hdr.get_text(strip=True), re.I):
+                for li in aside.find_all('li', class_='complex-list__item'):
+                    title_p = li.find('p', class_='complex-list__item-title')
+                    school = title_p.get_text(strip=True) if title_p else None
+                    remaining_texts = []
+                    for p in li.find_all('p'):
+                        if p == title_p:
+                            continue
+                        remaining_texts.append(p.get_text(strip=True))
+                    combined = ' '.join(remaining_texts)
+                    deg = self._extract_degree_from_text(combined)
+                    yr = self._extract_year_from_text(combined)
+                    if school or deg:
+                        education_records.append(EducationRecord(degree=deg, school=school, year=yr))
+                if education_records:
+                    return education_records
 
-        # Primary: section-header approach
-        raw_items = self._extract_section_items_after_header(soup, ['education', 'academic'])
-        for text in raw_items:
-            degree = self._extract_degree_from_text(text)
-            year = self._extract_year_from_text(text)
-            school = text
-            if degree:
-                school = re.sub(
-                    r'\b' + re.escape(degree) + r'\b', '', school, flags=re.IGNORECASE
-                )
-            if year:
-                school = school.replace(str(year), '')
-            school = school.strip(' ,-')
-            education_records.append(EducationRecord(
-                degree=degree,
-                school=school if school else None,
-                year=year,
-            ))
+        # Strategy 0b: Paul Weiss — <div class='education-block'> <p class='detail-item'>J.D., Harvard, magna cum laude</p>
+        pw_edu = soup.find('div', class_=lambda c: c and 'education-block' in ' '.join(c if isinstance(c,list) else [c]))
+        if pw_edu:
+            for item in pw_edu.find_all('p', class_='detail-item'):
+                text = item.get_text(strip=True)
+                if not text or len(text) > 200:
+                    continue
+                # Format: 'J.D., Harvard Law School, magna cum laude'
+                parts = [p.strip() for p in text.split(',', 2)]
+                deg = self._extract_degree_from_text(parts[0]) if parts else None
+                school = parts[1].strip() if len(parts) > 1 else None
+                yr = self._extract_year_from_text(text)
+                if school or deg:
+                    education_records.append(EducationRecord(degree=deg, school=school, year=yr))
+            if education_records:
+                return education_records
+        # Strategy 0: Davis Polk — field-name--field_degrees with div.degree per entry
+        deg_field = soup.find(
+            lambda tag: tag.name in ('div', 'span', 'p') and any(
+                'field_degrees' in cls
+                for cls in (tag.get('class') or [])
+            )
+        )
+        if deg_field:
+            for item in deg_field.find_all('div', class_='field-item'):
+                degree_div = item.find('div', class_='degree')
+                if degree_div:
+                    line = degree_div.get_text(strip=True)
+                    deg = self._extract_degree_from_text(line)
+                    yr = self._extract_year_from_text(line)
+                    sch = re.sub(r'' + re.escape(deg) + r'', '', line, flags=re.IGNORECASE).strip(' ,-') if deg else line
+                    sch = re.sub(r'^[A-Z]\.(?:[A-Z]\.)+,?\s*', '', sch).strip(' ,-')
+                    if yr:
+                        sch = sch.replace(str(yr), '').strip(' ,-')
+                    if sch or deg:
+                        education_records.append(EducationRecord(degree=deg, school=sch or None, year=yr))
+            # Fallback: lines that start with a degree abbreviation
+            if not education_records:
+                for line in deg_field.get_text(separator='\n', strip=True).split('\n'):
+                    line = line.strip()
+                    if not line or len(line) > 150:
+                        continue
+                    if re.match(r'^(J\.D\.|LL\.M\.|LL\.B\.|B\.A\.|B\.S\.|M\.B\.A\.|Ph\.D\.|A\.B\.)', line):
+                        deg = self._extract_degree_from_text(line)
+                        yr = self._extract_year_from_text(line)
+                        sch = re.sub(r'\b' + re.escape(deg) + r'\b', '', line, flags=re.IGNORECASE).strip(' ,-') if deg else line
+                        if yr:
+                            sch = sch.replace(str(yr), '').strip(' ,-')
+                        if sch or deg:
+                            education_records.append(EducationRecord(degree=deg, school=sch or None, year=yr))
+        # Primary: section-header approach (skip if already populated by Strategy 0)
+        if not education_records:
+            raw_items = self._extract_section_items_after_header(soup, ['education', 'academic'])
+            for text in raw_items:
+                degree = self._extract_degree_from_text(text)
+                year = self._extract_year_from_text(text)
+                school = text
+                if degree:
+                    school = re.sub(
+                        r'\b' + re.escape(degree) + r'\b', '', school, flags=re.IGNORECASE
+                    )
+                    # Also strip spelled-out degree forms (Gibson Dunn: 'Juris Doctor', 'Bachelor of Arts')
+                    for pat in DEGREE_PATTERNS:
+                        school = re.sub(pat, '', school, flags=re.IGNORECASE)
+                # Strip residual parenthetical notes (Gibson Dunn: 'University of Houston - (some notes)')
+                school = re.sub(r'\s*\([^)]*\)\s*', ' ', school)
+                # Strip dash separator (Gibson Dunn: 'Georgetown University - 2019 Juris Doctor')
+                school = re.sub(r'\s*-\s*$', '', school)
+                if year:
+                    school = school.replace(str(year), '')
+                school = re.sub(r'\s{2,}', ' ', school)  # collapse multiple spaces
+                school = school.strip(' ,-')
+                education_records.append(EducationRecord(
+                    degree=degree,
+                    school=school if school else None,
+                    year=year,
+                ))
 
         # Legacy fallback: find_all(string=...) + find_parent
         if not education_records:
@@ -1802,16 +2428,56 @@ class AttorneyExtractor:
                                 year=year,
                             ))
 
-        # Apply no-JD sentinel
-        if education_records:
-            has_jd = any(
-                rec.degree and 'JD' in rec.degree.upper()
-                for rec in education_records
-            )
-            if not has_jd:
-                education_records.append(
-                    EducationRecord(degree='no JD', school='unknown', year=None)
+        # Davis Polk: field-name--field_degrees — each field-item has a div.degree with "J.D., School Name"
+        if not education_records:
+            deg_field = soup.find(
+                lambda tag: tag.name in ('div', 'span', 'p') and any(
+                    'field_degrees' in cls
+                    for cls in (tag.get('class') or [])
                 )
+            )
+            if deg_field:
+                for item in deg_field.find_all('div', class_='field-item'):
+                    degree_div = item.find('div', class_='degree')
+                    if degree_div:
+                        line = degree_div.get_text(strip=True)
+                        degree = self._extract_degree_from_text(line)
+                        year = self._extract_year_from_text(line)
+                        school = re.sub(r'\b' + re.escape(degree) + r'\b', '', line, flags=re.IGNORECASE).strip(' ,-') if degree else line
+                        if year:
+                            school = school.replace(str(year), '').strip(' ,-')
+                        if school or degree:
+                            education_records.append(EducationRecord(degree=degree, school=school or None, year=year))
+                # Fallback: try lines starting with a degree abbreviation
+                if not education_records:
+                    for line in deg_field.get_text(separator='\n', strip=True).split('\n'):
+                        line = line.strip()
+                        if not line or len(line) > 150:
+                            continue
+                        if re.match(r'^(J\.D\.|LL\.M\.|LL\.B\.|B\.A\.|B\.S\.|M\.B\.A\.|Ph\.D\.|A\.B\.)', line):
+                            degree = self._extract_degree_from_text(line)
+                            year = self._extract_year_from_text(line)
+                            school = re.sub(r'\b' + re.escape(degree) + r'\b', '', line, flags=re.IGNORECASE).strip(' ,-') if degree else line
+                            if year:
+                                school = school.replace(str(year), '').strip(' ,-')
+                            if school or degree:
+                                education_records.append(EducationRecord(degree=degree, school=school or None, year=year))
+
+        # Drupal CMS: field--name-field-education with nested degree+school (White & Case pattern)
+        if not education_records:
+            edu_field = soup.find('div', class_=lambda c: c and 'field--name-field-education' in ' '.join(c if isinstance(c, list) else [c]))
+            if edu_field:
+                for item in edu_field.find_all('div', class_=lambda c: c and 'paragraph--type--education' in ' '.join(c if isinstance(c, list) else [c])):
+                    deg_div = item.find('div', class_=lambda c: c and 'field--name-field-degree' in ' '.join(c if isinstance(c, list) else [c]))
+                    school_div = item.find('div', class_=lambda c: c and 'field--name-field-school' in ' '.join(c if isinstance(c, list) else [c]))
+                    year_div = item.find('div', class_=lambda c: c and 'field--name-field-year' in ' '.join(c if isinstance(c, list) else [c]))
+                    degree = deg_div.get_text(strip=True) if deg_div else None
+                    school = school_div.get_text(strip=True) if school_div else None
+                    year_text = year_div.get_text(strip=True) if year_div else None
+                    year = self._extract_year_from_text(year_text) if year_text else None
+                    if school or degree:
+                        education_records.append(EducationRecord(degree=degree, school=school, year=year))
+
 
         return education_records
     
@@ -1906,7 +2572,7 @@ class AttorneyExtractor:
         """Check if text looks like a person name.
 
         Strict validation:
-        - Must match ^[A-Z][a-z]+(\s[A-Z][a-z\.\-']+)+$ (First Last pattern)
+        - Must match First Last pattern (e.g. "John Smith", "Mary O'Brien")
         - Must not be a known header/label term
         - Must not contain digits
         - Length 4–100

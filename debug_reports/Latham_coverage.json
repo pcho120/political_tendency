@@ -1,18 +1,18 @@
 {
   "firm": "Latham",
   "expected_total": null,
-  "discovered_urls": 3711,
+  "discovered_urls": 3,
   "coverage_ratio": null,
   "strategies_attempted": [
     "xml_sitemap"
   ],
-  "final_status": "SUCCESS",
-  "discovery_status": "UNKNOWN",
+  "final_status": "PARTIAL",
+  "discovery_status": "SUCCESS",
   "failure_reason": null,
   "notes": [
-    "Discovered 3711 attorneys (no expected total available)"
+    "Only 3 attorneys found (below minimum threshold)"
   ],
   "url_sources": {
-    "xml_sitemap": 4206
+    "xml_sitemap": 3703
   }
 }

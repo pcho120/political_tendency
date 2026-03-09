@@ -1,11 +1,11 @@
 [
   {
-    "firm": "Kirkland",
+    "firm": "Sidley",
     "expected_total": null,
     "expected_total_source": "unknown",
-    "discovered_attorney_count": 4162,
-    "extracted_attorney_count": 4162,
-    "missing_fields_ratio": 0.3383,
+    "discovered_attorney_count": 3,
+    "extracted_attorney_count": 3,
+    "missing_fields_ratio": 1.0,
     "blocked_ratio": 0.0,
     "coverage_ratio": null,
     "needs_additional_sources": true,

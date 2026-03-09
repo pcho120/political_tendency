@@ -55,8 +55,9 @@ ROBOTS_USER_AGENT = "*"   # We check the wildcard catch-all
 # Bot-wall fingerprints (response body signatures)
 BOT_WALL_PATTERNS = [
     r"cf-browser-verification",
-    r"cloudflare",
-    r"ray id",
+    r"cloudflare-error",            # Cloudflare error page (not just CDN usage)
+    r"checking your browser",       # Cloudflare JS challenge message
+    r"\bray id\b",                 # Cloudflare Ray ID in challenge footer
     r"captcha",
     r"recaptcha",
     r"hcaptcha",
@@ -71,7 +72,11 @@ BOT_WALL_PATTERNS = [
     r"perimeterx",
     r"kasada",
     r"imperva",
+    r"access denied",               # Generic bot-wall denial page
+    r"unusual traffic",             # Google/generic anti-bot
+    r"automated access",            # Generic anti-bot
 ]
+
 
 # Auth-wall fingerprints
 AUTH_WALL_PATTERNS = [
@@ -94,6 +99,7 @@ SENSITIVE_PATH_PREFIXES = [
 # Fetch timeouts
 ROBOTS_FETCH_TIMEOUT  = 8   # seconds
 HOMEPAGE_FETCH_TIMEOUT = 10
+ATTORNEY_PATH_PROBE_TIMEOUT = 8   # seconds — probe /people, /attorneys etc.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Data structures
@@ -259,6 +265,18 @@ class ComplianceEngine:
         homepage_status, homepage_html = self._probe_homepage(base_url)
         homepage_blocked      = self._is_bot_wall(homepage_html, homepage_status)
         homepage_auth_required = not homepage_blocked and self._is_auth_wall(homepage_html, homepage_status)
+
+        # 2b. If homepage is clean, probe attorney paths specifically.
+        #     Cloudflare often allows the homepage but blocks /people, /attorneys etc.
+        #     If ALL probed attorney paths return CF 403, classify as BLOCKED_BY_BOT
+        #     and stop immediately — no strategies will work.
+        if not homepage_blocked and not homepage_auth_required:
+            attorney_path_blocked = self._probe_attorney_paths(base_url)
+            if attorney_path_blocked:
+                homepage_blocked = True
+                logger.info(
+                    f"[compliance] {firm}: attorney paths return CF 403 — classifying BLOCKED_BY_BOT"
+                )
 
         # 3. Classify accessibility
         accessibility = self._classify(
@@ -450,6 +468,55 @@ class ComplianceEngine:
         except Exception as e:
             logger.debug(f"[compliance] homepage probe error: {e}")
             return 0, ""
+
+    def _probe_attorney_paths(self, base_url: str) -> bool:
+        """Probe attorney-specific paths for Cloudflare/bot-wall blocks.
+
+        Returns True if ALL probed attorney paths are bot-wall blocked
+        (homepage may be clean while /people, /attorneys etc. are CF-blocked).
+        """
+        parsed = urlparse(base_url)
+        paths_to_probe = [
+            "/people", "/attorneys", "/professionals",
+            "/lawyers", "/our-people", "/team",
+        ]
+        blocked_count = 0
+        probed_count = 0
+
+        for path in paths_to_probe:
+            url = f"{parsed.scheme}://{parsed.netloc}{path}"
+            try:
+                resp = self.session.get(
+                    url,
+                    timeout=ATTORNEY_PATH_PROBE_TIMEOUT,
+                    allow_redirects=True,
+                )
+                probed_count += 1
+                if self._is_bot_wall(resp.text, resp.status_code):
+                    blocked_count += 1
+                    logger.debug(
+                        f"[compliance] attorney path blocked: {path} \u2192 HTTP {resp.status_code}"
+                    )
+                else:
+                    # At least one path is accessible — not fully blocked
+                    logger.debug(
+                        f"[compliance] attorney path accessible: {path} \u2192 HTTP {resp.status_code}"
+                    )
+                    return False
+            except requests.exceptions.Timeout:
+                blocked_count += 1
+                probed_count += 1
+                logger.debug(f"[compliance] attorney path timeout: {path}")
+            except Exception as e:
+                logger.debug(f"[compliance] attorney path error: {path}: {e}")
+
+        # All probed paths were blocked
+        if probed_count > 0 and blocked_count == probed_count:
+            logger.warning(
+                f"[compliance] ALL {probed_count} attorney paths blocked — site is CF-protected"
+            )
+            return True
+        return False
 
     def _is_bot_wall(self, html: str, status: int) -> bool:
         """Detect Cloudflare / CAPTCHA / anti-bot wall from HTTP response."""

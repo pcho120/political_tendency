@@ -6,13 +6,13 @@
     "XML_SITEMAP"
   ],
   "signals": [
-    "Classification: BOT_PROTECTED",
-    "\u26a0 Bot protection detected - may require special handling",
-    "\u26a0 HTTP 403 encountered - authentication may be required",
-    "403 Forbidden on /attorneys",
-    "403 Forbidden on /lawyers",
-    "403 Forbidden on /people",
-    "403 Forbidden on /professionals",
-    "403 Forbidden on /team"
+    "Classification: SPA_HEAVY",
+    "\u2713 Sitemap contains 48 attorney URLs",
+    "\u26a0 JavaScript framework detected - may need browser automation",
+    "Found sitemap in robots.txt: https://www.kirkland.com/sitemap",
+    "robots.txt disallows crawling",
+    "Sitemap index at https://www.kirkland.com/sitemap \u2014 following sub-sitemaps",
+    "Sub-sitemap contains attorney URLs",
+    "Vue detected"
   ]
 }

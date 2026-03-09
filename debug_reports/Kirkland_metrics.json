@@ -1,7 +1,7 @@
 {
   "directory_url": "",
   "expected_total": 0,
-  "discovered_unique": 4162,
+  "discovered_unique": 0,
   "discovered_by_dom": 0,
   "discovered_by_pagination": 0,
   "discovered_by_loadmore": 0,
@@ -9,7 +9,7 @@
   "discovered_by_filters": 0,
   "discovered_by_api": 0,
   "failure_notes": [
-    "Discovered 4162 attorneys (no expected total available)"
+    "No attorneys discovered by any strategy"
   ],
   "coverage_ratio": 0.0
 }

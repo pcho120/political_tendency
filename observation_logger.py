@@ -24,6 +24,18 @@ from bs4 import BeautifulSoup
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Observation probe timeouts — kept short to avoid hanging during firm detection
+OBSERVATION_TIMEOUT = 5   # seconds per request
+DIRECTORY_TIMEOUT   = 5   # seconds per directory probe
+
+# Standard browser User-Agent — avoids python-requests/x.x.x being rate-limited
+_BROWSER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/121.0.0.0 Safari/537.36"
+)
+_HEADERS = {"User-Agent": _BROWSER_UA}
+
 
 @dataclass
 class FirmObservation:
@@ -124,15 +136,34 @@ class ObservationLogger:
         
         logger.info(f"Starting observation for {firm} at {base_url}")
         
-        # Run observation probes (each adds to observation object)
+        # Fetch homepage ONCE and share across probes (avoids 3+ duplicate fetches)
+        homepage_html = ""
+        homepage_status = 0
+        try:
+            _resp = requests.get(base_url, timeout=OBSERVATION_TIMEOUT, allow_redirects=True, headers=_HEADERS)
+            homepage_html = _resp.text
+            homepage_status = _resp.status_code
+            observation.http_response_codes.append(homepage_status)
+        except Exception as e:
+            observation.notes.append(f"Homepage fetch error: {e}")
+        
+        # Run observation probes
         self._probe_robots_txt(observation)
         self._probe_xml_sitemaps(observation)
-        self._probe_directories(observation)
-        self._probe_alphabet_navigation(observation)
-        self._probe_javascript(observation)
-        self._probe_bot_protection(observation)
-        self._probe_structured_data(observation)
-        self._probe_search_functionality(observation)
+        self._probe_bot_protection(observation, homepage_html, homepage_status)
+        
+        # Short-circuit: if bot protection detected, skip directory/JS probes
+        # (they will all 403/timeout anyway, wasting 40+ seconds)
+        if not observation.bot_protection_detected:
+            self._probe_directories(observation)
+            self._probe_alphabet_navigation(observation)
+            self._probe_javascript(observation, homepage_html, homepage_status)
+            self._probe_structured_data(observation, homepage_html, homepage_status)
+            self._probe_search_functionality(observation)
+        else:
+            observation.notes.append(
+                "Skipped directory/JS probes: bot protection detected on homepage"
+            )
         
         # Persist to JSONL
         self._append_to_log(observation)
@@ -146,7 +177,7 @@ class ObservationLogger:
         obs.robots_txt_url = robots_url
         
         try:
-            response = requests.get(robots_url, timeout=10)
+            response = requests.get(robots_url, timeout=OBSERVATION_TIMEOUT, headers=_HEADERS)
             obs.http_response_codes.append(response.status_code)
             
             if response.status_code == 200:
@@ -163,11 +194,24 @@ class ObservationLogger:
                             obs.xml_sitemaps.append(sitemap_url)
                             obs.notes.append(f"Found sitemap in robots.txt: {sitemap_url}")
                 
-                # Check for disallow rules
-                if "disallow: /" in content:
+                # Check for disallow rules - only flag if User-agent: * block disallows / (root) or /en/people etc.
+                # A "Disallow: /~/vcf/*" or partial path should NOT mark crawl as disallowed.
+                # Parse the robots.txt to find the User-agent: * block and check for Disallow: /
+                _ua_star_block = False
+                _root_disallowed = False
+                for _line in response.text.split('\n'):
+                    _stripped = _line.strip().lower()
+                    if _stripped.startswith('user-agent:'):
+                        _ua = _stripped.split(':', 1)[1].strip()
+                        _ua_star_block = (_ua == '*')
+                    elif _ua_star_block and _stripped.startswith('disallow:'):
+                        _disallow_val = _stripped.split(':', 1)[1].strip()
+                        if _disallow_val == '/':  # Only full root disallow counts
+                            _root_disallowed = True
+                            break
+                if _root_disallowed:
                     obs.robots_txt_allows_crawl = False
-                    obs.notes.append("robots.txt disallows crawling")
-                    
+                    obs.notes.append('robots.txt disallows crawling (Disallow: / for User-agent: *)')
         except Exception as e:
             obs.notes.append(f"robots.txt probe error: {str(e)}")
             logger.debug(f"robots.txt probe failed for {obs.firm}: {e}")
@@ -180,7 +224,7 @@ class ObservationLogger:
             for path in common_paths:
                 sitemap_url = urljoin(obs.base_url, path)
                 try:
-                    response = requests.head(sitemap_url, timeout=5)
+                    response = requests.head(sitemap_url, timeout=OBSERVATION_TIMEOUT, headers=_HEADERS)
                     if response.status_code == 200:
                         obs.xml_sitemaps.append(sitemap_url)
                 except:
@@ -189,32 +233,59 @@ class ObservationLogger:
         # Analyze each sitemap
         for sitemap_url in obs.xml_sitemaps[:3]:  # Limit to first 3
             try:
-                response = requests.get(sitemap_url, timeout=10)
+                response = requests.get(sitemap_url, timeout=OBSERVATION_TIMEOUT, headers=_HEADERS)
                 obs.http_response_codes.append(response.status_code)
                 
                 if response.status_code == 200:
                     soup = BeautifulSoup(response.content, "xml")
                     
-                    # Count URLs
-                    urls = soup.find_all("url") or soup.find_all("loc")
-                    obs.sitemap_total_urls += len(urls)
-                    
-                    # Check if URLs contain people/attorney/lawyer patterns
-                    sample_urls = [loc.get_text() for loc in soup.find_all("loc")[:20]]
                     people_patterns = ["people", "attorney", "lawyer", "professional", "team"]
                     
+                    # Detect sitemap INDEX (has <sitemap> children, not <url> children)
+                    sub_sitemap_locs = [loc.get_text().strip() for loc in soup.find_all("sitemap") if loc.find("loc")]
+                    if sub_sitemap_locs:
+                        obs.notes.append(f"Sitemap index at {sitemap_url} — following sub-sitemaps")
+                        for sub_url in sub_sitemap_locs[:2]:
+                            if not sub_url:
+                                continue
+                            # Extract loc text from sitemap element
+                            try:
+                                sub_resp = requests.get(sub_url, timeout=OBSERVATION_TIMEOUT, headers=_HEADERS)
+                                if sub_resp.status_code == 200:
+                                    sub_soup = BeautifulSoup(sub_resp.content, "xml")
+                                    sub_locs = [loc.get_text() for loc in sub_soup.find_all("loc")[:50]]
+                                    obs.sitemap_total_urls += len(sub_locs)
+                                    for u in sub_locs:
+                                        if any(p in u.lower() for p in people_patterns):
+                                            obs.sitemap_contains_people = True
+                                            if u not in obs.sitemap_url_patterns:
+                                                obs.sitemap_url_patterns.append(u)
+                                            if len(obs.sitemap_url_patterns) >= 5:
+                                                break
+                                    if obs.sitemap_contains_people:
+                                        break
+                            except Exception as sub_e:
+                                obs.notes.append(f"Sub-sitemap error {sub_url}: {sub_e}")
+                        if obs.sitemap_contains_people and obs.sitemap_total_urls > 10:
+                            obs.sitemap_is_attorney_list = True
+                            obs.notes.append("Sub-sitemap contains attorney URLs")
+                        continue
+                    
+                    # Regular sitemap (not index)
+                    urls = soup.find_all("url") or soup.find_all("loc")
+                    obs.sitemap_total_urls += len(urls)
+                    sample_urls = [loc.get_text() for loc in soup.find_all("loc")[:20]]
+                    
                     for url in sample_urls:
-                        url_lower = url.lower()
-                        if any(pattern in url_lower for pattern in people_patterns):
+                        if any(pattern in url.lower() for pattern in people_patterns):
                             obs.sitemap_contains_people = True
                             obs.sitemap_url_patterns.append(url)
                             if len(obs.sitemap_url_patterns) >= 5:
                                 break
                     
-                    # If majority of URLs are people-related, this might be attorney list
                     if obs.sitemap_contains_people and obs.sitemap_total_urls > 10:
                         people_count = sum(1 for u in sample_urls if any(p in u.lower() for p in people_patterns))
-                        if people_count / len(sample_urls) > 0.7:
+                        if people_count / max(len(sample_urls), 1) > 0.7:
                             obs.sitemap_is_attorney_list = True
                             obs.notes.append(f"Sitemap appears to be attorney list ({people_count}/{len(sample_urls)} URLs)")
                     
@@ -233,7 +304,7 @@ class ObservationLogger:
             obs.directory_paths_tested.append(full_url)
             
             try:
-                response = requests.get(full_url, timeout=10, allow_redirects=True)
+                response = requests.get(full_url, timeout=DIRECTORY_TIMEOUT, allow_redirects=True, headers=_HEADERS)
                 obs.http_response_codes.append(response.status_code)
                 
                 if response.status_code == 403:
@@ -268,7 +339,7 @@ class ObservationLogger:
         # Check common directory pages
         for path in obs.directory_paths_tested[:3]:
             try:
-                response = requests.get(path, timeout=10)
+                response = requests.get(path, timeout=DIRECTORY_TIMEOUT, headers=_HEADERS)
                 if response.status_code != 200:
                     continue
                     
@@ -303,14 +374,18 @@ class ObservationLogger:
             except Exception as e:
                 obs.notes.append(f"Alphabet probe error: {str(e)}")
     
-    def _probe_javascript(self, obs: FirmObservation):
-        """Probe for heavy JavaScript/SPA characteristics."""
+    def _probe_javascript(self, obs: FirmObservation,
+                          homepage_html: str = "", homepage_status: int = 0):
+        """Probe for heavy JavaScript/SPA characteristics (uses cached homepage)."""
         try:
-            response = requests.get(obs.base_url, timeout=10)
-            obs.http_response_codes.append(response.status_code)
+            if not homepage_html:
+                response = requests.get(obs.base_url, timeout=OBSERVATION_TIMEOUT, headers=_HEADERS)
+                homepage_status = response.status_code
+                homepage_html = response.text
+                obs.http_response_codes.append(homepage_status)
             
-            if response.status_code == 200:
-                content = response.text.lower()
+            if homepage_status == 200:
+                content = homepage_html.lower()
                 
                 # Check for SPA frameworks
                 if "react" in content or "reactdom" in content:
@@ -336,27 +411,31 @@ class ObservationLogger:
         except Exception as e:
             obs.notes.append(f"JavaScript probe error: {str(e)}")
     
-    def _probe_bot_protection(self, obs: FirmObservation):
-        """Probe for bot protection mechanisms."""
+    def _probe_bot_protection(self, obs: FirmObservation,
+                               homepage_html: str = "", homepage_status: int = 0):
+        """Probe for bot protection mechanisms (uses cached homepage)."""
         try:
-            response = requests.get(obs.base_url, timeout=10)
-            obs.http_response_codes.append(response.status_code)
+            if not homepage_html:
+                response = requests.get(obs.base_url, timeout=OBSERVATION_TIMEOUT, headers=_HEADERS)
+                homepage_status = response.status_code
+                homepage_html = response.text
+                obs.http_response_codes.append(homepage_status)
             
-            if response.status_code == 403:
+            if homepage_status == 403:
                 obs.http_403_encountered = True
                 obs.bot_protection_detected = True
                 obs.notes.append("HTTP 403 on base URL - possible bot protection")
             
-            if response.status_code == 429:
+            if homepage_status == 429:
                 obs.http_429_encountered = True
                 obs.bot_protection_detected = True
                 obs.notes.append("HTTP 429 Rate limit encountered")
             
-            if response.status_code == 200:
-                content = response.text.lower()
+            if homepage_status == 200:
+                content = homepage_html.lower()
                 
                 # Check for Cloudflare
-                if "cloudflare" in content or "cf-ray" in response.headers:
+                if "cloudflare" in content or "cf-ray" in homepage_html:
                     obs.cloudflare_detected = True
                     obs.notes.append("Cloudflare detected")
                 
@@ -369,14 +448,19 @@ class ObservationLogger:
         except Exception as e:
             obs.notes.append(f"Bot protection probe error: {str(e)}")
     
-    def _probe_structured_data(self, obs: FirmObservation):
-        """Probe for structured data (Schema.org, JSON-LD, microdata)."""
+    def _probe_structured_data(self, obs: FirmObservation,
+                                homepage_html: str = "", homepage_status: int = 0):
+        """Probe for structured data (uses cached homepage)."""
         try:
-            response = requests.get(obs.base_url, timeout=10)
-            if response.status_code != 200:
+            if not homepage_html:
+                response = requests.get(obs.base_url, timeout=OBSERVATION_TIMEOUT, headers=_HEADERS)
+                homepage_status = response.status_code
+                homepage_html = response.text
+            
+            if homepage_status != 200:
                 return
                 
-            soup = BeautifulSoup(response.content, "html.parser")
+            soup = BeautifulSoup(homepage_html, "html.parser")
             
             # Check for JSON-LD
             jsonld_scripts = soup.find_all("script", type="application/ld+json")
@@ -408,7 +492,7 @@ class ObservationLogger:
     def _probe_search_functionality(self, obs: FirmObservation):
         """Probe for search forms and endpoints."""
         try:
-            response = requests.get(obs.base_url, timeout=10)
+            response = requests.get(obs.base_url, timeout=OBSERVATION_TIMEOUT, headers=_HEADERS)
             if response.status_code != 200:
                 return
                 

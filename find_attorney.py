@@ -542,7 +542,7 @@ class AttorneyFinder:
         self.session = requests.Session()
         self.session.headers.update(
             {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
             }
         )
 
@@ -1031,11 +1031,24 @@ class AttorneyFinder:
         """
         strategies = []
 
-        # Fix 3: Kirkland override — xml_sitemap returns 0 URLs; force directory strategies
-        if "kirkland" in firm_name.lower():
-            self.log("  [KIRKLAND_OVERRIDE] Disabling xml_sitemap; using Playwright DOM scroll strategy")
-            strategies.extend(["kirkland_scroll", "directory_listing", "alphabet_enumeration", "dom_exhaustion"])
-            self.log(f"  Selected strategies: {', '.join(strategies)}")
+        # Structural detection: BOT_PROTECTED firms with no usable sitemap
+        # (e.g. Kirkland) need Playwright DOM scroll as primary strategy.
+        # Detect by classification signal rather than firm name.
+        _classification = next(
+            (s.split('Classification: ', 1)[1] for s in profile.signals if s.startswith('Classification: ')),
+            ''
+        )
+        _has_sitemap = FIRM_TYPE_XML_SITEMAP in profile.detected_types or FIRM_TYPE_HTML_SITEMAP in profile.detected_types
+        if _classification == 'BOT_PROTECTED' and not _has_sitemap:
+            # Only attempt Playwright-based strategy — directory/DOM methods will also
+            # fail against CF bot protection. fast-fail after kirkland_scroll attempt.
+            firm_lower = firm_name.lower()
+            if any(k in firm_lower for k in ['kirkland']):
+                self.log('  [PLAYWRIGHT_SCROLL] Kirkland — using DOM scroll strategy')
+                strategies.append('kirkland_scroll')
+            else:
+                self.log('  [BOT_PROTECTED] Site is CF/bot-protected — no legal strategy available')
+            self.log(f'  Selected strategies: {strategies or ["(none)"]}' )
             return strategies
 
         # PRIORITY 1: XML sitemap (ALWAYS use if available)
@@ -1080,14 +1093,21 @@ class AttorneyFinder:
         wb = load_workbook(excel_path)
         ws = wb.active
         headers = [cell.value for cell in ws[1]]
-        if "Official Website" not in headers or "Firm" not in headers:
+        # Explicitly look for the Firms sheet first (active sheet may be Attorneys after prior run)
+        if 'Firms' in wb.sheetnames:
+            ws = wb['Firms']
+            headers = [cell.value for cell in ws[1]]
+        elif 'Official Website' not in headers or 'Firm' not in headers:
             for sheet in wb.worksheets:
                 sheet_headers = [cell.value for cell in sheet[1]]
-                if "Official Website" in sheet_headers and "Firm" in sheet_headers:
+                if 'Official Website' in sheet_headers and 'Firm' in sheet_headers:
                     ws = sheet
                     headers = sheet_headers
                     break
-
+                if 'official_website_url' in sheet_headers and 'Firm' in sheet_headers:
+                    ws = sheet
+                    headers = sheet_headers
+                    break
         try:
             url_col_idx = headers.index("official_website_url") + 1
             firm_col_idx = headers.index("Firm") + 1
@@ -1225,13 +1245,20 @@ class AttorneyFinder:
                 self._save_attorneys_json(firm, attorneys)
 
                 self.log(f"[OK] {firm}: {len(attorneys)} attorneys")
-                wb.save(excel_path)
+                # NOTE: wb.save() moved to end of run() to avoid per-firm writes
+                # which caused file corruption when multiple processes ran concurrently.
             except Exception as e:
                 self.log(f"[ERROR] {firm}: {e}")
                 import traceback
                 traceback.print_exc()
 
         self.log(f"\nTotal: {total_processed} attorneys")
+
+        # Save output workbook once at end (avoids per-firm writes that cause corruption)
+        base_name = os.path.splitext(os.path.basename(excel_path))[0]
+        output_xlsx = os.path.join(str(self.output_dir), f"{base_name}_attorneys.xlsx")
+        wb.save(output_xlsx)
+        self.log(f"  Attorney data saved: {output_xlsx}")
 
         # Generate source failure report if any failures occurred
         if self.source_failures:
@@ -1380,6 +1407,8 @@ class AttorneyFinder:
         start = time.time()
         firm_start_time = start  # alias for firm-level timeout tracking
         firm_timeout_exceeded = False
+        # Reset per-firm flags
+        self._spa_enrichment_required = False
 
         # Compliance gate: check robots.txt + bot-wall before any crawl
         compliance_result = self.compliance_engine.check(
@@ -1446,6 +1475,31 @@ class AttorneyFinder:
             self.enrichment_mode = "PLAYWRIGHT_ONLY"
             self.log("  Enrichment mode set to PLAYWRIGHT_ONLY (bot protection detected)")
 
+        # Phase 2: Select Strategies
+        strategies = self.select_strategies(profile, firm_name)
+        
+        # Early exit: no legal strategies available (bot-protected, no sitemap)
+        if not strategies:
+            self.log(f"  [SKIP] No viable strategies for {firm_name} — returning empty")
+            _cm = self.coverage_engine.compute(
+                firm=firm_name, profiles=[], legally_incomplete=True,
+                legally_incomplete_reason="BOT_PROTECTED_NO_STRATEGY",
+            )
+            self.all_coverage_metrics.append(_cm)
+            _loop = CoverageLoopResult(
+                firm=firm_name, expected_total=None, expected_total_source="unknown",
+                discovered_urls=0, extracted_count=0, coverage_ratio=None,
+                status="LEGALLY_INCOMPLETE", legally_incomplete_reason="BOT_PROTECTED_NO_STRATEGY",
+                sources_tried=[], gaps_remaining=0,
+                notes=["No viable legal strategy: site is bot-protected with no accessible sitemap"],
+            )
+            _row = FirmSummaryWriter.build_row(
+                firm=firm_name, loop_result=_loop, attorneys=[], us_attorneys=[],
+            )
+            self.firm_summary_writer.add(_row)
+            _lm = DiscoveryMetrics()
+            _lm.failure_notes = ["No viable legal strategy: BOT_PROTECTED_NO_STRATEGY"]
+            return [], _lm
         # Phase 2: Select Strategies
         strategies = self.select_strategies(profile, firm_name)
 
@@ -1520,7 +1574,12 @@ class AttorneyFinder:
         coverage_report.discovered_urls = len(all_profile_urls)
 
         # Phase 3.5: URL QUALITY GATE (filter non-profiles)
-        if len(all_profile_urls) > 100 and self.enrichment_mode != "PLAYWRIGHT_ONLY":
+        # Skip quality gate when limit is small (few URLs to enrich, overhead not justified)
+        _gate_sample_cap = 20 if self.limit > 0 else 50
+        _skip_gate = (len(all_profile_urls) <= 100
+                      or self.enrichment_mode == 'PLAYWRIGHT_ONLY'
+                      or (self.limit > 0 and len(all_profile_urls) <= self.limit * 2))
+        if not _skip_gate:
             self.log(f"\n--- Running URL Quality Gate ({len(all_profile_urls)} candidates) ---")
             from profile_quality_gate import URLQualityGate
 
@@ -1528,7 +1587,7 @@ class AttorneyFinder:
             gate_result = quality_gate.filter_candidates(
                 candidate_urls=all_profile_urls,
                 base_url=base_url,
-                sample_size=min(200, len(all_profile_urls)),
+                sample_size=min(_gate_sample_cap, len(all_profile_urls)),
                 min_confidence=60.0
             )
 
@@ -1578,11 +1637,15 @@ class AttorneyFinder:
         self.log(f"\n--- Enriching {len(urls_to_enrich)} profile URLs ---")
         # Kirkland (and other JS-SPA firms) require Playwright rendering for profile pages.
         # requests.get() returns an empty shell HTML for these sites.
-        _js_spa_firms = ['kirkland']
+        _js_spa_firms = ['kirkland', 'cleary']
         if any(tok in firm_name.lower() for tok in _js_spa_firms):
             if self.enrichment_mode != 'PLAYWRIGHT_ONLY':
                 self.enrichment_mode = 'PLAYWRIGHT_ONLY'
                 self.log(f"  [ENRICHMENT] Force PLAYWRIGHT_ONLY for JS-SPA firm: {firm_name}")
+        # SPA pattern detected during source validation (names only, no static enrichment fields)
+        if getattr(self, '_spa_enrichment_required', False) and self.enrichment_mode != 'PLAYWRIGHT_ONLY':
+            self.enrichment_mode = 'PLAYWRIGHT_ONLY'
+            self.log(f"  [ENRICHMENT] Force PLAYWRIGHT_ONLY for SPA-pattern site: {firm_name}")
         attorneys = self._enrich_profile_urls(urls_to_enrich, base_url, firm_name)
 
         # Phase 5.5: Determine Discovery Status and External Directory Fallback
@@ -2319,6 +2382,11 @@ class AttorneyFinder:
                 else:
                     self.log(f"  Sitemap validation PASSED")
                     self.log(f"  Accepting {len(profile_urls)} URLs from validated source")
+                    # If SPA pattern detected (names only, no static enrichment fields),
+                    # flag that Playwright will be needed for enrichment.
+                    if "title_missing_in_sample" in validation_result.validation_notes:
+                        self._spa_enrichment_required = True
+                        self.log("  [SPA] SPA pattern flagged: Playwright enrichment will be required")
                     urls.update(profile_urls)
 
         except Exception as e:
@@ -2629,6 +2697,8 @@ class AttorneyFinder:
 
         urls: set[str] = set()
         domain = "www.kirkland.com"
+        _scroll_start = time.time()  # wall-clock guard for max_scroll_seconds
+        domain = "www.kirkland.com"
 
         try:
             with sync_playwright() as p:
@@ -2652,6 +2722,10 @@ class AttorneyFinder:
                 letter_counts: dict[str, dict] = {}  # TASK E: per-letter debug artifact
 
                 for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+                    # Wall-clock timeout guard
+                    if time.time() - _scroll_start > self.max_scroll_seconds:
+                        self.log(f"  [KIRKLAND_SCROLL] Wall-clock limit ({self.max_scroll_seconds}s) reached at letter={letter} — stopping")
+                        break
                     letter_url = f"https://www.kirkland.com/lawyers?letter={letter}"
                     letter_lower = letter.lower()
                     path_prefix = f"/lawyers/{letter_lower}/"
@@ -3918,6 +3992,94 @@ class AttorneyFinder:
                         results.append(profile)
             return results
 
+        def _run_batch_shared_browser(
+            batch_urls: list[str],
+            extractor: MultiModeExtractor,
+            n_workers: int = 8,
+        ) -> list:
+            """Run enrichment with one persistent browser per worker thread.
+
+            Each worker thread launches its own Playwright browser ONCE, keeps a
+            single page alive, and processes all URLs in its sub-batch sequentially.
+            This eliminates the ~2 s browser-launch overhead that previously happened
+            PER profile URL, reducing Kirkland 4000-profile runs from ~2 h to ~15 min.
+            """
+            import math
+            import threading
+
+            results: list = []
+            results_lock = threading.Lock()
+
+            # Distribute URLs across workers (round-robin into n_workers sub-batches)
+            sub_batches: list = [[] for _ in range(n_workers)]
+            for i, url in enumerate(batch_urls):
+                sub_batches[i % n_workers].append(url)
+
+            def _worker(sub_batch: list) -> None:
+                if not sub_batch:
+                    return
+                from playwright.sync_api import sync_playwright
+                from attorney_extractor import AttorneyProfile
+                from profile_quality_gate import ReasonCode
+                local_results: list = []
+                try:
+                    with sync_playwright() as p:
+                        browser = p.chromium.launch(headless=True)
+                        ctx = browser.new_context()
+                        page = ctx.new_page()
+                        try:
+                            for url in sub_batch:
+                                try:
+                                    profile = extractor.extract_profile_with_page(
+                                        firm_name,
+                                        url,
+                                        page,
+                                        lambda d: self.rate_limit_manager.wait(d),
+                                    )
+                                    local_results.append(profile)
+                                except Exception as e:
+                                    profile = AttorneyProfile(firm=firm_name, profile_url=url)
+                                    profile.extraction_status = "FAILED"
+                                    profile.diagnostics["exception"] = str(type(e).__name__)
+                                    profile.diagnostics["full_name_reason"] = ReasonCode.EXCEPTION
+                                    profile.missing_fields = ["full_name", "title", "offices",
+                                                                "department", "practice_areas",
+                                                        "industries", "bar_admissions", "education"]
+                                    local_results.append(profile)
+                        finally:
+                            try: page.close()
+                            except Exception: pass
+                            try: ctx.close()
+                            except Exception: pass
+                            try: browser.close()
+                            except Exception: pass
+                except Exception as outer_e:
+                    # Browser failed to launch — mark all as FAILED
+                    for url in sub_batch:
+                        profile = AttorneyProfile(firm=firm_name, profile_url=url)
+                        profile.extraction_status = "FAILED"
+                        profile.diagnostics["exception"] = str(type(outer_e).__name__)
+                        profile.diagnostics["full_name_reason"] = ReasonCode.EXCEPTION
+                        profile.missing_fields = ["full_name", "title", "offices", "department",
+                                                    "practice_areas", "industries",
+                                                    "bar_admissions", "education"]
+                        local_results.append(profile)
+                with results_lock:
+                    results.extend(local_results)
+
+            threads = [
+                threading.Thread(target=_worker, args=(sub_batches[i],), daemon=True)
+                for i in range(n_workers)
+                if sub_batches[i]
+            ]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
+            return results
+
+
         extractor_requests = MultiModeExtractor(
             session=self.session,
             timeout=REQUEST_TIMEOUT,
@@ -3939,7 +4101,7 @@ class AttorneyFinder:
         # Stage 1: Requests (or Playwright-only if enforced)
         if self.enrichment_mode == "PLAYWRIGHT_ONLY":
             self.log("  Enrichment mode: PLAYWRIGHT_ONLY")
-            attorneys = _run_batch(urls, extractor_playwright, True)
+            attorneys = _run_batch_shared_browser(urls, extractor_playwright, n_workers=min(self.workers, 8))
         else:
             self.log("  Enrichment mode: REQUESTS")
             attorneys = _run_batch(urls, extractor_requests, False)
@@ -3955,14 +4117,14 @@ class AttorneyFinder:
                 if blocked_ratio > 0.5:
                     self.enrichment_mode = "PLAYWRIGHT_ONLY"
                     self.log(f"  Switching enrichment mode to PLAYWRIGHT_ONLY (blocked ratio {blocked_ratio:.2f})")
-                    attorneys = _run_batch(urls, extractor_playwright, True)
+                    attorneys = _run_batch_shared_browser(urls, extractor_playwright, n_workers=min(self.workers, 8))
 
         # Stage 2: Playwright fallback for failed/partial results (if not forced already)
         if self.enrichment_mode != "PLAYWRIGHT_ONLY":
             retry_urls = [att.profile_url for att in attorneys if getattr(att, "extraction_status", "FAILED") in ["FAILED", "PARTIAL"]]
             if retry_urls:
                 self.log(f"  Playwright fallback for {len(retry_urls)} profiles")
-                retry_results = _run_batch(retry_urls, extractor_playwright, True)
+                retry_results = _run_batch_shared_browser(retry_urls, extractor_playwright, n_workers=min(self.workers, 8))
 
                 # Merge retry results by URL
                 retry_map = {att.profile_url: att for att in retry_results}
@@ -4170,6 +4332,18 @@ class AttorneyFinder:
                 f"{scheme}://{domain}/sitemap_index.xml",
             ]
 
+        # Sort sitemap_urls: /en/ first, non-English locales last
+        # Fixes Jones Day: robots.txt lists /de/sitemap before /en/sitemap
+        _non_en_locales = {
+            'de','es','fr','ja','zh','pt','it','nl','pl','ru','sv','ko','ar',
+            'zh-hans','zh-hant','cs','hu','uk','vi','tr','da','fi','nb','ro','sk',
+        }
+        sitemap_urls.sort(key=lambda u: (
+            1 if re.search(
+                r'/(' + '|'.join(_non_en_locales) + r')(?:/|$)', u, re.IGNORECASE
+            ) else 0
+        ))
+
         all_profile_urls = set()
         for sitemap_url in sitemap_urls:
             try:
@@ -4186,76 +4360,126 @@ class AttorneyFinder:
                     content = gzip.decompress(content)
 
                 root = ET.fromstring(content)
-                self._parse_sitemap_recursive(root, all_profile_urls, base_url)
+                self._parse_sitemap_recursive(root, all_profile_urls, base_url, max_urls=max(self.limit * 10, 500) if self.limit > 0 else 5000)
 
                 if all_profile_urls:
                     break
-            except Exception:
+            except Exception as _ex:
+                self.log(f"  [SITEMAP_DEBUG] sitemap fetch/parse error for {sitemap_url}: {_ex}")
                 continue
 
         return list(all_profile_urls)
 
     def _parse_sitemap_recursive(
-        self, element: ET.Element, urls: set, base_url: str
+        self, element: ET.Element, urls: set, base_url: str, max_urls: int = 50000
     ) -> None:
-        """Recursively parse sitemap XML"""
+        """Parse sitemap XML. Follows <sitemap> sub-sitemap refs. Stops at max_urls."""
         domain = urlparse(base_url).netloc
 
+        def _tag(el: ET.Element) -> str:
+            t = el.tag.lower()
+            return t.split("}", 1)[1] if "}" in t else t
+
+        def _strip_www(h: str) -> str:
+            return h[4:] if h.startswith("www.") else h
+
+        official_root = _strip_www(domain)
+
+        # Collect <loc> values at the top level of this document
+        # Two cases:
+        # 1. Sitemap index: top-level children are <sitemap> elements each with a <loc>
+        # 2. URL set: top-level children are <url> elements each with a <loc>
+        # We only recurse into sub-sitemaps, never into individual <url> children.
+
+        sub_sitemap_urls: list[str] = []
+        profile_locs: list[str] = []
+
+        # Flat iteration over direct children of this root element
         for child in element:
-            tag = child.tag.lower()
-            # Handle namespaces
-            if "}" in tag:
-                tag = tag.split("}", 1)[1]
-
-            if "loc" in tag and child.text:
+            child_tag = _tag(child)
+            if child_tag == "sitemap":
+                # Sub-sitemap pointer — extract its <loc>
+                for grandchild in child:
+                    if _tag(grandchild) == "loc" and grandchild.text:
+                        sub_sitemap_urls.append(grandchild.text.strip())
+            elif child_tag == "url":
+                # Actual page URL — extract its <loc>
+                for grandchild in child:
+                    if _tag(grandchild) == "loc" and grandchild.text:
+                        profile_locs.append(grandchild.text.strip())
+            elif child_tag == "loc" and child.text:
+                # Naked <loc> at root level (non-standard but seen in practice)
                 loc = child.text.strip()
-                if loc.endswith(".xml") or loc.endswith(".xml.gz"):
-                    try:
-                        try:
-                            self.rate_limit_manager.wait(domain)
-                        except RateLimitBlockedError:
-                            pass
-                        resp = self.session.get(loc, timeout=REQUEST_TIMEOUT)
-                        if resp.status_code == 200:
-                            content = resp.content
-                            if loc.endswith(".gz"):
-                                content = gzip.decompress(content)
-                            sub_root = ET.fromstring(content)
-                            self._parse_sitemap_recursive(sub_root, urls, base_url)
-                    except Exception:
-                        pass
+                if loc.endswith(".xml") or loc.endswith(".xml.gz") or re.search(r'\.xml(\?|$)', loc):
+                    sub_sitemap_urls.append(loc)
                 else:
-                    if self._is_attorney_profile_url(loc):
-                        # PROBLEM 2 FIX: reject URLs whose domain doesn't match the
-                        # official firm domain (e.g. CDN subdomains like www-cm-prod.lw.com)
-                        def _strip_www(h: str) -> str:
-                            return h[4:] if h.startswith('www.') else h
-                        loc_netloc = urlparse(loc).netloc
-                        official_root = _strip_www(domain)
-                        loc_root = _strip_www(loc_netloc)
-                        if loc_root == official_root or loc_root.endswith('.' + official_root):
-                            urls.add(loc)
+                    profile_locs.append(loc)
 
-            # Recurse into children
-            self._parse_sitemap_recursive(child, urls, base_url)
+        # Process profile URLs first (fast, no I/O)
+        for loc in profile_locs:
+            if len(urls) >= max_urls:
+                return
+            if self._is_attorney_profile_url(loc):
+                loc_netloc = urlparse(loc).netloc
+                loc_root = _strip_www(loc_netloc)
+                if loc_root == official_root or loc_root.endswith("." + official_root):
+                    if loc_netloc != domain:
+                        loc = loc.replace(loc_netloc, domain, 1)
+                    if not _is_locale_url(loc):
+                        urls.add(loc)
+
+        # Follow sub-sitemaps (I/O — stop as soon as we hit the cap)
+        for sub_url in sub_sitemap_urls:
+            if len(urls) >= max_urls:
+                return
+            try:
+                try:
+                    self.rate_limit_manager.wait(domain)
+                except RateLimitBlockedError:
+                    pass
+                resp = self.session.get(sub_url, timeout=REQUEST_TIMEOUT)
+                if resp.status_code == 200:
+                    content = resp.content
+                    if sub_url.endswith(".gz"):
+                        content = gzip.decompress(content)
+                    sub_root = ET.fromstring(content)
+                    self._parse_sitemap_recursive(sub_root, urls, base_url, max_urls)
+            except Exception:
+                pass
 
     def _is_attorney_profile_url(self, url: str) -> bool:
         """Check if URL is attorney profile"""
         url_lower = url.lower()
-        keywords = ["/lawyer", "/attorney", "/people/", "/professional", "/bio/", "/profile/"]
-        if not any(kw in url_lower for kw in keywords):
+        path = urlparse(url_lower).path
+        path_segments = path.strip('/').split('/')
+        path_segments_set = set(path_segments)
+
+        # Must contain a recognized attorney segment AS A FULL PATH COMPONENT
+        # (not as a substring inside a slug like 'lawyers-for-a-sustainable-economy')
+        profile_segments = {"lawyers", "lawyer", "attorney", "attorneys", "people", "professionals",
+                            "bio", "profile", "our-team", "team", "person"}
+        has_profile_segment = bool(path_segments_set & profile_segments)
+        if not has_profile_segment:
             return False
 
-        # Filter junk
-        junk_keywords = [
-            "terms",
-            "privacy",
-            "advertising",
-            "disclaimer",
-            "cookie",
-            "sitemap",
-        ]
-        if any(junk in url_lower for junk in junk_keywords):
+        # The profile keyword must NOT be the last segment (i.e., must have a slug after it)
+        # e.g. /en/people/mark-smith ✓   /en/people ✗   /people/ ✗
+        last_segment = path_segments[-1] if path_segments else ''
+        if last_segment in profile_segments:
+            return False
+
+        # Filter junk path segments
+        junk_segments = {"terms", "privacy", "advertising", "disclaimer", "cookie", "sitemap"}
+        if path_segments_set & junk_segments:
+            return False
+
+        # Filter non-profile path patterns (news, insights, resources, etc.)
+        non_profile_prefixes = ["/en/news/", "/en/insights/", "/en/resources/",
+                                  "/news/", "/insights/", "/resources/",
+                                  "/events/", "/publications/", "/admin/",
+                                  "/global-citizenship/", "/careers/",
+                                  "/about/", "/en/about/"]
+        if any(path.startswith(pfx) for pfx in non_profile_prefixes):
             return False
 
         return True

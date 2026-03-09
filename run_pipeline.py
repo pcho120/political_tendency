@@ -38,7 +38,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
 from debug_logger import DebugLogger
-from discovery import discover_attorneys
+from discovery import discover_attorneys, lookup_structure
 from enrichment import ProfileEnricher
 from attorney_extractor import AttorneyProfile, EducationRecord
 
@@ -240,6 +240,21 @@ def run_firm(
     logger = DebugLogger(firm=firm.name, output_dir=firm_debug_dir, verbose=True)
 
     # ----------------------------------------------------------------
+    # Stage 0 — Look up structure type from site_structures.json
+    # ----------------------------------------------------------------
+    structure_info = lookup_structure(firm.url)
+    structure_type = (structure_info or {}).get("structure_type", "UNKNOWN")
+    log.info(f"[{firm.name}] Structure type: {structure_type}")
+
+    # Skip bot-protected / auth-required firms immediately
+    if structure_type in ("BOT_PROTECTED", "AUTH_REQUIRED"):
+        log.info(f"[{firm.name}] Skipping — {structure_type}")
+        result.errors.append(f"Skipped: {structure_type}")
+        logger.flush()
+        result.elapsed_seconds = time.monotonic() - t0
+        return result
+
+    # ----------------------------------------------------------------
     # Stage 1 — Discovery
     # ----------------------------------------------------------------
     log.info(f"[{firm.name}] Discovery starting → {firm.url}")
@@ -250,6 +265,7 @@ def run_firm(
             logger=logger,
             timeout=timeout,
             rate_delay=rate_delay,
+            structure_info=structure_info,
         )
     except Exception as exc:
         msg = f"Discovery failed: {exc}"
@@ -476,6 +492,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=False,
         help="Enable DEBUG-level console output.",
     )
+    p.add_argument(
+        "--structure-type",
+        metavar="TYPE",
+        help=(
+            "Only run firms with this structure_type (e.g. SITEMAP_XML, "
+            "HTML_DIRECTORY_FLAT). Comma-separated for multiple."
+        ),
+    )
     return p
 
 
@@ -521,6 +545,24 @@ def main() -> int:
     if not firms:
         log.error("No firms matched the filter. Exiting.")
         return 1
+
+    # Filter by structure type if requested
+    if args.structure_type:
+        allowed_types = {t.strip().upper() for t in args.structure_type.split(",")}
+        filtered = []
+        for firm in firms:
+            info = lookup_structure(firm.url)
+            stype = (info or {}).get("structure_type", "UNKNOWN").upper()
+            if stype in allowed_types:
+                filtered.append(firm)
+        log.info(
+            f"Structure-type filter '{args.structure_type}': "
+            f"{len(filtered)}/{len(firms)} firms retained"
+        )
+        firms = filtered
+        if not firms:
+            log.error("No firms matched the structure-type filter. Exiting.")
+            return 1
 
     t_run_start = time.monotonic()
     all_profiles: list[AttorneyProfile] = []

@@ -1,1 +1,149 @@
-[]
+[
+  {
+    "firm": "Latham",
+    "profile_url": "https://www.lw.com/en/people/00864",
+    "full_name": "Mark W. Smith",
+    "title": "Retired Partner",
+    "offices": [
+      "San Diego",
+      "San Francisco"
+    ],
+    "department": [
+      "QualificationsEducationJD, University of Chicago Law School, 1981BA, Swarthmore College, 1977PracticesLitigation & Trial",
+      "ClearSearchLoadingSubmit Search",
+      "Profile",
+      "Qualifications",
+      "EducationJD, University of Chicago Law School, 1981BA, Swarthmore College, 1977PracticesLitigation & Trial"
+    ],
+    "practice_areas": [
+      "Litigation & Trial"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [],
+    "education": [
+      {
+        "degree": "JD",
+        "school": "University of Chicago Law School",
+        "year": 1981
+      },
+      {
+        "degree": "BA",
+        "school": "Swarthmore College",
+        "year": 1977
+      }
+    ],
+    "extraction_status": "PARTIAL",
+    "missing_fields": [
+      "bar_admissions"
+    ],
+    "diagnostics": {
+      "html_size": 209303,
+      "duration_ms": 6771,
+      "data_source": "firm_website",
+      "bar_admissions_reason": "not_found_in_raw_html",
+      "us_filter": "us_offices_kept"
+    }
+  },
+  {
+    "firm": "Latham",
+    "profile_url": "https://www.lw.com/en/people/71927",
+    "full_name": "Thomas Giblin",
+    "title": "Counsel",
+    "offices": [
+      "New York"
+    ],
+    "department": [
+      "Profile",
+      "Qualifications",
+      "Recognition",
+      "News & Insights",
+      "Experience"
+    ],
+    "practice_areas": [
+      "Commodities and Derivatives Regulation & Enforcement",
+      "Securities and M&A Litigation/",
+      "Litigation & Trial/",
+      "White Collar Defense & Investigations/"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [
+      "Pennsylvania",
+      "New York"
+    ],
+    "education": [
+      {
+        "degree": "JD",
+        "school": "Columbia University School of Law, 2009Kent Scholar",
+        "year": null
+      },
+      {
+        "degree": "BS",
+        "school": "Duke University, 2006magna cum laude",
+        "year": null
+      }
+    ],
+    "extraction_status": "SUCCESS",
+    "missing_fields": [],
+    "diagnostics": {
+      "us_filter": "us_offices_kept"
+    }
+  },
+  {
+    "firm": "Latham",
+    "profile_url": "https://www.lw.com/en/people/73853",
+    "full_name": "Jonathan Lauras",
+    "title": "Associate",
+    "offices": [],
+    "department": [
+      "ClearSearchLoadingSubmit Search",
+      "Profile",
+      "Qualifications",
+      "News & Insights",
+      "ProfileJonathan Lauras is an associate in the London office of Latham & Watkins and a member of the firm’s Structured Finance Practice.",
+      "Jonathan Lauras is an associate in the London office of Latham & Watkins and a member of the firm’s Structured Finance Practice.",
+      "Experience"
+    ],
+    "practice_areas": [
+      "Structured Finance"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [
+      "England and Wales (Solicitor)"
+    ],
+    "education": [
+      {
+        "degree": null,
+        "school": "LPC, BPP Law School, Holborn",
+        "year": 2017
+      },
+      {
+        "degree": null,
+        "school": "GDL, BPP Law School, Waterloo",
+        "year": 2016
+      },
+      {
+        "degree": "BA",
+        "school": "in Modern Languages & History, University of Durham",
+        "year": 2015
+      }
+    ],
+    "extraction_status": "PARTIAL",
+    "missing_fields": [
+      "offices"
+    ],
+    "diagnostics": {
+      "html_size": 212807,
+      "duration_ms": 2823,
+      "data_source": "firm_website",
+      "us_office_not_found": true,
+      "offices_reason": "not_found_in_raw_html",
+      "us_filter": "kept_no_office_data"
+    }
+  }
+]

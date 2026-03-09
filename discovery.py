@@ -2,23 +2,28 @@
 """discovery.py - Alphabetical Attorney Discovery Engine
 PART 1 of the AmLaw200 extraction system.
 Implements:
+  - SITEMAP_XML: walk robots.txt → sitemap → filter attorney URLs by path prefix
   - Alphabetical (A-Z) crawl with JSON API auto-detection
   - Page-based pagination driven by TotalSearchResults
   - HTML fallback for non-JSON responses
   - Automatic alphabet-nav detection via URL/link inspection
   - Deduplication of profile URLs
   - Playwright escalation only when static requests fail
-    urls = discover_attorneys(firm_url)  ->  list[str]
+    urls = discover_attorneys(firm_url, structure_info=...)  ->  list[str]
 """
 
 from __future__ import annotations
 
+import gzip
+import json
 import re
 import string
 import time
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, cast
-from urllib.parse import urlencode, urlparse, urlunparse, urljoin, parse_qs, urljoin
+from urllib.parse import urlencode, urlparse, urlunparse, urljoin, parse_qs
 
 import requests
 
@@ -30,6 +35,52 @@ except ImportError:
     BeautifulSoup = None  # type: ignore[assignment,misc]
 
 from debug_logger import DebugLogger
+
+# ---------------------------------------------------------------------------
+# Site structures cache (loaded once at module import)
+# ---------------------------------------------------------------------------
+
+_SITE_STRUCTURES_PATH = Path(__file__).parent / "site_structures.json"
+_site_structures_cache: dict[str, dict[str, Any]] | None = None
+
+
+def _load_site_structures() -> dict[str, dict[str, Any]]:
+    """Load site_structures.json and index by normalised base URL."""
+    global _site_structures_cache
+    if _site_structures_cache is not None:
+        return _site_structures_cache
+    if not _SITE_STRUCTURES_PATH.exists():
+        _site_structures_cache = {}
+        return _site_structures_cache
+    raw: list[dict[str, Any]] = json.loads(_SITE_STRUCTURES_PATH.read_text(encoding="utf-8"))
+    cache: dict[str, dict[str, Any]] = {}
+    for entry in raw:
+        url = entry.get("url", "").rstrip("/")
+        if url:
+            cache[url] = entry
+        # Also index by netloc for fuzzy lookup
+        netloc = urlparse(url).netloc
+        if netloc:
+            cache[netloc] = entry
+    _site_structures_cache = cache
+    return _site_structures_cache
+
+
+def lookup_structure(firm_url: str) -> dict[str, Any] | None:
+    """Return the site_structures entry for *firm_url*, or None if not found."""
+    structs = _load_site_structures()
+    base = firm_url.rstrip("/")
+    if base in structs:
+        return structs[base]
+    netloc = urlparse(base).netloc
+    if netloc in structs:
+        return structs[netloc]
+    # Strip 'www.' prefix for looser match
+    netloc_bare = netloc.removeprefix("www.")
+    for key, val in structs.items():
+        if urlparse(key).netloc.removeprefix("www.") == netloc_bare:
+            return val
+    return None
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -62,6 +113,36 @@ _OFFSET_PARAMS = ["offset", "start", "from", "skip"]
 _MAX_PAGES_PER_LETTER = 50
 _DEFAULT_PAGE_SIZE = 10   # conservative fallback when page 1 returns 0 items
 
+# Sitemap path keywords — used to filter sitemap URLs for attorney profiles
+_ATTORNEY_PATH_RE = re.compile(
+    r"/(lawyers?|attorneys?|people|professionals?|bio|profile|person|team|our-people)/",
+    re.IGNORECASE,
+)
+
+# Non-English locale prefixes — skip these sitemaps first (prefer English)
+_LOCALE_RE = re.compile(
+    r"/(?:de|es|fr|ja|zh|ko|pt|ru|it|nl|pl|sv|tr|da|fi|ar|nl-nl|de-de|zh-hans|zh-hant)"
+    r"(?:/|$)",
+    re.IGNORECASE,
+)
+
+# Paths that look like directories/categories, not individual profiles
+_CATEGORY_SUFFIX_RE = re.compile(
+    r"/(our-work|our-offer|lateral-opportunities|your-career|career-advancement-program"
+    r"|entry-level-or-lateral-attorneys|how-to-apply|technology-specialists"
+    r"|attorney-professional-development|lateral-members|lateral-associates"
+    r"|former-judicial-clerks|africa|asia|dubai|brussels|frankfurt"
+    r"|asia-attorneys|europe-attorneys|lawyer-recruiting-contacts"
+    r"|careers|join-us|search-results?|search-professionals?|alumni"
+    r"|continuing-legal-education|cle|insights|news|events|press"
+    r"|publications|articles|about-us?|contact|locations?"
+    r"|awards?-rankings?|awards?|rankings?|firm|blog|resources|library"
+    r"|practice-areas?|services|capabilities|thought-leadership)"
+    r"(?:/|$)"
+    r"|/(lawyers|professionals|attorneys|people|team)/?$",
+    re.IGNORECASE,
+)
+
 # ---------------------------------------------------------------------------
 # Result dataclass
 # ---------------------------------------------------------------------------
@@ -79,6 +160,333 @@ class DiscoveryResult:
 
 
 # ---------------------------------------------------------------------------
+# SITEMAP_XML discovery  (111 firms)
+# ---------------------------------------------------------------------------
+
+def _derive_attorney_path_prefix(samples: list[str], firm_url: str) -> str | None:
+    """
+    Given a list of sample attorney profile URLs from site_structures.json,
+    derive the common URL path prefix used to filter sitemap entries.
+
+    Returns the prefix string (e.g. "/people", "/en/lawyers") or None.
+    """
+    if not samples:
+        return None
+    from urllib.parse import urlparse as _up
+
+    def _profile_path(u: str) -> list[str]:
+        path = _up(u).path
+        parts = [p for p in path.strip("/").split("/") if p]
+        return parts
+
+    # Find the path segment(s) common across all sample URLs that look like
+    # an attorney section (not just /en/ locale prefix alone).
+    paths = [_profile_path(u) for u in samples if u]
+    if not paths:
+        return None
+
+    # Walk segments in lockstep until they diverge
+    min_len = min(len(p) for p in paths)
+    common: list[str] = []
+    for i in range(min_len):
+        vals = {p[i] for p in paths}
+        if len(vals) == 1:
+            common.append(paths[0][i])
+        else:
+            break
+
+    # The common prefix must be at least 1 segment and contain an attorney keyword
+    _ATTY_SEG = re.compile(
+        r"^(?:lawyers?|attorneys?|people|professionals?|bio|profile|person|team|"
+        r"our-people|our-team|team-member|lawyers-advisors|members?)$",
+        re.IGNORECASE,
+    )
+    # Pattern for a person-name slug (contains hyphens and digits, likely a name)
+    _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9\-\._%]{4,}$", re.IGNORECASE)
+
+    # Try full common prefix first, then peel back to find an attorney segment
+    for length in range(len(common), 0, -1):
+        prefix_segs = common[:length]
+        if any(_ATTY_SEG.match(s) for s in prefix_segs):
+            # Strip trailing single-character segments (alphabet sub-dirs like /a/, /b/)
+            while prefix_segs and len(prefix_segs[-1]) == 1:
+                prefix_segs = prefix_segs[:-1]
+            # Strip trailing person-slug segments (e.g. /people/john-smith → /people)
+            while prefix_segs and _SLUG_RE.match(prefix_segs[-1]) and not _ATTY_SEG.match(prefix_segs[-1]):
+                prefix_segs = prefix_segs[:-1]
+            # Strip trailing numeric-ID segments (e.g. /people/134273 → /people)
+            while prefix_segs and re.match(r"^\d+$", prefix_segs[-1]):
+                prefix_segs = prefix_segs[:-1]
+            if prefix_segs:
+                return "/" + "/".join(prefix_segs)
+            break
+
+    # Fallback: use just the first non-locale segment of the first sample
+    firm_netloc = _up(firm_url).netloc
+    for p in paths:
+        for seg in p:
+            if _ATTY_SEG.match(seg):
+                # Return path up to and including this segment
+                idx = p.index(seg)
+                return "/" + "/".join(p[: idx + 1])
+
+    return None
+
+
+def _is_profile_url(url: str, prefix: str | None) -> bool:
+    """
+    Return True if *url* looks like an individual attorney profile
+    (as opposed to a directory page, careers page, or asset).
+    """
+    path = urlparse(url).path
+
+    # Must have the expected path prefix
+    if prefix and not path.lower().startswith(prefix.lower()):
+        return False
+
+    # Skip known non-profile suffixes
+    if _CATEGORY_SUFFIX_RE.search(path):
+        return False
+
+    # Skip static assets
+    if re.search(r"\.(css|js|png|jpg|jpeg|gif|svg|pdf|zip|ico|woff|ttf)$", path, re.I):
+        return False
+
+    # Need at least 2 path segments
+    parts = [p for p in path.strip("/").split("/") if p]
+    if len(parts) < 2:
+        return False
+
+    # The last segment should look like a person slug (letters + hyphens/dots)
+    last = parts[-1]
+    # Numeric-only IDs are OK (e.g. Norton Rose uses /people/134273)
+    if re.match(r"^\d+$", last):
+        return True
+    # Standard slug: letters, digits, hyphens (min 3 chars)
+    if re.match(r"^[a-z0-9][a-z0-9\-\._%]{2,}$", last, re.I):
+        return True
+
+    return False
+
+
+def _fetch_sitemap_urls(
+    session: requests.Session,
+    base_url: str,
+    path_prefix: str | None,
+    logger: DebugLogger,
+    rate_delay: float = 0.3,
+    timeout: int = 15,
+) -> list[str]:
+    """
+    Fetch all attorney profile URLs from a firm's XML sitemap(s).
+
+    Strategy:
+    1. Fetch robots.txt to find Sitemap: directives.
+    2. If none found, try /sitemap.xml, /sitemap_index.xml.
+    3. Walk sitemap index → sub-sitemaps recursively (depth ≤ 3).
+    4. Filter URLs by path_prefix and profile-URL heuristics.
+    5. Also try numbered sitemap series (bio-sitemap1..20.xml, etc.)
+       when the notes field hints at them.
+
+    Returns deduplicated list of profile URLs.
+    """
+    parsed = urlparse(base_url)
+    scheme = parsed.scheme
+    netloc = parsed.netloc
+    seen: set[str] = set()
+    results: list[str] = []
+
+    # ---- Step 1: Get sitemap URLs from robots.txt ----------------------
+    robots_sitemaps: list[str] = []
+    try:
+        robots_url = f"{scheme}://{netloc}/robots.txt"
+        resp = session.get(robots_url, timeout=timeout)
+        if resp.status_code == 200:
+            for line in resp.text.splitlines():
+                if line.lower().startswith("sitemap:"):
+                    val = line.split(":", 1)[1].strip()
+                    if val:
+                        robots_sitemaps.append(val)
+    except Exception:
+        pass
+
+    # Prioritise English sitemaps (sort non-English to the end)
+    def _en_first(u: str) -> int:
+        return 1 if _LOCALE_RE.search(u) else 0
+
+    robots_sitemaps.sort(key=_en_first)
+
+    # Fallback candidate sitemap URLs
+    fallback_sitemaps = [
+        f"{scheme}://{netloc}/sitemap.xml",
+        f"{scheme}://{netloc}/sitemap_index.xml",
+        f"{scheme}://{netloc}/sitemap/professionals",
+        f"{scheme}://{netloc}/page-sitemap.xml",
+    ]
+
+    candidate_sitemaps = robots_sitemaps if robots_sitemaps else fallback_sitemaps
+
+    # ---- Step 2: Parse sitemap(s) recursively --------------------------
+    def _parse_sitemap(sm_url: str, depth: int = 0) -> None:
+        if depth > 3 or len(results) > 5000:
+            return
+        try:
+            r = session.get(sm_url, timeout=timeout)
+            if r.status_code != 200:
+                return
+            content = r.content
+            if sm_url.endswith(".gz"):
+                content = gzip.decompress(content)
+        except Exception as exc:
+            logger.error("Sitemap fetch error", url=sm_url, exc=exc)
+            return
+
+        try:
+            root = ET.fromstring(content)
+        except ET.ParseError:
+            return
+
+        def _tag(el: ET.Element) -> str:
+            t = el.tag
+            return t.split("}", 1)[1].lower() if "}" in t else t.lower()
+
+        sub_sitemaps: list[str] = []
+        url_nodes: list[str] = []
+
+        for child in root:
+            ct = _tag(child)
+            if ct == "sitemap":
+                for gc in child:
+                    if _tag(gc) == "loc" and gc.text:
+                        sub_sitemaps.append(gc.text.strip())
+            elif ct == "url":
+                for gc in child:
+                    if _tag(gc) == "loc" and gc.text:
+                        url_nodes.append(gc.text.strip())
+
+        # Filter and accumulate profile URLs
+        for u in url_nodes:
+            if u in seen:
+                continue
+            if _LOCALE_RE.search(urlparse(u).path):
+                continue
+            if _is_profile_url(u, path_prefix):
+                seen.add(u)
+                results.append(u)
+
+        # Sort sub-sitemaps: English first, then recurse
+        sub_sitemaps.sort(key=_en_first)
+        for sub_url in sub_sitemaps:
+            if len(results) > 5000:
+                break
+            if _LOCALE_RE.search(sub_url):
+                continue
+            time.sleep(rate_delay)
+            _parse_sitemap(sub_url, depth + 1)
+
+    for sm_url in candidate_sitemaps[:8]:
+        _parse_sitemap(sm_url)
+        time.sleep(rate_delay)
+        if results:
+            break  # found profiles — done with top-level candidates
+
+    # ---- Step 3: Try numbered sitemap series if still empty or sparse --
+    # E.g. bio-sitemap1.xml..bio-sitemap11.xml, people-sitemap1.xml..10.xml
+    if len(results) < 10:
+        _numbered_patterns = [
+            (f"{scheme}://{netloc}/bio-sitemap{{n}}.xml", range(1, 15)),
+            (f"{scheme}://{netloc}/people-sitemap{{n}}.xml", range(1, 15)),
+            (f"{scheme}://{netloc}/attorney-sitemap{{n}}.xml", range(1, 10)),
+            (f"{scheme}://{netloc}/lawyer-sitemap{{n}}.xml", range(1, 10)),
+            (f"{scheme}://{netloc}/professional-sitemap{{n}}.xml", range(1, 10)),
+        ]
+        # Only probe if first numbered sitemap exists
+        for pattern, num_range in _numbered_patterns:
+            first_url = pattern.format(n=num_range.start)
+            try:
+                r = session.head(first_url, timeout=timeout)
+                if r.status_code not in (200, 301, 302):
+                    continue
+            except Exception:
+                continue
+            # Exists — fetch all numbers until 404
+            for n in num_range:
+                url = pattern.format(n=n)
+                try:
+                    r = session.head(url, timeout=timeout)
+                    if r.status_code not in (200, 301, 302):
+                        break
+                except Exception:
+                    break
+                time.sleep(rate_delay)
+                _parse_sitemap(url)
+            if results:
+                break
+
+    logger.info(
+        "Sitemap discovery complete",
+        base_url=base_url,
+        path_prefix=path_prefix,
+        total_found=len(results),
+    )
+    return results
+
+
+def discover_attorneys_from_sitemap(
+    firm_url: str,
+    structure_info: dict[str, Any],
+    session: requests.Session,
+    logger: DebugLogger,
+    rate_delay: float = 0.5,
+    timeout: int = 15,
+) -> list[str]:
+    """
+    High-level entry point for SITEMAP_XML firms.
+
+    Uses sample URLs from structure_info to derive the path prefix,
+    then delegates to _fetch_sitemap_urls().
+    """
+    samples = structure_info.get("sitemap_attorney_sample", [])
+    path_prefix = _derive_attorney_path_prefix(samples, firm_url)
+
+    logger.info(
+        "SITEMAP_XML strategy",
+        firm_url=firm_url,
+        derived_prefix=path_prefix,
+        sample_count=len(samples),
+    )
+
+    # Use the (possibly corrected) URL from site_structures.json
+    effective_url = structure_info.get("url", firm_url).rstrip("/")
+
+    urls = _fetch_sitemap_urls(
+        session=session,
+        base_url=effective_url,
+        path_prefix=path_prefix,
+        logger=logger,
+        rate_delay=rate_delay,
+        timeout=timeout,
+    )
+
+    # If path_prefix gave no results, retry without the prefix constraint
+    if not urls and path_prefix:
+        logger.warn(
+            "No results with path prefix — retrying without prefix constraint",
+            path_prefix=path_prefix,
+        )
+        urls = _fetch_sitemap_urls(
+            session=session,
+            base_url=effective_url,
+            path_prefix=None,
+            logger=logger,
+            rate_delay=rate_delay,
+            timeout=timeout,
+        )
+
+    return urls
+
+
+# ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
@@ -89,6 +497,7 @@ def discover_attorneys(
     logger: DebugLogger | None = None,
     timeout: int = 15,
     rate_delay: float = 0.5,
+    structure_info: dict[str, Any] | None = None,
 ) -> list[str]:
     """
     Discover all attorney profile URLs for a firm.
@@ -105,16 +514,65 @@ def discover_attorneys(
         HTTP request timeout in seconds.
     rate_delay : float
         Seconds to wait between requests.
+    structure_info : dict | None
+        Entry from site_structures.json (pre-loaded by caller).  When provided,
+        the function routes to the correct strategy immediately instead of probing.
 
     Returns
     -------
     list[str]
         Deduplicated list of attorney profile URLs.
     """
+    sess = session or _default_session()
+    firm_netloc = urlparse(firm_url).netloc
+
+    # Resolve structure_info from cache if not supplied
+    if structure_info is None:
+        structure_info = lookup_structure(firm_url)
+
+    _logger = logger or DebugLogger(firm=firm_netloc)
+
+    structure_type = (structure_info or {}).get("structure_type", "UNKNOWN")
+
+    # ------------------------------------------------------------------
+    # Route by structure type
+    # ------------------------------------------------------------------
+
+    # BOT_PROTECTED / AUTH_REQUIRED — skip immediately
+    if structure_type in ("BOT_PROTECTED", "AUTH_REQUIRED"):
+        _logger.warn(
+            f"Firm is {structure_type} — skipping discovery",
+            firm_url=firm_url,
+        )
+        return []
+
+    # SITEMAP_XML — use sitemap-based discovery
+    if structure_type == "SITEMAP_XML":
+        assert structure_info is not None
+        urls = discover_attorneys_from_sitemap(
+            firm_url=firm_url,
+            structure_info=structure_info,
+            session=sess,
+            logger=_logger,
+            rate_delay=rate_delay,
+            timeout=timeout,
+        )
+        if urls:
+            _logger.info(
+                "SITEMAP_XML discovery complete",
+                total=len(urls),
+                sample=urls[:3],
+            )
+            return urls
+        # Fall through to legacy engine if sitemap returned nothing
+        _logger.warn("Sitemap returned no URLs — falling back to legacy engine")
+
+    # All other types (JSON_API_ALPHA, HTML_ALPHA_PAGINATED, HTML_DIRECTORY_FLAT,
+    # SPA_OTHER, SPA_NEXTJS, UNKNOWN) — use the existing probe-and-crawl engine
     engine = _DiscoveryEngine(
         firm_url=firm_url,
-        session=session,
-        logger=logger,
+        session=sess,
+        logger=_logger,
         timeout=timeout,
         rate_delay=rate_delay,
     )
@@ -124,12 +582,11 @@ def discover_attorneys(
     # ------------------------------------------------------------------
     # Diagnostic verification block
     # ------------------------------------------------------------------
-    _log = logger or engine._logger
     urls_a = [u for u in urls if "/lawyers/a/" in u.lower()]
     urls_b = [u for u in urls if "/lawyers/b/" in u.lower()]
     count_a = len(urls_a)
     count_b = len(urls_b)
-    _log.info(
+    _logger.info(
         "Discovery letter coverage",
         count_a=count_a,
         count_b=count_b,
@@ -137,7 +594,7 @@ def discover_attorneys(
         sample_b=urls_b[:5],
     )
     if count_a == 0 or count_b == 0:
-        _log.warn("Letter A or B missing from final dataset", count_a=count_a, count_b=count_b)
+        _logger.warn("Letter A or B missing from final dataset", count_a=count_a, count_b=count_b)
 
     return urls
 

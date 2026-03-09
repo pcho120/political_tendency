@@ -1,1 +1,126 @@
-[]
+[
+  {
+    "firm": "DLA Piper (verein)",
+    "profile_url": "https://www.dlapiper.com/cs-cz/people/k/karabeles-jan",
+    "full_name": null,
+    "title": "Masarykova univerzita, Právnická fakulta, Mgr., 2014",
+    "offices": [],
+    "department": [
+      "AboutJan Karabeleš se zaměřuje především na oblast soudních sporů, regulatory, právo nemovitostí a obchodní právo.",
+      "English日本語",
+      "English",
+      "JanKarabeleš"
+    ],
+    "practice_areas": [],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [],
+    "education": [],
+    "extraction_status": "PARTIAL",
+    "missing_fields": [
+      "full_name",
+      "offices",
+      "practice_areas",
+      "bar_admissions",
+      "education"
+    ],
+    "diagnostics": {
+      "html_size": 110865,
+      "duration_ms": 1066,
+      "data_source": "firm_website",
+      "us_office_not_found": true,
+      "offices_reason": "not_found_in_raw_html",
+      "practice_areas_reason": "not_found_in_raw_html",
+      "bar_admissions_reason": "not_found_in_raw_html",
+      "education_reason": "not_found_in_raw_html",
+      "us_filter": "kept_no_office_data"
+    }
+  },
+  {
+    "firm": "DLA Piper (verein)",
+    "profile_url": "https://www.dlapiper.com/cs-cz/people/s/samec-petr",
+    "full_name": "Petr Samec",
+    "title": "EXPERIENCE",
+    "offices": [],
+    "department": [
+      "English日本語",
+      "English",
+      "PetrSamec"
+    ],
+    "practice_areas": [],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [],
+    "education": [],
+    "extraction_status": "PARTIAL",
+    "missing_fields": [
+      "offices",
+      "practice_areas",
+      "bar_admissions",
+      "education"
+    ],
+    "diagnostics": {
+      "html_size": 134168,
+      "duration_ms": 866,
+      "data_source": "firm_website",
+      "us_office_not_found": true,
+      "offices_reason": "not_found_in_raw_html",
+      "practice_areas_reason": "not_found_in_raw_html",
+      "bar_admissions_reason": "not_found_in_raw_html",
+      "education_reason": "not_found_in_raw_html",
+      "us_filter": "kept_no_office_data"
+    }
+  },
+  {
+    "firm": "DLA Piper (verein)",
+    "profile_url": "https://www.dlapiper.com/de-at/people/a/achnitz-florian",
+    "full_name": "Florian Achnitz",
+    "title": "Associate",
+    "offices": [],
+    "department": [
+      "FlorianAchnitzAssociate",
+      "English日本語",
+      "Köln",
+      "SchwerpunkteData, Privacy and CybersecurityIntellectual PropertyTechnology",
+      "Unser TeamExpertiseÜber unsInsightsKarriereStandorteNeuigkeitenVeranstaltungenAlumni",
+      "Berufliche qualifizierungRechtsanwalt zugelassen bei der Rechtsanwaltskammer Köln",
+      "English",
+      "$nameNach Standort suchen$name",
+      "Telefon+49 221 277 277 398"
+    ],
+    "practice_areas": [
+      "Insights",
+      "Neuigkeiten",
+      "Expertise",
+      "Über uns",
+      "Unser Team",
+      "StandorteNeuigkeitenVeranstaltungen",
+      "Veranstaltungen",
+      "Standorte",
+      "Karriere"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [],
+    "education": [],
+    "extraction_status": "PARTIAL",
+    "missing_fields": [
+      "offices",
+      "bar_admissions",
+      "education"
+    ],
+    "diagnostics": {
+      "html_size": 333462,
+      "duration_ms": 1659,
+      "data_source": "firm_website",
+      "us_office_not_found": true,
+      "offices_reason": "not_found_in_raw_html",
+      "bar_admissions_reason": "not_found_in_raw_html",
+      "education_reason": "not_found_in_raw_html",
+      "us_filter": "kept_no_office_data"
+    }
+  }
+]

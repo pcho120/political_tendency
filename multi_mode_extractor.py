@@ -139,6 +139,119 @@ class MultiModeExtractor:
             return attempts[0].profile
         return AttorneyProfile(firm=firm_name, profile_url=profile_url)
     
+    def extract_profile_with_page(
+        self,
+        firm_name: str,
+        profile_url: str,
+        page: Any,
+        rate_limit_fn: Callable[[str], None] | None = None,
+    ) -> AttorneyProfile:
+        """Extract a profile reusing an existing Playwright page (no browser restart).
+
+        The caller owns the page lifecycle — this method navigates the page,
+        reads the HTML, and returns the parsed profile.  It does NOT close
+        the page so the caller can reuse it for the next URL.
+        """
+        start = time.time()
+        domain = urlparse(profile_url).netloc
+        if rate_limit_fn:
+            rate_limit_fn(domain)
+
+        captured_json: list[dict] = []
+
+        def _handle_json(response: Any) -> None:
+            try:
+                if response.ok and "json" in response.headers.get("content-type", "").lower():
+                    try:
+                        captured_json.append({"url": response.url, "data": response.json()})
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        page.on("response", _handle_json)
+
+        try:
+            try:
+                page.goto(profile_url, timeout=30000, wait_until="domcontentloaded")
+            except Exception:
+                pass  # may still have content
+
+            try:
+                page.wait_for_selector(
+                    ".profile-heading, h1, [class*='name'], main, article",
+                    timeout=15000,
+                )
+            except Exception:
+                page.wait_for_timeout(3000)
+
+            # Click accordions for hidden sections (education, bar admissions, etc.)
+            accordion_labels = ["education", "admissions", "bar", "qualifications",
+                                 "credentials", "professional background"]
+            for label in accordion_labels:
+                try:
+                    for sel in [f"button:has-text('{label}')",
+                                f"a:has-text('{label}')",
+                                f"[role='tab']:has-text('{label}')"]:
+                        try:
+                            els = page.locator(sel).all()
+                            for el in els:
+                                if el.is_visible():
+                                    el.click()
+                                    page.wait_for_timeout(400)
+                                    break
+                        except Exception:
+                            continue
+                except Exception:
+                    pass
+
+            html = page.content()
+        except Exception as e:
+            profile = AttorneyProfile(firm=firm_name, profile_url=profile_url)
+            profile.extraction_status = "FAILED"
+            profile.diagnostics["shared_page_exception"] = str(type(e).__name__)
+            # Remove the response listener before returning
+            try:
+                page.remove_listener("response", _handle_json)
+            except Exception:
+                pass
+            return profile
+
+        # Remove listener before HTML parse (keeps page clean for next URL)
+        try:
+            page.remove_listener("response", _handle_json)
+        except Exception:
+            pass
+
+        # Try JSON API data first
+        if captured_json:
+            _jp = AttorneyProfile(firm=firm_name, profile_url=profile_url)
+            _jp = self._extract_from_json_payloads(_jp, captured_json)
+            _jp.calculate_status()
+            if _jp.extraction_status == "SUCCESS":
+                _jp = self._validate_and_add_reasons(_jp, mode="MODE2_JSON")
+                return _jp
+
+        # Bot-protection check
+        bot_indicators = ["cloudflare-challenge", "__cf_chl_", "cf-challenge-running",
+                          "attention required", "checking your browser", "captcha"]
+        html_lower = html.lower()
+        if any(ind in html_lower for ind in bot_indicators):
+            profile = AttorneyProfile(firm=firm_name, profile_url=profile_url)
+            profile.extraction_status = "FAILED"
+            profile.diagnostics["bot_protection"] = True
+            profile.missing_fields = self._all_field_names()
+            return profile
+
+        # Parse HTML
+        profile = AttorneyProfile(firm=firm_name, profile_url=profile_url)
+        profile = self.extractor.extract_profile(firm_name, profile_url, html)
+        profile.diagnostics["html_size"] = len(html)
+        profile.diagnostics["duration_ms"] = int((time.time() - start) * 1000)
+        profile.diagnostics["data_source"] = "firm_website"
+        profile = self._validate_and_add_reasons(profile, mode="MODE2_SHARED_PAGE")
+        return profile
+
     def _try_mode1_requests(
         self,
         firm_name: str,
@@ -662,7 +775,7 @@ class MultiModeExtractor:
             'fort worth', 'oklahoma city', 'tucson', 'albuquerque', 'memphis', 'louisville',
         }
 
-        us_offices = []
+        us_offices: list[str] = []
         for office in offices:
             office_clean = office.strip()
 
@@ -670,16 +783,16 @@ class MultiModeExtractor:
             if ', ' in office_clean:
                 parts = office_clean.split(', ')
                 if len(parts) >= 2:
-                    state_code = parts[-1].strip().upper()
+                    # Normalize state code: remove dots (D.C. -> DC)
+                    state_code = parts[-1].strip().upper().replace('.', '')
                     if state_code in US_STATE_CODES:
                         us_offices.append(office_clean)
-            # Pattern: "Washington DC" (without comma)
-            elif office_clean.lower() in ['washington dc', 'washington, dc']:
+            # Pattern: bare "Washington DC" / "Washington D.C." / "Washington, D.C." variants
+            elif office_clean.lower().replace('.', '').replace(',', '').strip() == 'washington dc':
                 us_offices.append('Washington, DC')
             # Pattern: bare US city name (e.g., "Chicago", "New York")
             elif office_clean.lower() in US_CITIES:
                 us_offices.append(office_clean)
-
         return us_offices
     
     def _validate_and_add_reasons(self, profile: AttorneyProfile, mode: str) -> AttorneyProfile:

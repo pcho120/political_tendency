@@ -637,11 +637,11 @@
     "evidence": "fallback guess; token evidence in homepage"
   },
   "epstein becker and green": {
-    "domain": "epstein.com",
-    "chosen_url": "https://jmail.world/",
-    "confidence": 0.2,
-    "timestamp": "2026-02-21T23:44:01.784360",
-    "evidence": "fallback guess; token evidence in homepage"
+    "domain": "ebglaw.com",
+    "chosen_url": "https://www.ebglaw.com",
+    "confidence": 0.95,
+    "timestamp": "2026-03-09T00:00:00",
+    "evidence": "manually verified: Epstein Becker & Green law firm"
   },
   "allen matkins": {
     "domain": "allenmatkins.com",
@@ -693,11 +693,11 @@
     "evidence": "fallback guess; token evidence in homepage"
   },
   "smith gambrell": {
-    "domain": "smith.com",
-    "chosen_url": "https://www.slb.com/legacy-companies/smith-bits",
-    "confidence": 0.2,
-    "timestamp": "2026-02-21T23:44:31.015222",
-    "evidence": "fallback guess; token evidence in homepage"
+    "domain": "sgrlaw.com",
+    "chosen_url": "https://www.sgrlaw.com",
+    "confidence": 0.95,
+    "timestamp": "2026-03-09T00:00:00",
+    "evidence": "manually verified: Smith Gambrell Russell law firm"
   },
   "kobre and kim": {
     "domain": "kobrekim.com",

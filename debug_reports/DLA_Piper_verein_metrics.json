@@ -1,7 +1,7 @@
 {
   "directory_url": "",
   "expected_total": 0,
-  "discovered_unique": 0,
+  "discovered_unique": 3,
   "discovered_by_dom": 0,
   "discovered_by_pagination": 0,
   "discovered_by_loadmore": 0,
@@ -9,7 +9,8 @@
   "discovered_by_filters": 0,
   "discovered_by_api": 0,
   "failure_notes": [
-    "No attorneys discovered by any strategy"
+    "Only 3 attorneys found (below minimum threshold)",
+    "Firm timeout exceeded (45s) - partial results"
   ],
   "coverage_ratio": 0.0
 }

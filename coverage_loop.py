@@ -328,7 +328,7 @@ class CoverageLoop:
 
         # Stabilization tracking: consecutive strategies that added 0 new URLs
         _consecutive_no_new: int = 0
-        _stabilization_threshold: int = 2  # configurable: stop after N consecutive zero-yield strategies
+        _stabilization_threshold: int = 3  # configurable: stop after N consecutive zero-yield strategies
 
         for strategy in self.strategy_order:
             # Hard timeout guard

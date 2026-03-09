@@ -234,7 +234,43 @@ class DiscoveryRulesEngine:
                 }
             ))
         
-        # Rule 8: FALLBACK - If no specific strategies, try everything with low confidence
+        # Rule 8: BOT_PROTECTED with no usable strategies — emit Playwright-based strategies
+        # This MUST come before the generic fallback so we don't add xml_sitemap_navigation
+        # (which would trick select_strategies into thinking a real sitemap exists).
+        if not strategies and (obs.bot_protection_detected or obs.http_403_encountered):
+            logger.info(f"Bot-protected site with no other signals for {obs.firm} — emitting Playwright strategies")
+            strategies = [
+                DiscoveryStrategy(
+                    strategy_type="kirkland_scroll",
+                    priority=1,
+                    confidence_score=0.85,
+                    reasoning="Bot-protected site — use Playwright DOM scroll on attorney directory",
+                    parameters={}
+                ),
+                DiscoveryStrategy(
+                    strategy_type="alphabet_enumeration",
+                    priority=2,
+                    confidence_score=0.60,
+                    reasoning="Bot-protected site — try alphabet enumeration via Playwright",
+                    parameters={}
+                ),
+                DiscoveryStrategy(
+                    strategy_type="directory_listing",
+                    priority=3,
+                    confidence_score=0.30,
+                    reasoning="Bot-protected site — try direct directory paths",
+                    parameters={}
+                ),
+                DiscoveryStrategy(
+                    strategy_type="dom_exhaustion",
+                    priority=4,
+                    confidence_score=0.20,
+                    reasoning="Bot-protected site — last-resort DOM exhaustion",
+                    parameters={}
+                ),
+            ]
+
+        # Rule 9: FALLBACK - If no specific strategies, try everything with low confidence
         if not strategies:
             logger.warning(f"No specific strategies for {obs.firm} - using fallback")
             strategies = self._fallback_strategies(obs)

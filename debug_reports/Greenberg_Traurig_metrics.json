@@ -1,13 +1,15 @@
 {
-  "directory_url": "https://greenberglaw.com/attorneys",
+  "directory_url": "",
   "expected_total": 0,
-  "discovered_unique": 2,
-  "discovered_by_dom": 2,
-  "discovered_by_pagination": 2,
-  "discovered_by_loadmore": 2,
-  "discovered_by_scroll": 2,
+  "discovered_unique": 0,
+  "discovered_by_dom": 0,
+  "discovered_by_pagination": 0,
+  "discovered_by_loadmore": 0,
+  "discovered_by_scroll": 0,
   "discovered_by_filters": 0,
   "discovered_by_api": 0,
-  "failure_notes": [],
+  "failure_notes": [
+    "Legally inaccessible: BLOCKED_BY_BOT"
+  ],
   "coverage_ratio": 0.0
 }

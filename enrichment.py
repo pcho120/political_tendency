@@ -78,10 +78,24 @@ except ImportError:
 # Name validation (re-use pattern from attorney_extractor)
 # ---------------------------------------------------------------------------
 
-_VALID_NAME_RE = re.compile(r"^[A-Z][a-z]+(?:[\s][A-Z][a-z\.\-']+)+$")
+_VALID_NAME_RE = re.compile(
+    r"^"
+    r"(?:Dr\.?\s+|Prof\.?\s+|Hon\.?\s+)?"     # optional honorific
+    r"(?:[A-Z]\.?\s+)?"                         # optional leading initial: "J. " or "J "
+    r"[A-ZÀ-Ö][a-zA-ZÀ-öø-ÿ\u0100-\u024F\-']+"  # first name (Unicode Latin)
+    r"(?:"
+        r"\s+"
+        r"(?:[A-ZÀ-Ö]\.?|[A-ZÀ-Ö][a-zA-ZÀ-öø-ÿ\u0100-\u024F\.\-']+|[a-z]{1,4})"
+    r")+"
+    r"$"
+)
 _HEADER_TERMS: frozenset[str] = frozenset({
     "last name", "first name", "firm name", "attorney", "name", "title",
     "lawyer", "partner", "associate", "counsel", "full name", "contact",
+    "practice areas", "practice area", "professionals", "our people",
+    "people", "attorneys", "lawyers", "team", "biography", "profile",
+    "who are you looking for", "search results", "search professionals",
+    "meet our team", "our attorneys", "our lawyers", "legal team",
 })
 
 # Heuristics that indicate a page requires JavaScript rendering
@@ -350,6 +364,10 @@ class ProfileEnricher:
     def _extract_all(self, profile: AttorneyProfile, url: str, html: str) -> None:
         """Run all extraction stages in priority order."""
 
+        # --- STAGE 0: CSS-class-based extraction (highest fidelity, site-specific) ---
+        if BS4_AVAILABLE:
+            _extract_from_css_classes(profile, html)
+
         # --- STAGE 1: JSON-LD ---
         json_ld = _extract_json_ld(html)
         if json_ld:
@@ -491,11 +509,386 @@ def enrich_profile(
 
 
 # ---------------------------------------------------------------------------
+# CSS-class-based extraction (STAGE 0)
+# Handles structured markup from major law firm site patterns.
+# Only fills fields that are still empty on the profile.
+# ---------------------------------------------------------------------------
+
+def _extract_from_css_classes(profile: AttorneyProfile, html: str) -> None:
+    """Extract profile fields using known CSS class patterns.
+
+    Covers common patterns across AmLaw200 firms:
+    - Kirkland-style:   profile-heading__*, listing-services__*, normalized-rte-list
+    - Skadden-style:    profile-header-name/position, offices-related-office
+    - Baker Botts:      bio-card-name/title, bio-contract-geo
+    - Cooley:           h1[class*=name], div.eyebrow, div.locations
+    - Paul Hastings:    qtph-profprofile-name/title/primaryoffice-txt
+    - Milbank:          attorney-header__name, attorney-office
+    - Paul Weiss:       div.pageTitle > h1, div.location-block-1
+    - Generic:          h1[class*=name], [class*=position], [class*=location]
+    """
+    if not BS4_AVAILABLE:
+        return
+
+    assert BeautifulSoup is not None  # guarded by BS4_AVAILABLE
+    soup = BeautifulSoup(html, "lxml")
+
+    # ---- Name ----
+    if not profile.full_name:
+        for selector_class in [
+            "profile-heading__name-label",   # Kirkland
+            "profile-heading__name",
+            "profile-header-name",           # Skadden
+            "bio-card-name",                 # Baker Botts
+            "attorney-header__name",         # Milbank
+            "qtph-profprofile-name-txt",     # Paul Hastings
+            "attorney-name",
+            "bio-name",
+            "lawyer-name",
+            "professional-name",
+        ]:
+            el = soup.find(class_=selector_class)
+            if el:
+                raw = el.get_text(separator=" ", strip=True)
+                # Strip professional suffix like ", P.C." BEFORE _clean_name_text
+                # (cleaning adds spaces after periods which breaks suffix detection)
+                raw = re.sub(r",\s*P\.?\s*C\.?\s*$", "", raw).strip()
+                raw = re.sub(r",\s*(?:Jr\.|Sr\.|III|II|IV)\s*$", "", raw,
+                             flags=re.IGNORECASE).strip()
+                text = _clean_name_text(raw)
+                name_clean = text
+                if _looks_like_name(name_clean) or (name_clean and 3 < len(name_clean) < 80
+                        and not any(ch.isdigit() for ch in name_clean)
+                        and name_clean.lower() not in _HEADER_TERMS):
+                    profile.full_name = name_clean
+                    break
+
+    # Cooley: <h1 class="name h2">
+    if not profile.full_name:
+        for h1 in soup.find_all("h1"):
+            classes = h1.get("class") or []
+            if "name" in classes:
+                raw = h1.get_text(separator=" ", strip=True)
+                raw = re.sub(r",\s*P\.?\s*C\.?\s*$", "", raw).strip()
+                text = _clean_name_text(raw)
+                if _looks_like_name(text):
+                    profile.full_name = text
+                    break
+
+    # Paul Weiss: <div class="pageTitle"><h1>First <br/> Last</h1></div>
+    if not profile.full_name:
+        page_title_div = soup.find(class_="pageTitle")
+        if page_title_div:
+            h1 = page_title_div.find("h1")
+            if h1:
+                text = _clean_name_text(h1.get_text(separator=" ", strip=True))
+                if _looks_like_name(text):
+                    profile.full_name = text
+
+    # ---- Title / Position ----
+    if not profile.title:
+        for selector_class in [
+            "profile-heading__position",     # Kirkland
+            "profile-header-position",       # Skadden (may contain "Title, Department")
+            "bio-card-title",                # Baker Botts
+            "qtph-profprofile-title-txt",    # Paul Hastings (may contain "Title, Department")
+            "attorney-title",
+            "bio-title",
+            "lawyer-title",
+            "professional-title",
+            "attorney-position",
+        ]:
+            el = soup.find(class_=selector_class)
+            if el:
+                raw = el.get_text(strip=True)
+                if raw and len(raw) < 120:
+                    # Some firms encode "Title, Department" in one field — split on first comma
+                    parts = [p.strip() for p in raw.split(",", 1)]
+                    profile.title = parts[0]
+                    # If we got a department as the second part, store it
+                    if not profile.department and len(parts) > 1 and parts[1]:
+                        profile.department.append(parts[1])
+                    break
+
+        # Cooley: <div class="eyebrow -vert-line-sandwich">Partner</div>
+        # Take only the first eyebrow that is not an email link
+        if not profile.title:
+            for el in soup.find_all(class_="eyebrow"):
+                text = el.get_text(strip=True)
+                if text and "@" not in text and len(text) < 80:
+                    profile.title = text
+                    break
+
+    # ---- Offices ----
+    if not profile.offices:
+        # Kirkland: <a class="profile-heading__location-link">Chicago</a>
+        # Cooley: <div class="locations">San Francisco</div>
+        # Baker Botts: <div class="bio-contract-geo">Austin</div>
+        # Milbank: <div class="attorney-office ...">New York</div>  (more specific than attorney-office-container)
+        for selector_class in [
+            "profile-heading__location-link",
+            "bio-contract-geo",              # Baker Botts
+            "attorney-office",               # Milbank (also matches attorney-office-container — handled below)
+            "bio-office",
+            "lawyer-office",
+            "office-name",
+        ]:
+            els = soup.find_all(class_=selector_class)
+            if els:
+                for el in els:
+                    # Skip containers (Milbank uses attorney-office-container for the full block)
+                    el_classes = set(el.get("class") or [])
+                    if "container" in " ".join(el_classes).lower():
+                        continue
+                    text = el.get_text(strip=True)
+                    if text and text not in profile.offices:
+                        profile.offices.append(text)
+                if profile.offices:
+                    break  # stop after first matching class pattern
+
+        # Cooley: <div class="locations">San Francisco</div>
+        if not profile.offices:
+            el = soup.find(class_="locations")
+            if el:
+                # Weil has a <li class="locations"> that is the full nav — skip if too long
+                text = el.get_text(strip=True)
+                if len(text) < 100:
+                    profile.offices.append(text)
+
+        # Paul Hastings: <div class="qtph-profprofile-primaryoffice-txt">San Francisco...</div>
+        if not profile.offices:
+            el = soup.find(class_="qtph-profprofile-primaryoffice-txt")
+            if el:
+                first_line = el.get_text(separator="\n", strip=True).split("\n")[0].strip()
+                if first_line and len(first_line) < 80:
+                    profile.offices.append(first_line)
+
+        # Skadden: <div class="offices-related-office">Abu Dhabi<br>T:...</div>
+        if not profile.offices:
+            for el in soup.find_all(class_="offices-related-office"):
+                first_line = el.get_text(separator="\n", strip=True).split("\n")[0].strip()
+                if first_line and first_line not in profile.offices:
+                    profile.offices.append(first_line)
+
+        # Paul Weiss: <div class="location-block-1">Washington, DC<br>...</div>
+        if not profile.offices:
+            el = soup.find(class_="location-block-1") or soup.find(class_="location-block")
+            if el:
+                first_line = el.get_text(separator="\n", strip=True).split("\n")[0].strip()
+                if first_line and len(first_line) < 80:
+                    profile.offices.append(first_line)
+
+        # White & Case: hero-title container → <div class="...fs-5...">Counsel, Hamburg</div>
+        # The div text is "Title, Office" or just "Title" — split on last comma
+        if not profile.offices or not profile.title:
+            hero_title = soup.find(class_="hero-title")
+            if hero_title:
+                for div in hero_title.find_all("div"):
+                    cls = " ".join(div.get("class") or [])
+                    if "fs-5" in cls:
+                        raw = div.get_text(strip=True)
+                        if raw and len(raw) < 100:
+                            # Split "Title, City" on last comma
+                            comma_idx = raw.rfind(",")
+                            if comma_idx > 0:
+                                _wc_title = raw[:comma_idx].strip()
+                                _wc_office = raw[comma_idx + 1:].strip()
+                            else:
+                                _wc_title = raw.strip()
+                                _wc_office = ""
+                            if not profile.title and _wc_title:
+                                profile.title = _wc_title
+                            if not profile.offices and _wc_office:
+                                profile.offices.append(_wc_office)
+                        break
+
+    # ---- Practice Areas ----
+    if not profile.practice_areas:
+        # Kirkland: <ul class="listing-services__items"><li class="listing-services__item">
+        # This is the expanded list (preferred over the collapsed specialty tags)
+        listing_ul = soup.find(class_="listing-services__items")
+        if listing_ul:
+            for li in listing_ul.find_all("li", class_="listing-services__item"):
+                text = li.get_text(strip=True)
+                # Skip section headings like "Transactional", "Litigation" which appear
+                # as h3.listing-services__heading — those go to department
+                if text and text not in profile.practice_areas:
+                    profile.practice_areas.append(text)
+        else:
+            # Fallback: collapsed specialty links
+            for el in soup.find_all(class_="profile-heading__specialty"):
+                text = el.get_text(strip=True)
+                if text and text not in profile.practice_areas:
+                    profile.practice_areas.append(text)
+
+    # ---- Department (Kirkland group heading: "Transactional", "Litigation", etc.) ----
+    if not profile.department:
+        # Kirkland: <h3 class="listing-services__heading">Transactional</h3>
+        for selector_class in ["listing-services__heading", "practice-group__heading"]:
+            els = soup.find_all(class_=selector_class)
+            if els:
+                for el in els:
+                    text = el.get_text(strip=True)
+                    # Filter out generic headings
+                    if text and text.lower() not in {"practices", "services",
+                            "expertise", "industries", "sectors"} and text not in profile.department:
+                        profile.department.append(text)
+                if profile.department:
+                    break
+
+    # ---- Education ----
+    if not profile.education:
+        _extract_normalized_rte_list_education(profile, soup)
+
+    # ---- Bar Admissions ----
+    if not profile.bar_admissions:
+        _extract_normalized_rte_list_bar(profile, soup)
+
+
+def _extract_normalized_rte_list_education(
+    profile: AttorneyProfile, soup: BeautifulSoup
+) -> None:
+    """Parse education from Kirkland-style normalized-rte-list__title sections.
+
+    Structure:
+        <h4 class="normalized-rte-list__title">Education</h4>
+        <ul>
+          <li>University of Illinois Chicago School of Law J.D. magna cum laude 2023 ...</li>
+          <li>University of Illinois at Urbana-Champaign B.A., Political Science 2015</li>
+        </ul>
+    """
+    for h4 in soup.find_all("h4", class_="normalized-rte-list__title"):
+        heading_text = h4.get_text(strip=True).lower()
+        if "education" not in heading_text:
+            continue
+        container = h4.find_parent()
+        if not container:
+            continue
+        for li in container.find_all("li"):
+            raw = li.get_text(" ", strip=True)
+            # Parse degree, school, year from the combined li text
+            rec = _parse_edu_li(raw)
+            if rec:
+                _add_edu_if_new(profile, rec)
+        break  # only first Education section
+
+
+def _parse_edu_li(text: str) -> EducationRecord | None:
+    """Parse a single education list item into an EducationRecord.
+
+    Example inputs:
+      'University of Illinois Chicago School of Law J.D. magna cum laude 2023'
+      'University of Illinois at Urbana-Champaign B.A., Political Science 2015'
+      'Georgetown University Walsh School of Foreign Service B.S.F.S. International Politics 2017'
+    """
+    if not text or len(text) < 5:
+        return None
+
+    # Extract year (4-digit 18xx-20xx)
+    year_match = re.search(r'\b((?:18|19|20)\d{2})\b', text)
+    year = int(year_match.group(1)) if year_match else None
+
+    # Extract degree abbreviation
+    degree: str | None = None
+    # Ordered from most specific to least
+    degree_patterns = [
+        (r'\bLL\.?M\.?\b', "LLM"),
+        (r'\bJ\.?D\.?\b', "JD"),
+        (r'\bM\.?B\.?A\.?\b', "MBA"),
+        (r'\bPh\.?D\.?\b', "PhD"),
+        (r'\bB\.?S\.?F\.?S\.?\b', "BSFS"),
+        (r'\bB\.?S\.?\b', "BS"),
+        (r'\bB\.?A\.?\b', "BA"),
+        (r'\bM\.?S\.?\b', "MS"),
+        (r'\bM\.?A\.?\b', "MA"),
+    ]
+    for pattern, label in degree_patterns:
+        if re.search(pattern, text):
+            degree = label
+            break
+
+    # Extract school name: everything before the degree token (or end of meaningful text)
+    # Strip the degree abbreviation and anything after it for school extraction
+    school_text = text
+    if degree:
+        # Remove the degree token and everything following it
+        school_text = re.split(
+            r'\b(?:LL\.?M|J\.?D|M\.?B\.?A|Ph\.?D|B\.?S\.?F\.?S|B\.?S|B\.?A|M\.?S|M\.?A)\.?\b',
+            text, maxsplit=1
+        )[0].strip().rstrip(",").strip()
+    # Remove trailing year if still present
+    school_text = re.sub(r'\s*\b(?:18|19|20)\d{2}\b.*$', '', school_text).strip()
+    school = school_text if len(school_text) > 3 else None
+
+    if not school and not degree:
+        return None
+    return EducationRecord(degree=degree, school=school, year=year)
+
+
+def _extract_normalized_rte_list_bar(
+    profile: AttorneyProfile, soup: BeautifulSoup
+) -> None:
+    """Parse bar admissions from Kirkland-style normalized-rte-list__title sections.
+
+    Structure:
+        <h4 class="normalized-rte-list__title">Admissions & Qualifications</h4>
+        <ul>
+          <li>2023 Illinois</li>
+          <li>2021 New York</li>
+        </ul>
+    """
+    from validators import _extract_states_from_text  # local import avoids circular
+
+    for h4 in soup.find_all("h4", class_="normalized-rte-list__title"):
+        heading_text = h4.get_text(strip=True).lower()
+        if not any(kw in heading_text for kw in ("admission", "qualified", "bar", "licens")):
+            continue
+        container = h4.find_parent()
+        if not container:
+            continue
+        for li in container.find_all("li"):
+            raw = li.get_text(" ", strip=True)
+            states = _extract_states_from_text(raw)
+            for state in states:
+                if state not in profile.bar_admissions:
+                    profile.bar_admissions.append(state)
+        break  # only first admissions section
+
+
+# ---------------------------------------------------------------------------
 # JSON-LD extraction (STAGE 1)
 # ---------------------------------------------------------------------------
 
 def _extract_json_ld(html: str) -> dict[str, Any] | None:
-    """Extract Person-typed JSON-LD block, returning first match."""
+    """Extract Person-typed JSON-LD block, returning first match.
+
+    Handles:
+    - Top-level @type: Person
+    - Nested Person inside @type: ProfilePage (mainEntity)
+    - Array of JSON-LD blocks
+    """
+    _PERSON_TYPES = ("Person", "http://schema.org/Person", "schema:Person")
+
+    def _find_person(obj: Any, depth: int = 0) -> dict[str, Any] | None:
+        if depth > 3:
+            return None
+        if isinstance(obj, dict):
+            if obj.get("@type") in _PERSON_TYPES:
+                return obj
+            # Check common nested keys
+            for key in ("mainEntity", "about", "author", "creator"):
+                nested = obj.get(key)
+                if nested:
+                    result = _find_person(nested, depth + 1)
+                    if result:
+                        return result
+        elif isinstance(obj, list):
+            for item in obj:
+                result = _find_person(item, depth + 1)
+                if result:
+                    return result
+        return None
+
     try:
         blocks = re.findall(
             r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
@@ -505,12 +898,9 @@ def _extract_json_ld(html: str) -> dict[str, Any] | None:
         for block in blocks:
             try:
                 data = json.loads(block)
-                items = data if isinstance(data, list) else [data]
-                for item in items:
-                    if isinstance(item, dict) and item.get("@type") in (
-                        "Person", "http://schema.org/Person"
-                    ):
-                        return item
+                person = _find_person(data)
+                if person:
+                    return person
             except json.JSONDecodeError:
                 continue
     except Exception:
@@ -710,37 +1100,43 @@ def _extract_from_section_map(
             profile.title = _extract_title_proximity(html)
 
     # --- Offices ---
-    for text in find_section(section_map, "offices"):
-        if text and text not in profile.offices:
-            profile.offices.append(text)
+    if not profile.offices:
+        for text in find_section(section_map, "offices"):
+            if text and text not in profile.offices:
+                profile.offices.append(text)
 
     # --- Departments ---
-    for text in find_section(section_map, "departments"):
-        if text and text not in profile.department:
-            profile.department.append(text)
+    if not profile.department:
+        for text in find_section(section_map, "departments"):
+            if text and text not in profile.department:
+                profile.department.append(text)
 
     # --- Practice Areas ---
-    for text in find_section(section_map, "practice_areas"):
-        if text and text not in profile.practice_areas:
-            profile.practice_areas.append(text)
+    if not profile.practice_areas:
+        for text in find_section(section_map, "practice_areas"):
+            if text and text not in profile.practice_areas:
+                profile.practice_areas.append(text)
 
     # --- Industries ---
-    for text in find_section(section_map, "industries"):
-        if text and text not in profile.industries:
-            profile.industries.append(text)
+    if not profile.industries:
+        for text in find_section(section_map, "industries"):
+            if text and text not in profile.industries:
+                profile.industries.append(text)
 
     # --- Bar Admissions ---
-    raw_bars = find_section(section_map, "bar_admissions")
-    parsed_states = parse_bar_admissions_text_blocks(raw_bars)
-    for state in parsed_states:
-        if state not in profile.bar_admissions:
-            profile.bar_admissions.append(state)
+    if not profile.bar_admissions:
+        raw_bars = find_section(section_map, "bar_admissions")
+        parsed_states = parse_bar_admissions_text_blocks(raw_bars)
+        for state in parsed_states:
+            if state not in profile.bar_admissions:
+                profile.bar_admissions.append(state)
 
     # --- Education ---
-    raw_edu = find_section(section_map, "education")
-    new_records = parse_education_text_blocks(raw_edu)
-    for rec in new_records:
-        _add_edu_if_new(profile, cast(EducationRecord, cast(object, rec)))
+    if not profile.education:
+        raw_edu = find_section(section_map, "education")
+        new_records = parse_education_text_blocks(raw_edu)
+        for rec in new_records:
+            _add_edu_if_new(profile, cast(EducationRecord, cast(object, rec)))
 
 
 # ---------------------------------------------------------------------------
@@ -764,7 +1160,7 @@ def _proximity_fallback(profile: AttorneyProfile, html: str) -> None:
     if not profile.full_name:
         h1 = soup.find("h1")
         if h1:
-            candidate = h1.get_text(strip=True)
+            candidate = _clean_name_text(h1.get_text(separator=" ", strip=True))
             if _looks_like_name(candidate):
                 profile.full_name = candidate
 
@@ -872,6 +1268,37 @@ def _extract_title_proximity(html: str) -> str | None:
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+
+def _clean_name_text(text: str) -> str:
+    """Normalize a raw name string extracted from HTML.
+
+    Handles:
+    - Zero-width / formatting Unicode characters (Goulston-style CMS injection)
+    - Missing space between period and capital (Cravath: 'Robert E.Novick')
+    - Leading/trailing whitespace and punctuation
+    - Credential suffixes (MBA, Ph.D., CIPM, etc.) after the name
+    """
+    import unicodedata
+    # Strip zero-width and formatting characters (Unicode category Cf)
+    cleaned = "".join(
+        c for c in text
+        if unicodedata.category(c) not in ("Cf",) and c != "\ufeff"
+    )
+    # Strip credential/degree suffixes after a comma FIRST (before period-space fix)
+    # Handles: "Bing Ai, Ph.D."  "Mallory Acheson, CIPM, CIPP/E"  "Kevin Bielawski, MBA"
+    cleaned = re.sub(
+        r",\s*(?:[A-Z]{2,}|[A-Z][a-z]*\.[A-Z]\.?|LL\.[A-Z]\.?)[^\n]*$",
+        "",
+        cleaned,
+    ).strip()
+    # Strip audio/aria garbage: "Play Audio Recording of Name"
+    cleaned = re.sub(r"\s*Play Audio.*$", "", cleaned, flags=re.IGNORECASE).strip()
+    # Fix missing space: "E.Novick" → "E. Novick"
+    cleaned = re.sub(r"(\.)([A-Z])", r"\1 \2", cleaned)
+    # Normalize multiple spaces
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
 
 def _looks_like_name(text: str) -> bool:
     """Return True if text passes the strict person-name heuristic."""

@@ -2,11 +2,17 @@
   "firm": "DLA Piper (verein)",
   "base_url": "https://www.dlapiper.com",
   "detected_types": [
-    "DIRECTORY_HTML"
+    "DIRECTORY_HTML",
+    "XML_SITEMAP"
   ],
   "signals": [
-    "Classification: BOT_PROTECTED",
-    "\u26a0 Bot protection detected - may require special handling",
-    "HTTP 429 Rate limit encountered"
+    "Classification: SPA_HEAVY",
+    "\u2713 Sitemap contains 100 attorney URLs",
+    "\u26a0 JavaScript framework detected - may need browser automation",
+    "Found sitemap in robots.txt: https://www.dlapiper.com/sitemap.xml",
+    "robots.txt disallows crawling",
+    "Sitemap index at https://www.dlapiper.com/sitemap.xml \u2014 following sub-sitemaps",
+    "Sub-sitemap contains attorney URLs",
+    "React detected"
   ]
 }
