@@ -131,6 +131,13 @@ _CONTENT_TAGS = {"li", "a", "dd", "p", "span", "td"}
 # Maximum text length for a single content block (guard against grabbing whole-page text)
 _MAX_BLOCK_LEN = 400
 
+# Footer container detection — structural HTML element names and class tokens
+_FOOTER_CONTAINER_NAMES = frozenset({"footer"})
+_FOOTER_CONTAINER_CLASSES = frozenset({
+    "footer", "site-footer", "global-footer",
+    "copyright-bar", "bottom-bar", "page-footer",
+})
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -216,6 +223,15 @@ def _collect_content_after(
                 _harvest(child)
 
     for sibling in anchor.find_all_next():
+        # Stop if we enter a structural footer container
+        sib_classes = set(sibling.get("class") or [])
+        sib_id = (sibling.get("id") or "").lower()
+        if sibling.name in _FOOTER_CONTAINER_NAMES:
+            break
+        if sib_classes & _FOOTER_CONTAINER_CLASSES:
+            break
+        if any(fc in sib_id for fc in _FOOTER_CONTAINER_CLASSES):
+            break
         # Stop at a heading that is same or higher (lower number = higher level)
         if _is_heading(sibling):
             sib_level = _tag_heading_level(sibling)
