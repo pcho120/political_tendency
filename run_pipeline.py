@@ -682,6 +682,10 @@ def main() -> int:
     # ----------------------------------------------------------------
     # Write outputs
     # ----------------------------------------------------------------
+    # Clean up any leftover STOP file
+    if _STOP_FILE.exists():
+        _STOP_FILE.unlink()
+
     elapsed = time.time() - t_run_start
     stopped_early = _stop_event.is_set()
 
