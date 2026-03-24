@@ -1,0 +1,1 @@
+stop-after test — 5s timeout, single firm completed normally

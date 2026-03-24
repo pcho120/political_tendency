@@ -1,0 +1,28 @@
+Offices empty reason distribution:
+  not_found: 1048
+  validation_rejected: 167
+  no_diagnostic: 29
+Total profiles with empty offices: 1244
+Top 10 firms with empty offices:
+  gibson dunn: 20/20 empty
+  covington: 20/20 empty
+  dechert: 20/20 empty
+  morrison and foerster: 20/20 empty
+  k and l gates: 20/20 empty
+  winston and strawn: 20/20 empty
+  cravath: 20/20 empty
+  troutman pepper: 20/20 empty
+  fragomen: 20/20 empty
+  fenwick: 20/20 empty
+
+Sample offices values (first 10 profiles with offices):
+  paul weiss - ['Washington, DC']
+  paul weiss - ['Washington, DC']
+  paul weiss - ['New York']
+  paul weiss - ['New York']
+  paul weiss - ['New York']
+  paul weiss - ['New York']
+  paul weiss - ['New York']
+  paul weiss - ['New York']
+  paul weiss - ['Washington, DC']
+  paul weiss - ['New York']
