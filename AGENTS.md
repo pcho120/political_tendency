@@ -212,6 +212,24 @@ structure type; let the pipeline select it automatically.
 
 ---
 
+## Planning & Communication Guidelines
+
+When Prometheus (or any planning agent) presents a plan or task list to the user,
+**always include estimated time** alongside each step. Format:
+
+```
+단계 설명   예상 소요시간: X분 / X시간
+```
+
+Estimation guidelines:
+- Single firm test (`--max-profiles 5`): ~2–5분
+- SITEMAP_XML batch (전체): ~4–8시간 (펌당 평균 ~3분)
+- HTML_DIRECTORY_FLAT batch: ~3–6시간
+- Code change (single file, clear spec): ~5–10분 (agent 실행 기준)
+- `--stop-after` 기능 구현: ~10분
+
+---
+
 ## Key Data Files
 
 | File | Purpose |
