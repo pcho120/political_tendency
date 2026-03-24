@@ -96,22 +96,27 @@ _US_MAJOR_LAW_CITIES: frozenset[str] = frozenset({
     # Northeast
     "New York", "Boston", "Philadelphia", "Pittsburgh", "Hartford", "Providence",
     "Albany", "Buffalo", "Newark", "Baltimore", "Washington", "Washington D.C.",
-    "Washington DC", "Wilmington",
+    "Washington DC", "Wilmington", "Stamford", "White Plains", "Princeton",
+    "Bridgeport", "New Haven", "Morristown", "Parsippany", "Short Hills",
+    "Florham Park", "Roseland", "Edison",
     # Southeast
     "Atlanta", "Miami", "Tampa", "Orlando", "Jacksonville", "Charlotte",
     "Raleigh", "Richmond", "Nashville", "Memphis", "Louisville", "Birmingham",
-    "New Orleans", "Jacksonville",
+    "New Orleans", "Jacksonville", "Fort Lauderdale", "West Palm Beach",
+    "Boca Raton", "Tallahassee", "Lexington", "Greenville", "Chattanooga",
+    "Virginia Beach", "Tysons", "Tysons Corner", "McLean", "Reston",
     # Midwest
     "Chicago", "Detroit", "Cleveland", "Columbus", "Cincinnati", "Indianapolis",
     "Milwaukee", "Minneapolis", "Saint Paul", "St. Paul", "Kansas City",
-    "St. Louis", "Omaha", "Des Moines",
+    "St. Louis", "Omaha", "Des Moines", "Madison",
     # Southwest / Mountain
     "Dallas", "Houston", "Austin", "San Antonio", "Denver", "Phoenix",
-    "Albuquerque", "Salt Lake City", "Las Vegas", "Tucson",
+    "Albuquerque", "Salt Lake City", "Las Vegas", "Tucson", "Fort Worth",
+    "Baton Rouge", "Boise", "Colorado Springs",
     # West Coast
     "Los Angeles", "San Francisco", "San Diego", "Seattle", "Portland",
     "Sacramento", "San Jose", "Palo Alto", "Silicon Valley", "Menlo Park",
-    "Oakland", "Irvine", "Century City", "Bay Area",
+    "Oakland", "Irvine", "Century City", "Bay Area", "Orange County",
     # Other notable
     "Anchorage", "Honolulu",
     # Abbreviations / alt forms used by firms

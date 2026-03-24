@@ -632,6 +632,10 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str) -> None:
             "bio-office",
             "lawyer-office",
             "office-name",
+            "vcard-office",                  # Covington
+            "location-name",                 # K&L Gates
+            "office-link",                   # Greenberg Traurig
+            "office",                        # Baker McKenzie (<div class="office">)
         ]:
             els = soup.find_all(class_=selector_class)
             if els:
@@ -677,6 +681,65 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str) -> None:
                 first_line = el.get_text(separator="\n", strip=True).split("\n")[0].strip()
                 if first_line and len(first_line) < 80:
                     profile.offices.append(first_line)
+
+        # MoFo: <div class="profile-hero__details--title-location">
+        #   <span>Partner</span><span>|</span><span>Austin</span><span>•</span><span>Palo Alto</span>
+        # Spans after the bullet divider are offices; skip spans that look like titles/bullets.
+        if not profile.offices:
+            hero_loc = soup.find(class_="profile-hero__details--title-location")
+            if hero_loc:
+                spans = [s.get_text(strip=True) for s in hero_loc.find_all("span")]
+                after_bullet = False
+                for span in spans:
+                    if span in ("|", "•", "·", "/"):
+                        after_bullet = True
+                        continue
+                    if after_bullet and span and len(span) < 60:
+                        if span not in profile.offices:
+                            profile.offices.append(span)
+
+        # Gibson Dunn: <div class="contact-details"> contains <a href="/office/city-name">City</a>
+        # Husch Blackwell: <div class="bioInfoWrap__line office1"> contains <a href="/offices/City_ST">City</a>
+        # Troutman Pepper: <div class="info phone"> contains <a href="/office/city/">City</a>
+        # Generic: any <a> whose href matches /office(s)/ or /locations?/ pattern, not in nav/footer
+        if not profile.offices:
+            _office_href_pat = re.compile(r"/offices?/|/locations?/", re.IGNORECASE)
+            _noise_tag_names = {"footer", "nav", "header"}
+            _noise_exact_tokens = {"footer", "nav", "menu", "sitemap", "navigation"}
+            _noise_prefix_tokens = ("footer", "nav-", "navigation-", "site-nav", "site-footer")
+            for a in soup.find_all("a", href=True):
+                href = a.get("href", "")
+                if not _office_href_pat.search(href):
+                    continue
+                text = a.get_text(strip=True)
+                if not text or len(text) > 60:
+                    continue
+                # Skip pure nav/menu/footer links (e.g. "Locations", "Offices", "Our Offices")
+                if text.lower() in ("locations", "offices", "our offices", "all offices",
+                                    "all locations", "office locations", "find an office"):
+                    continue
+                # Walk up to see if we're inside a footer/nav/menu element
+                in_noise = False
+                for parent in a.parents:
+                    tag_name = getattr(parent, "name", None)
+                    if tag_name in _noise_tag_names:
+                        in_noise = True
+                        break
+                    # Check class tokens using exact match or prefix (avoid substring false positives)
+                    for cls_tok in (parent.get("class") or []):
+                        tok_lower = cls_tok.lower()
+                        if tok_lower in _noise_exact_tokens:
+                            in_noise = True
+                            break
+                        if any(tok_lower.startswith(p) for p in _noise_prefix_tokens):
+                            in_noise = True
+                            break
+                    if in_noise:
+                        break
+                if in_noise:
+                    continue
+                if text not in profile.offices:
+                    profile.offices.append(text)
 
         # White & Case: hero-title container → <div class="...fs-5...">Counsel, Hamburg</div>
         # The div text is "Title, Office" or just "Title" — split on last comma
