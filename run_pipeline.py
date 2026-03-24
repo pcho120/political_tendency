@@ -25,7 +25,10 @@ import argparse
 import json
 import logging
 import os
+import re
+import signal
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, asdict
@@ -49,6 +52,7 @@ from attorney_extractor import AttorneyProfile, EducationRecord
 CACHE_FILE = Path("cache") / "firm_domain_cache.json"
 OUTPUT_DIR = Path("outputs")
 DEBUG_DIR = Path("debug_reports")
+_STOP_FILE = Path("STOP")
 
 OUTPUT_DIR.mkdir(exist_ok=True)
 DEBUG_DIR.mkdir(exist_ok=True)
@@ -346,8 +350,26 @@ def run_firm(
 
 def _safe_name(name: str) -> str:
     """Filesystem-safe firm name."""
-    import re
     return re.sub(r"[^a-z0-9_-]", "_", name.lower().strip())
+
+
+# ---------------------------------------------------------------------------
+# Graceful stop utilities
+# ---------------------------------------------------------------------------
+
+def _parse_duration(s: str) -> int:
+    """Parse '30m', '2h', '1h30m', '90s' → seconds. Raises ValueError on invalid."""
+    s = s.strip().lower()
+    m = re.fullmatch(r'(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?', s)
+    if not m or not any(m.groups()):
+        raise ValueError(f"Invalid duration '{s}'. Use formats like: 30m, 2h, 1h30m, 90s")
+    h = int(m.group(1) or 0)
+    mn = int(m.group(2) or 0)
+    sc = int(m.group(3) or 0)
+    total = h * 3600 + mn * 60 + sc
+    if total <= 0:
+        raise ValueError(f"Duration must be positive, got '{s}'")
+    return total
 
 
 # ---------------------------------------------------------------------------
@@ -500,6 +522,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "HTML_DIRECTORY_FLAT). Comma-separated for multiple."
         ),
     )
+    p.add_argument(
+        "--stop-after",
+        metavar="DURATION",
+        default=None,
+        help="Gracefully stop after DURATION (e.g. 30m, 2h, 1h30m, 90s). "
+             "Finishes current firm, saves partial output with _partial suffix.",
+    )
     return p
 
 
@@ -510,6 +539,27 @@ def build_arg_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser = build_arg_parser()
     args = parser.parse_args()
+
+    # --- Graceful stop setup ---
+    stop_after_secs: int | None = None
+    if args.stop_after:
+        try:
+            stop_after_secs = _parse_duration(args.stop_after)
+        except ValueError as e:
+            parser.error(str(e))
+
+    if _STOP_FILE.exists():
+        log.warning("STOP file found at startup — deleting it and continuing.")
+        _STOP_FILE.unlink()
+
+    _stop_event = threading.Event()
+
+    def _handle_sigint(signum: int, frame: object) -> None:
+        log.warning("Ctrl+C received — will stop after current firm completes.")
+        _stop_event.set()
+
+    signal.signal(signal.SIGINT, _handle_sigint)
+    # --- End graceful stop setup ---
 
     # Configure root logger
     log_level = logging.DEBUG if args.verbose else logging.INFO
@@ -564,7 +614,7 @@ def main() -> int:
             log.error("No firms matched the structure-type filter. Exiting.")
             return 1
 
-    t_run_start = time.monotonic()
+    t_run_start = time.time()  # wall clock — survives laptop suspend
     all_profiles: list[AttorneyProfile] = []
     results: list[FirmResult] = []
 
@@ -582,10 +632,11 @@ def main() -> int:
     if args.workers > 1:
         log.info(f"Running {len(firms)} firms with {args.workers} parallel workers")
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            futures = {
-                pool.submit(run_firm, firm, **firm_kwargs): firm
-                for firm in firms
-            }
+            futures: dict = {}
+            for firm in firms:
+                if _stop_event.is_set():
+                    break
+                futures[pool.submit(run_firm, firm, **firm_kwargs)] = firm
             for future in as_completed(futures):
                 firm = futures[future]
                 try:
@@ -595,8 +646,34 @@ def main() -> int:
                     result = FirmResult(firm=firm, errors=[str(exc)])
                 results.append(result)
                 all_profiles.extend(result.profiles)
+                # Stop check after each future
+                if _stop_event.is_set():
+                    break
+                if _STOP_FILE.exists():
+                    log.info("STOP file detected during parallel run.")
+                    _stop_event.set()
+                    _STOP_FILE.unlink()
+                elif stop_after_secs is not None and (time.time() - t_run_start) >= stop_after_secs:
+                    log.info("--stop-after limit reached during parallel run — stopping.")
+                    _stop_event.set()
     else:
         for idx, firm in enumerate(firms, start=1):
+            # --- Stop check (firm boundary only) ---
+            if _stop_event.is_set():
+                log.info(f"Stop flag set — skipping remaining {len(firms) - idx + 1} firms.")
+                break
+            if _STOP_FILE.exists():
+                log.info("STOP file detected — stopping after this check.")
+                _stop_event.set()
+                _STOP_FILE.unlink()
+                break
+            if stop_after_secs is not None:
+                elapsed_now = time.time() - t_run_start
+                if elapsed_now >= stop_after_secs:
+                    log.info(f"--stop-after limit reached ({elapsed_now:.0f}s >= {stop_after_secs}s) — stopping.")
+                    _stop_event.set()
+                    break
+            # --- End stop check ---
             log.info(f"── Firm {idx}/{len(firms)}: {firm.name} ──")
             result = run_firm(firm, **firm_kwargs)
             results.append(result)
@@ -605,11 +682,23 @@ def main() -> int:
     # ----------------------------------------------------------------
     # Write outputs
     # ----------------------------------------------------------------
-    elapsed = time.monotonic() - t_run_start
+    elapsed = time.time() - t_run_start
+    stopped_early = _stop_event.is_set()
 
     if not args.discover_only and all_profiles:
+        if stopped_early and not args.output:
+            base_name = base_name + "_partial"
+            out_xlsx = OUTPUT_DIR / f"{base_name}.xlsx"
+            out_jsonl = OUTPUT_DIR / f"{base_name}.jsonl"
         _write_excel(all_profiles, out_xlsx)
         _write_jsonl(all_profiles, out_jsonl)
+        if stopped_early:
+            log.warning(
+                f"⚠  Stopped early — {len(all_profiles)} profiles saved to "
+                f"{out_jsonl.name} ({len(results)}/{len(firms)} firms completed)"
+            )
+    elif not args.discover_only and not all_profiles and stopped_early:
+        log.warning("⚠  Stopped early — no profiles collected, no output files written.")
     elif args.discover_only:
         # Write a discovery-only summary JSON
         summary_path = OUTPUT_DIR / f"{base_name}_discovery_summary.json"
