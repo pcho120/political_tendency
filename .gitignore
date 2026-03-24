@@ -37,3 +37,8 @@ nul
 # Debug artifacts
 debug_reports/
 nul
+
+# Node.js (opencode tooling — not part of this Python project)
+node_modules/
+package.json
+package-lock.json
