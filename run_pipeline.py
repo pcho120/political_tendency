@@ -44,6 +44,7 @@ from debug_logger import DebugLogger
 from discovery import discover_attorneys, lookup_structure
 from enrichment import ProfileEnricher
 from attorney_extractor import AttorneyProfile, EducationRecord
+from coverage_loop import filter_us_attorneys
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -688,6 +689,17 @@ def main() -> int:
 
     elapsed = time.time() - t_run_start
     stopped_early = _stop_event.is_set()
+
+    if all_profiles:
+        before_count = len(all_profiles)
+        all_profiles = filter_us_attorneys(all_profiles, log_fn=log.info)
+        log.info(f"US filter: {before_count} → {len(all_profiles)} profiles (removed {before_count - len(all_profiles)} non-US)")
+
+    before_name_count = len(all_profiles)
+    all_profiles = [p for p in all_profiles if p.full_name and p.full_name.strip()]
+    dropped = before_name_count - len(all_profiles)
+    if dropped:
+        log.info(f"Name filter: {dropped} profiles dropped (empty full_name)")
 
     if not args.discover_only and all_profiles:
         if stopped_early and not args.output:
