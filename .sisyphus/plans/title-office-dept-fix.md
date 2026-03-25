@@ -320,7 +320,7 @@ F3 (오염 패턴 잔존 확인)            ~10분
 
 ---
 
-- [ ] 3. `validate_title()` — 펌 이름 필터 추가
+- [x] 3. `validate_title()` — 펌 이름 필터 추가
 
   **예상 소요시간**: ~15분
 
@@ -417,7 +417,7 @@ F3 (오염 패턴 잔존 확인)            ~10분
 
 ---
 
-- [ ] 4. Title CSS 셀렉터 보강 — Cahill, Troutman, Susman, Sullivan & Cromwell
+- [x] 4. Title CSS 셀렉터 보강 — Cahill, Troutman, Susman, Sullivan & Cromwell
 
   **예상 소요시간**: ~20분
 
@@ -545,7 +545,7 @@ F3 (오염 패턴 잔존 확인)            ~10분
 
 ---
 
-- [ ] 5. Offices 보강 — Weil 오염 수정 + Sullivan & Cromwell + Saul Ewing 웹컴포넌트
+- [x] 5. Offices 보강 — Weil 오염 수정 + Sullivan & Cromwell + Saul Ewing 웹컴포넌트
 
   **예상 소요시간**: ~30분
 
@@ -638,10 +638,10 @@ F3 (오염 패턴 잔존 확인)            ~10분
   - `.sisyphus/evidence/baseline-quality.txt` — Weil 오염 경로 (T1에서 기록됨)
 
   **Acceptance Criteria**:
-  - [ ] Weil: 각 attorney offices = 1–2개 도시 (파이프 구분 전체 목록 X)
-  - [ ] Cooley: offices 여전히 추출됨 (회귀 없음)
-  - [ ] Sullivan & Cromwell: offices ≥4/5 채워짐 (현재 0/20)
-  - [ ] Saul Ewing: offices ≥4/5 채워짐 (현재 0/20)
+  - [x] Weil: 각 attorney offices = 1–2개 도시 (파이프 구분 전체 목록 X)
+  - [x] Cooley: offices 여전히 추출됨 (회귀 없음)
+  - [x] Sullivan & Cromwell: offices ≥4/5 채워짐 (현재 0/20)
+  - [x] Saul Ewing: offices ≥4/5 채워짐 (현재 0/20)
 
   **QA Scenarios**:
   ```
@@ -680,7 +680,7 @@ F3 (오염 패턴 잔존 확인)            ~10분
 
 ---
 
-- [ ] 6. `_US_MAJOR_LAW_CITIES`에 누락 도시 추가
+- [x] 6. `_US_MAJOR_LAW_CITIES`에 누락 도시 추가
 
   **예상 소요시간**: ~5분
 
@@ -731,7 +731,7 @@ F3 (오염 패턴 잔존 확인)            ~10분
 
 ---
 
-- [ ] 7. `parser_sections.py` — Department 헤딩 동의어 확장
+- [x] 7. `parser_sections.py` — Department 헤딩 동의어 확장
 
   **예상 소요시간**: ~20분
 

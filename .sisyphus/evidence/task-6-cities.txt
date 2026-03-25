@@ -1,0 +1,19 @@
+=== TASK 6: US_MAJOR_LAW_CITIES Addition ===
+
+Changed: validators.py line 101
+Added: "Harrisburg" (Pennsylvania office for Saul Ewing)
+
+Verification Results:
+---
+Harrisburg: (['Harrisburg'], None)
+Silicon Valley: (['Silicon Valley'], None)
+Newark: (['Newark'], None)
+Minneapolis: (['Minneapolis'], None)
+
+Status: ✓ PASS
+- Harrisburg added successfully
+- Silicon Valley already present
+- Newark already present
+- Minneapolis already present
+
+All cities pass validate_offices() validation.

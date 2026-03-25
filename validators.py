@@ -98,7 +98,7 @@ _US_MAJOR_LAW_CITIES: frozenset[str] = frozenset({
     "Albany", "Buffalo", "Newark", "Baltimore", "Washington", "Washington D.C.",
     "Washington DC", "Wilmington", "Stamford", "White Plains", "Princeton",
     "Bridgeport", "New Haven", "Morristown", "Parsippany", "Short Hills",
-    "Florham Park", "Roseland", "Edison",
+    "Florham Park", "Roseland", "Edison", "Harrisburg",
     # Southeast
     "Atlanta", "Miami", "Tampa", "Orlando", "Jacksonville", "Charlotte",
     "Raleigh", "Richmond", "Nashville", "Memphis", "Louisville", "Birmingham",
