@@ -1,0 +1,14 @@
+Saul Ewing offices QA (task-5-5C)
+===================================
+JSONL source: outputs/attorneys_2026-03-25T17-04-11.jsonl
+
+Andrew T. Bockis: offices=[] title=Partner
+Douglas D. Anderson: offices=['Minneapolis'] title=Associate
+George P. Apostolides: offices=['Chicago'] title=Partner
+Louis P. Archambault: offices=['Miami'] title=Partner
+William C. Baton: offices=['Newark'] title=Partner
+
+QA: 4/5 offices populated via se-profile-hero[primary-office-location]
+     4/5 titles populated via se-profile-hero[main-title]
+Andrew T. Bockis has no se-profile-hero element on his profile page.
+PASS (≥4/5 threshold met)

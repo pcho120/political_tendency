@@ -1,0 +1,9 @@
+13:05:34 [WARNING] amlaw.weil — Profile PARTIAL | mode=requests | render=requests | missing=['offices'] | https://www.weil.com/people/david-aknin
+13:05:34 [WARNING] amlaw.weil — Profile PARTIAL | mode=requests | render=requests | missing=['offices'] | https://www.weil.com/people/david-aknin
+=== JSONL offices ===
+Caren N Andrango Espin: offices=['Washington, D.C.']
+Chika Amene: offices=['Silicon Valley']
+Meghana Appalaraju: offices=['Washington, D.C.']
+Akram Alhoribi: offices=['Boston']
+David Aknin: offices=[]
+QA: 4/5 offices populated (David Aknin=Paris/international, validation_rejected correctly)

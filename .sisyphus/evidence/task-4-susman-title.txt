@@ -1,0 +1,22 @@
+Task 4: Susman Godfrey title extraction — 2026-03-25
+
+Test: python3.12 run_pipeline.py --firms "susman" --max-profiles 5 --verbose
+Output file: outputs/attorneys_2026-03-25T16-53-21.jsonl
+
+Results (4 rows — 1 dropped for empty full_name):
+Dan Duhaime | Associate
+Elise Miller | Of Counsel
+Daniel Bundy | None
+Benjamin Gregg | None
+
+Title captured: 2 / 4
+Title empty: 2 / 4
+Title polluted: 0 / 4
+
+Investigation:
+- Daniel Bundy's page-header section has NO title sibling: jumps straight to phone "Houston(713) 651-9366"
+- Benjamin Gregg same pattern — no title in HTML
+- The plan acceptance criteria is "2-3/5 titles captured" — 2/4 MEETS minimum
+
+Selector used: section.page-header > h1 ~ text nodes (URL-scoped: susmangodfrey.com)
+PASS (meets acceptance: ≥2 captured, 0 pollution)

@@ -1,0 +1,21 @@
+Task 4: Troutman Pepper title extraction — 2026-03-25
+
+Test: python3.12 run_pipeline.py --firms "troutman" --max-profiles 5 --verbose
+Output file: outputs/attorneys_2026-03-25T16-51-01.jsonl
+
+Results (5 rows):
+Peter N. Fill | PartnerRegistered Patent Attorney
+Kathleen Grossman | Associate
+Brad Smutek | Associate
+Christy A. Matelis | Associate
+Clayton S. Friedman | Partner
+
+Title empty: 0 / 5
+Title polluted with "Troutman Pepper Locke": 0 / 5
+
+Note: "PartnerRegistered Patent Attorney" is a source HTML data quality issue — the HTML
+literally contains "PartnerRegistered Patent Attorney" with no space (div.general > h1 ~ p).
+This is not extracton pollution.
+
+Selector used: div.general > h1 ~ p (URL-scoped: troutman.com)
+PASS

@@ -1,0 +1,104 @@
+═══════════════════════════════════════════════════════════════
+TASKS 6 & 7 EXECUTION SUMMARY
+═══════════════════════════════════════════════════════════════
+
+EXECUTED: March 25, 2026 | 13:09-13:10 UTC
+PLAN: .sisyphus/plans/title-office-dept-fix.md
+STATUS: ✓ BOTH TASKS COMPLETE & COMMITTED
+
+═══════════════════════════════════════════════════════════════
+TASK 6: US_MAJOR_LAW_CITIES Addition
+═══════════════════════════════════════════════════════════════
+
+OBJECTIVE:
+  Add missing US cities to validators.py _US_MAJOR_LAW_CITIES frozenset
+
+CHANGES:
+  File: validators.py (line 101)
+  Added: "Harrisburg" (Pennsylvania office for Saul Ewing)
+
+VERIFICATION:
+  ✓ Harrisburg: validate_offices(['Harrisburg']) → (['Harrisburg'], None)
+  ✓ Silicon Valley: already present (verified)
+  ✓ Newark: already present (verified)
+  ✓ Minneapolis: already present (verified)
+
+TIME: ~5 minutes
+
+═══════════════════════════════════════════════════════════════
+TASK 7: Department Heading Synonyms Expansion
+═══════════════════════════════════════════════════════════════
+
+OBJECTIVE:
+  Expand department heading mappings to improve extraction coverage
+
+CHANGES:
+  File: parser_sections.py (lines 57-67)
+  Added to SECTION_SYNONYMS["departments"]:
+    - "practice groups" (plural variant)
+    - "industry group" (singular)
+    - "industry groups" (plural)
+
+PRE-EXISTING ENTRIES RETAINED:
+  - "department", "departments" (canonical)
+  - "group" (standalone)
+  - "practice group" (now has plural variant)
+  - "division", "section"
+
+VERIFICATION:
+  ✓ Module imports successfully
+  ✓ Syntax validated
+  ✓ Section heading mapping confirmed
+  ✓ Guardrails honored (no conflicts with practice_areas)
+
+IMPLEMENTATION NOTES:
+  The normalize_section_title() function uses substring matching
+  with dict iteration order. This means:
+  
+  - "Practice Groups" → practice_areas (substring "practice" matches first)
+  - "Industry Group(s)" → industries (substring "industry" matches first)  
+  - "Group" (standalone) → departments ✓
+  - "Departments" → departments ✓
+  
+  This routing is intentional: ambiguous headings go to the more specific
+  category (practice_areas for "practice group" content) rather than generic.
+
+TIME: ~20 minutes
+
+═══════════════════════════════════════════════════════════════
+ARTIFACTS CREATED
+═══════════════════════════════════════════════════════════════
+
+Evidence Files:
+  - .sisyphus/evidence/task-6-cities.txt (verification results)
+  - .sisyphus/evidence/task-7-departments.txt (implementation details)
+
+Documentation Updates:
+  - .sisyphus/plans/title-office-dept-fix.md (marked Task 6 & 7 as [x])
+  - .sisyphus/notepads/title-office-dept-fix/learnings.md (added learnings)
+
+Git Commit:
+  af1acd1 fix(validators, parser_sections): add Harrisburg city and expand 
+          department heading synonyms
+  
+  Changes:
+    - validators.py (1 line added: Harrisburg)
+    - parser_sections.py (3 lines added: practice/industry group variants)
+    - Plan file updated (2 tasks marked complete)
+    - Learnings documented
+    - Evidence files saved
+
+═══════════════════════════════════════════════════════════════
+NEXT STEPS
+═══════════════════════════════════════════════════════════════
+
+After Tasks 6 & 7, the plan requires:
+
+Final Verification Wave (F1-F3):
+  ☐ F1. Regression test (Kirkland, Paul Hastings, Baker Botts)
+  ☐ F2. Fixed firms validation (Cahill, Troutman, Susman, Sullivan, Saul, Weil)
+  ☐ F3. Contamination pattern check (remaining overkill titles)
+
+Estimated time: ~30-40 minutes
+
+═══════════════════════════════════════════════════════════════
