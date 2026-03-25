@@ -1,0 +1,25 @@
+=== CONTAMINATION PATTERN DETECTION ===
+
+Sample contamination signature matches:
+
+Press release contamination: 27 occurrences
+Navigation contamination: 10 occurrences
+Biography leak: 2 occurrences
+
+=== SAMPLE CONTAMINATED ITEMS ===
+
+[PRESS_RELEASE] DOJ Releases “First-Ever” Department-Wide Corporate Enforcement Policy...
+[PRESS_RELEASE] March 12, 2026...
+[PRESS_RELEASE] United Group Completes €1.5 Billion Refinancing...
+
+=== ROOT CAUSE CONCLUSION ===
+Department field is populated from HTML containing:
+1. News article headlines/descriptions (press releases)
+2. UI navigation elements (Download vCard, Read More, etc.)
+3. Full biography text blocks
+
+This suggests the extraction is pulling from a <section> containing
+mixed content (profile header + recent deals + biography).
+
+Likely culprit: enrichment.py:1172-1175 or enrichment.py:788-800
+where section parser extracts 'departments' heading but gets full section content.

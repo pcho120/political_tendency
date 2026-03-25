@@ -1,0 +1,188 @@
+09:59:38 [INFO] pipeline — Loaded 1 firms from cache/firm_domain_cache.json
+09:59:38 [INFO] pipeline — ── Firm 1/1: troutman pepper ──
+09:59:38 [INFO] pipeline — [troutman pepper] Structure type: SITEMAP_XML
+09:59:38 [INFO] pipeline — [troutman pepper] Discovery starting → https://www.troutman.com
+09:59:38 [INFO] amlaw.troutman_pepper — SITEMAP_XML strategy | firm_url=https://www.troutman.com | derived_prefix=/professionals | sample_count=1
+09:59:38 [DEBUG] urllib3.connectionpool — Starting new HTTPS connection (1): www.troutman.com:443
+09:59:38 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /robots.txt HTTP/1.1" 200 143
+09:59:39 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /sitemap_index.xml HTTP/1.1" 200 984
+09:59:41 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap1.xml HTTP/1.1" 200 None
+09:59:42 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap2.xml HTTP/1.1" 200 None
+09:59:47 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap3.xml HTTP/1.1" 200 None
+09:59:49 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap4.xml HTTP/1.1" 200 None
+09:59:51 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap5.xml HTTP/1.1" 200 None
+09:59:53 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap6.xml HTTP/1.1" 200 None
+09:59:54 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap7.xml HTTP/1.1" 200 None
+09:59:56 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap8.xml HTTP/1.1" 200 None
+09:59:58 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap9.xml HTTP/1.1" 200 None
+09:59:59 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap10.xml HTTP/1.1" 200 None
+10:00:01 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap11.xml HTTP/1.1" 200 None
+10:00:03 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap12.xml HTTP/1.1" 200 None
+10:00:04 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap13.xml HTTP/1.1" 200 None
+10:00:06 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap14.xml HTTP/1.1" 200 None
+10:00:07 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap15.xml HTTP/1.1" 200 None
+10:00:09 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap16.xml HTTP/1.1" 200 None
+10:00:10 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap17.xml HTTP/1.1" 200 None
+10:00:12 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap18.xml HTTP/1.1" 200 None
+10:00:13 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap19.xml HTTP/1.1" 200 None
+10:00:15 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap20.xml HTTP/1.1" 200 None
+10:00:16 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap21.xml HTTP/1.1" 200 None
+10:00:17 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap22.xml HTTP/1.1" 200 None
+10:00:22 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap23.xml HTTP/1.1" 200 None
+10:00:23 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap24.xml HTTP/1.1" 200 None
+10:00:25 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap25.xml HTTP/1.1" 200 None
+10:00:26 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap26.xml HTTP/1.1" 200 None
+10:00:28 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap27.xml HTTP/1.1" 200 None
+10:00:29 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap28.xml HTTP/1.1" 200 None
+10:00:31 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap29.xml HTTP/1.1" 200 None
+10:00:32 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap30.xml HTTP/1.1" 200 None
+10:00:33 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap31.xml HTTP/1.1" 200 None
+10:00:35 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap32.xml HTTP/1.1" 200 None
+10:00:36 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap33.xml HTTP/1.1" 200 None
+10:00:38 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap34.xml HTTP/1.1" 200 None
+10:00:39 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap35.xml HTTP/1.1" 200 None
+10:00:40 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap36.xml HTTP/1.1" 200 None
+10:00:42 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap37.xml HTTP/1.1" 200 None
+10:00:43 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap38.xml HTTP/1.1" 200 None
+10:00:44 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap39.xml HTTP/1.1" 200 None
+10:00:46 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap40.xml HTTP/1.1" 200 None
+10:00:47 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap41.xml HTTP/1.1" 200 None
+10:00:48 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap42.xml HTTP/1.1" 200 None
+10:00:50 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap43.xml HTTP/1.1" 200 None
+10:00:51 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap44.xml HTTP/1.1" 200 None
+10:00:53 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /post-sitemap45.xml HTTP/1.1" 200 None
+10:01:03 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /page-sitemap.xml HTTP/1.1" 200 None
+10:01:05 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /bio-sitemap1.xml HTTP/1.1" 200 None
+10:01:07 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /bio-sitemap2.xml HTTP/1.1" 200 None
+10:01:08 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /bio-sitemap3.xml HTTP/1.1" 200 None
+10:01:10 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /bio-sitemap4.xml HTTP/1.1" 200 None
+10:01:12 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /bio-sitemap5.xml HTTP/1.1" 200 None
+10:01:14 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /bio-sitemap6.xml HTTP/1.1" 200 None
+10:01:16 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /bio-sitemap7.xml HTTP/1.1" 200 None
+10:01:18 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /bio-sitemap8.xml HTTP/1.1" 200 None
+10:01:20 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /bio-sitemap9.xml HTTP/1.1" 200 None
+10:01:21 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /bio-sitemap10.xml HTTP/1.1" 200 None
+10:01:23 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /bio-sitemap11.xml HTTP/1.1" 200 None
+10:01:24 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /bpm-sitemap.xml HTTP/1.1" 200 807
+10:01:28 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /office-sitemap.xml HTTP/1.1" 200 1077
+10:01:32 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /experience-sitemap1.xml HTTP/1.1" 200 None
+10:01:34 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /experience-sitemap2.xml HTTP/1.1" 200 None
+10:01:35 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /experience-sitemap3.xml HTTP/1.1" 200 None
+10:01:36 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /experience-sitemap4.xml HTTP/1.1" 200 None
+10:01:52 [ERROR] amlaw.troutman_pepper — Sitemap fetch error | url=https://www.troutman.com/practice-sitemap.xml
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 537, in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/urllib3/connection.py", line 461, in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/http/client.py", line 1448, in getresponse
+    response.begin()
+  File "/usr/lib/python3.12/http/client.py", line 336, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/http/client.py", line 297, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 707, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/ssl.py", line 1252, in recv_into
+    return self.read(nbytes, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/ssl.py", line 1104, in read
+    return self._sslobj.read(len, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/requests/adapters.py", line 486, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 845, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/urllib3/util/retry.py", line 472, in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/urllib3/util/util.py", line 39, in reraise
+    raise value
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 791, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 539, in _make_request
+    self._raise_timeout(err=e, url=url, timeout_value=read_timeout)
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 371, in _raise_timeout
+    raise ReadTimeoutError(
+urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='www.troutman.com', port=443): Read timed out. (read timeout=15)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/pcho/projects/political_tendency/discovery.py", line 334, in _parse_sitemap
+    r = session.get(sm_url, timeout=timeout)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/requests/sessions.py", line 602, in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/requests/adapters.py", line 532, in send
+    raise ReadTimeout(e, request=request)
+requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='www.troutman.com', port=443): Read timed out. (read timeout=15)
+10:01:52 [DEBUG] urllib3.connectionpool — Starting new HTTPS connection (2): www.troutman.com:443
+10:02:08 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /industry-sitemap.xml HTTP/1.1" 200 None
+10:02:10 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /podcast-sitemap.xml HTTP/1.1" 200 939
+10:02:10 [INFO] amlaw.troutman_pepper — Sitemap discovery complete | base_url=https://www.troutman.com | path_prefix=/professionals | total_found=2137
+10:02:10 [INFO] amlaw.troutman_pepper — SITEMAP_XML discovery complete | total=2137 | sample=['https://www.troutman.com/professionals/tori-lynn-remington/', 'https://www.troutman.com/professionals/ethan-g-ostroff/', 'https://www.troutman.com/professionals/stephen-c-piepgrass/']
+10:02:10 [INFO] pipeline — [troutman pepper] Discovered 2137 profile URLs
+10:02:10 [INFO] pipeline — [troutman pepper] Limiting to 5 profiles (--max-profiles)
+10:02:10 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /professionals/tori-lynn-remington/ HTTP/1.1" 200 27252
+10:02:11 [WARNING] amlaw.troutman_pepper — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.troutman.com/professionals/tori-lynn-remington/
+10:02:11 [WARNING] amlaw.troutman_pepper — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.troutman.com/professionals/tori-lynn-remington/
+10:02:13 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /professionals/ethan-g-ostroff/ HTTP/1.1" 200 44295
+10:02:14 [WARNING] amlaw.troutman_pepper — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.troutman.com/professionals/ethan-g-ostroff/
+10:02:14 [WARNING] amlaw.troutman_pepper — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.troutman.com/professionals/ethan-g-ostroff/
+10:02:14 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /professionals/stephen-c-piepgrass/ HTTP/1.1" 200 41896
+10:02:15 [WARNING] amlaw.troutman_pepper — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.troutman.com/professionals/stephen-c-piepgrass/
+10:02:15 [WARNING] amlaw.troutman_pepper — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.troutman.com/professionals/stephen-c-piepgrass/
+10:02:15 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /professionals/richard-pollak/ HTTP/1.1" 200 27683
+10:02:16 [WARNING] amlaw.troutman_pepper — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.troutman.com/professionals/richard-pollak/
+10:02:16 [WARNING] amlaw.troutman_pepper — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.troutman.com/professionals/richard-pollak/
+10:02:17 [DEBUG] urllib3.connectionpool — https://www.troutman.com:443 "GET /professionals/steve-kim/ HTTP/1.1" 200 25642
+10:02:18 [WARNING] amlaw.troutman_pepper — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.troutman.com/professionals/steve-kim/
+10:02:18 [WARNING] amlaw.troutman_pepper — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.troutman.com/professionals/steve-kim/
+10:02:18 [INFO] pipeline — [troutman pepper] Done | enriched=5 failed=0 elapsed=145.5s
+10:02:18 [INFO] pipeline —   [US Filter] 5 attorneys, all US
+10:02:18 [INFO] pipeline — US filter: 5 → 5 profiles (removed 0 non-US)
+10:02:18 [INFO] pipeline — Excel saved → outputs/attorneys_2026-03-25T13-59-38.xlsx (5 rows)
+10:02:18 [INFO] pipeline — JSONL saved → outputs/attorneys_2026-03-25T13-59-38.jsonl (5 records)
+
+=================================================================
+  PIPELINE COMPLETE
+  Firms processed : 1
+  URLs discovered : 2137
+  Profiles enriched: 5
+  Failed profiles : 0
+  Errors          : 0
+  Total elapsed   : 160.2s
+=================================================================
+
+Firm                                  Disc  Enriched  Failed  Errors    Time
+---------------------------------------------------------------------------
+troutman pepper                       2137         5       0       0  145.5s
+
+=== TROUTMAN TITLE QA ===
+  Tori Lynn Remington                      | title: Associate
+  Ethan G. Ostroff                         | title: Partner
+  Stephen C. Piepgrass                     | title: Partner
+  Richard M. Pollak                        | title: Partner
+  Steve Kim                                | title: Associate
+Troutman Pepper Locke contamination count: 0 / 5

@@ -1,0 +1,13 @@
+Task 4: Kirkland Title Extraction
+Generated: 2026-03-25T10-25-54
+============================================================
+
+Extraction Results (5 profiles):
+1. Anthony Abate | title=Associate
+2. James P. Abate | title=Associate
+3. Rajab S. Abbassi | title=Partner
+4. Gabrielle Abbe | title=Associate
+5. Peter Abbott | title=Partner
+
+Titles captured: 5 / 5
+Titles missing: 0 / 5

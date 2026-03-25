@@ -1,0 +1,65 @@
+10:02:29 [INFO] pipeline — Loaded 1 firms from cache/firm_domain_cache.json
+10:02:29 [INFO] pipeline — ── Firm 1/1: kirkland ──
+10:02:29 [INFO] pipeline — [kirkland] Structure type: SITEMAP_XML
+10:02:29 [INFO] pipeline — [kirkland] Discovery starting → https://www.kirkland.com
+10:02:29 [INFO] amlaw.kirkland — SITEMAP_XML strategy | firm_url=https://www.kirkland.com | derived_prefix=/lawyers | sample_count=5
+10:02:29 [DEBUG] urllib3.connectionpool — Starting new HTTPS connection (1): www.kirkland.com:443
+10:02:29 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /robots.txt HTTP/1.1" 200 None
+10:02:29 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /sitemap HTTP/1.1" 200 365
+10:02:30 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /sitemap/careers HTTP/1.1" 200 875
+10:02:31 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /sitemap/events HTTP/1.1" 200 29708
+10:02:31 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /sitemap/general HTTP/1.1" 200 1040
+10:02:32 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /sitemap/insights HTTP/1.1" 200 615
+10:02:32 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /sitemap/lawyers HTTP/1.1" 200 42301
+10:02:33 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /sitemap/locations HTTP/1.1" 200 493
+10:02:33 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /sitemap/news HTTP/1.1" 200 None
+10:02:34 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /sitemap/publications HTTP/1.1" 200 53209
+10:02:35 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /sitemap/services HTTP/1.1" 200 1673
+10:02:35 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /sitemap/staff HTTP/1.1" 200 452
+10:02:36 [INFO] amlaw.kirkland — Sitemap discovery complete | base_url=https://www.kirkland.com | path_prefix=/lawyers | total_found=4125
+10:02:36 [INFO] amlaw.kirkland — SITEMAP_XML discovery complete | total=4125 | sample=['https://www.kirkland.com/lawyers/a/abate-anthony', 'https://www.kirkland.com/lawyers/a/abate-james', 'https://www.kirkland.com/lawyers/a/abbassi-rajab']
+10:02:36 [INFO] pipeline — [kirkland] Discovered 4125 profile URLs
+10:02:36 [INFO] pipeline — [kirkland] Limiting to 5 profiles (--max-profiles)
+10:02:36 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /lawyers/a/abate-anthony HTTP/1.1" 200 11594
+10:02:36 [WARNING] amlaw.kirkland — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.kirkland.com/lawyers/a/abate-anthony
+10:02:36 [WARNING] amlaw.kirkland — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.kirkland.com/lawyers/a/abate-anthony
+10:02:36 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /lawyers/a/abate-james HTTP/1.1" 200 12418
+10:02:36 [WARNING] amlaw.kirkland — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.kirkland.com/lawyers/a/abate-james
+10:02:36 [WARNING] amlaw.kirkland — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.kirkland.com/lawyers/a/abate-james
+10:02:37 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /lawyers/a/abbassi-rajab HTTP/1.1" 200 17966
+10:02:37 [WARNING] amlaw.kirkland — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.kirkland.com/lawyers/a/abbassi-rajab
+10:02:37 [WARNING] amlaw.kirkland — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.kirkland.com/lawyers/a/abbassi-rajab
+10:02:38 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /lawyers/a/abbe-gabrielle-christine HTTP/1.1" 200 16605
+10:02:38 [WARNING] amlaw.kirkland — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.kirkland.com/lawyers/a/abbe-gabrielle-christine
+10:02:38 [WARNING] amlaw.kirkland — Profile PARTIAL | mode=requests | render=requests | missing=['department'] | https://www.kirkland.com/lawyers/a/abbe-gabrielle-christine
+10:02:38 [DEBUG] urllib3.connectionpool — https://www.kirkland.com:443 "GET /lawyers/a/abbott-peter HTTP/1.1" 200 15122
+10:02:38 [WARNING] amlaw.kirkland — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department'] | https://www.kirkland.com/lawyers/a/abbott-peter
+10:02:38 [WARNING] amlaw.kirkland — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department'] | https://www.kirkland.com/lawyers/a/abbott-peter
+10:02:39 [INFO] pipeline — [kirkland] Done | enriched=5 failed=0 elapsed=9.7s
+10:02:39 [INFO] pipeline —   [US Filter] 5 attorneys, all US
+10:02:39 [INFO] pipeline — US filter: 5 → 5 profiles (removed 0 non-US)
+10:02:39 [INFO] pipeline — Excel saved → outputs/attorneys_2026-03-25T14-02-29.xlsx (5 rows)
+10:02:39 [INFO] pipeline — JSONL saved → outputs/attorneys_2026-03-25T14-02-29.jsonl (5 records)
+
+=================================================================
+  PIPELINE COMPLETE
+  Firms processed : 1
+  URLs discovered : 4125
+  Profiles enriched: 5
+  Failed profiles : 0
+  Errors          : 0
+  Total elapsed   : 9.7s
+=================================================================
+
+Firm                                  Disc  Enriched  Failed  Errors    Time
+---------------------------------------------------------------------------
+kirkland                              4125         5       0       0    9.7s
+
+=== KIRKLAND TITLE QA (REGRESSION) ===
+  Anthony Abate                            | title: Associate
+  James P. Abate                           | title: Associate
+  Rajab S. Abbassi                         | title: Partner
+  Gabrielle Abbe                           | title: Associate
+  Peter Abbott                             | title: Partner
+kirkland title empty: 0 / 5
+VERDICT: PASS

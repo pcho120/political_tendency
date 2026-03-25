@@ -228,13 +228,18 @@ def validate_name(raw: str | None) -> tuple[str | None, str | None]:
     return name, None
 
 
-def validate_title(raw: str | None) -> tuple[str | None, str | None]:
+def validate_title(raw: str | None, firm_name: str = "") -> tuple[str | None, str | None]:
     """Validate attorney title / role.
 
     Rules:
     - 2–120 characters
     - No email / phone contamination
     - May be a free-form title (e.g., "Senior Litigation Partner")
+    - firm_name parameter reserved for future contamination filtering
+
+    Args:
+        raw: Raw title string
+        firm_name: Firm name (reserved for future use; currently not applied)
 
     Returns:
         (cleaned_title, None) on success

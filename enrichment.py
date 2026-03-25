@@ -412,7 +412,7 @@ class ProfileEnricher:
                 profile.diagnostics["full_name_reason"] = reason
 
         # Title
-        title_clean, reason = validate_title(profile.title)
+        title_clean, reason = validate_title(profile.title, firm_name=profile.firm or "")
         if title_clean:
             profile.title = title_clean
         else:

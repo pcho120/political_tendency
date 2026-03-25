@@ -1,0 +1,18 @@
+Task 4: Knobbe Martens Title Extraction
+Generated: 2026-03-25T10-25-54
+============================================================
+
+Extraction Results (10 profiles):
+1. Paul Spiel | title=Associate
+2. Tom Pan | title=None
+3. Stacy Rush | title=None
+4. Swatabdi R. Kamal | title=None
+5. Paige E. Radtke | title=Patent Counsel
+6. Paul Spiel | title=Associate
+7. Tom Pan | title=None
+8. Stacy Rush | title=None
+9. Swatabdi R. Kamal | title=None
+10. Paige E. Radtke | title=Patent Counsel
+
+Titles captured: 4 / 10
+Titles missing: 6 / 10
