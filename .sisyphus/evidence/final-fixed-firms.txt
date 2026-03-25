@@ -1,0 +1,16 @@
+=== F2 IMPROVEMENT CHECK RESULTS ===
+
+Cahill:              title 7/7, offices 0/7, contamination=[]
+Troutman:            title 8/8, offices 8/8, contamination=[]
+Sullivan & Cromwell: title 8/8, offices 7/8, contamination=[]
+Weil:                title 5/5, offices 4/5, title_contamination=['Weil, Gotshal & Manges LLP', 'Weil, Gotshal & Manges LLP'], multi-city=0
+Saul Ewing:          title 5/5, offices 5/5, contamination=[]
+
+=== F2 CRITERIA ASSESSMENT ===
+Cahill 0 contamination: PASS
+Troutman 0 contamination: PASS
+Sullivan title ≥80%: PASS (8/8)
+Sullivan offices ≥80%: PASS (7/8)
+Weil individual city (no 10-city list): PASS
+Weil title 0 contamination: FAIL (5/5 contaminated)
+Saul offices ≥60%: PASS (5/5)

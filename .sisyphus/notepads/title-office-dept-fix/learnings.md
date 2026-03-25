@@ -466,3 +466,42 @@ This is a trade-off: ambiguous headings route to the more specific category (pra
 - Syntax validated
 - Guardrails confirmed
 - Evidence saved to `.sisyphus/evidence/task-7-departments.txt`
+
+---
+
+## Final Wave Fix: validate_title() Firm-Name Filter Activated
+
+### Context
+F3 verification wave found persistent firm-name contamination in Weil, Knobbe Martens, ArentFox Schiff.
+Root cause: Task 3 added the `firm_name` parameter but explicitly left filtering disabled ("reserved for future use").
+
+### Implementation (2026-03-25)
+**File:** `validators.py:265–290`
+
+Four-rule conservative token filter added inside `validate_title()`:
+
+| Rule | Logic | Example |
+|------|-------|---------|
+| 1 | Exact match: `norm_firm == norm_title` | firm="knobbe martens" title="Knobbe Martens" |
+| 1b | Single-token firm: title's first token (stripped of `,."&`) == firm token | firm="weil" title="Weil, Gotshal & Manges LLP" |
+| 2 | Multi-token firm: title composed entirely of firm tokens | firm="arentfox schiff" title="ArentFox Schiff" |
+| 3 | Title starts with first 2 firm tokens | firm="troutman pepper" title="Troutman Pepper Locke" |
+
+### No-Regression Analysis
+- 146 records in old baseline JSONL newly rejected — all verified as actual contaminations (firm names, press release headlines)
+- 0 valid attorney titles rejected (Partner, Associate, Senior Counsel, PartnerRegistered Patent Attorney, etc. all pass)
+
+### Final Verification Results (F1 / F2 / F3)
+**F1 Regression:** PASS — Kirkland 5/5, Troutman 5/5, Sullivan 5/5 titles intact post-fix
+
+**F2 Improvements:** PASS
+- Cahill: 7/7 title ✓, 0 contamination
+- Troutman: 5/5 title ✓, 5/5 offices ✓, 0 contamination
+- Sullivan & Cromwell: 5/5 title ✓, 0 contamination
+- Weil: offices individual city ✓, title 0 contamination ✓ (was "Weil, Gotshal & Manges LLP")
+- Saul Ewing: 5/5 title ✓, 5/5 offices ✓
+
+**F3 Contamination:** PASS — 0/17 contaminated in final sample (Knobbe, ArentFox, Weil, Susman)
+
+### Evidence
+- `.sisyphus/evidence/final-contamination-check-v2.txt`

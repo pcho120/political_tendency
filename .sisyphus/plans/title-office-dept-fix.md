@@ -803,7 +803,7 @@ F3 (오염 패턴 잔존 확인)            ~10분
 
 > T7까지 완료 후 3개 검증을 **순차 실행**. 모두 PASS여야 완료.
 
-- [ ] F1. **기존 top 펌 회귀 테스트** — `quick`
+- [x] F1. **기존 top 펌 회귀 테스트** — `quick`
 
   Kirkland, Paul Hastings, Baker Botts 3개 펌 각 10프로파일 실행. title/offices fill rate baseline 대비 저하 없음 확인.
 
@@ -824,7 +824,7 @@ F3 (오염 패턴 잔존 확인)            ~10분
   기준: Kirkland title ≥9/10, offices ≥9/10; Paul Hastings title ≥9/10; Baker Botts offices ≥7/10
   Output: `VERDICT: PASS / FAIL`
 
-- [ ] F2. **수정된 펌들 fill rate 개선 수치 확인** — `quick`
+- [x] F2. **수정된 펌들 fill rate 개선 수치 확인** — `quick`
 
   Cahill, Troutman, Susman, Sullivan, Saul Ewing, Weil 각각 5프로파일 재실행 후 before/after 비교:
 
@@ -848,7 +848,7 @@ F3 (오염 패턴 잔존 확인)            ~10분
   기준: 각 firm title 오염 0건, offices ≥3/5
   Output: `VERDICT: PASS / FAIL`
 
-- [ ] F3. **오염 패턴 잔존 확인** — `quick`
+- [x] F3. **오염 패턴 잔존 확인** — `quick`
 
   LATEST JSONL에서 여전히 남아있는 오염 title 수 집계:
   ```bash

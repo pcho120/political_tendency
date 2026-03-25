@@ -235,11 +235,11 @@ def validate_title(raw: str | None, firm_name: str = "") -> tuple[str | None, st
     - 2–120 characters
     - No email / phone contamination
     - May be a free-form title (e.g., "Senior Litigation Partner")
-    - firm_name parameter reserved for future contamination filtering
+    - Rejects titles that are the firm name (or composed entirely of firm name tokens)
 
     Args:
         raw: Raw title string
-        firm_name: Firm name (reserved for future use; currently not applied)
+        firm_name: Firm name used to reject firm-name contamination in title field
 
     Returns:
         (cleaned_title, None) on success
@@ -261,6 +261,34 @@ def validate_title(raw: str | None, firm_name: str = "") -> tuple[str | None, st
 
     if re.search(r"\d{3}[.\-]\d{3}|\btel\b|\bphone\b", title, re.IGNORECASE):
         return None, ValidationReason.CONTAMINATED
+
+    # Firm-name contamination filter (conservative token matching)
+    if firm_name:
+        norm_firm = firm_name.lower().strip()
+        norm_title = title.lower().strip()
+
+        # 1) Exact match
+        if norm_firm == norm_title:
+            return None, ValidationReason.CONTAMINATED
+
+        firm_token_list = norm_firm.split()
+        firm_tokens = set(firm_token_list)
+        title_tokens = norm_title.split()
+
+        # 1b) Single-token firm: title starts with the firm token word (e.g. firm="weil", title="Weil, Gotshal...")
+        if len(firm_token_list) == 1:
+            firm_word = firm_token_list[0]
+            if title_tokens and title_tokens[0].rstrip(",.&") == firm_word:
+                return None, ValidationReason.CONTAMINATED
+
+        # 2) firm has ≥2 tokens and title is composed entirely of firm tokens
+        if len(firm_tokens) >= 2 and len(title_tokens) <= len(firm_tokens):
+            if all(t in firm_tokens for t in title_tokens):
+                return None, ValidationReason.CONTAMINATED
+
+        # 3) title starts with first 2 firm tokens (e.g. "Troutman Pepper Locke" starts with "Troutman Pepper")
+        if len(firm_token_list) >= 2 and norm_title.startswith(" ".join(firm_token_list[:2])):
+            return None, ValidationReason.CONTAMINATED
 
     return title, None
 
