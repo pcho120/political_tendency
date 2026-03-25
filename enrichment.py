@@ -366,7 +366,7 @@ class ProfileEnricher:
 
         # --- STAGE 0: CSS-class-based extraction (highest fidelity, site-specific) ---
         if BS4_AVAILABLE:
-            _extract_from_css_classes(profile, html)
+            _extract_from_css_classes(profile, html, url=url)
 
         # --- STAGE 1: JSON-LD ---
         json_ld = _extract_json_ld(html)
@@ -514,7 +514,7 @@ def enrich_profile(
 # Only fills fields that are still empty on the profile.
 # ---------------------------------------------------------------------------
 
-def _extract_from_css_classes(profile: AttorneyProfile, html: str) -> None:
+def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = "") -> None:
     """Extract profile fields using known CSS class patterns.
 
     Covers common patterns across AmLaw200 firms:
@@ -526,6 +526,12 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str) -> None:
     - Milbank:          attorney-header__name, attorney-office
     - Paul Weiss:       div.pageTitle > h1, div.location-block-1
     - Generic:          h1[class*=name], [class*=position], [class*=location]
+    - Cahill Gordon:    div.bio-contact > p.position  (URL-scoped: cahill.com)
+    - Troutman Pepper:  div.general > h1 ~ p          (URL-scoped: troutman.com)
+    - Susman Godfrey:   section.page-header h1 ~ text  (URL-scoped: susmangodfrey.com)
+    - Sullivan & Cromwell: div.bio-hero-panel p[class*=BioHeroPanel_subtitle]  (URL-scoped: sullcrom.com)
+    - Weil Gotshal:     header.bio-bar-header span.h3 > span  (URL-scoped: weil.com)
+    - Saul Ewing:       se-profile-hero[main-title][primary-office-location]  (URL-scoped: saul.com)
     """
     if not BS4_AVAILABLE:
         return
@@ -618,6 +624,70 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str) -> None:
                 if text and "@" not in text and len(text) < 80:
                     profile.title = text
                     break
+
+        # Cahill Gordon: <div class="bio-contact"><h1>Name</h1><p class="position">Associate</p>
+        if not profile.title and "cahill.com" in url:
+            bio = soup.find(class_="bio-contact")
+            if bio:
+                pos = bio.find("p", class_="position")
+                if pos:
+                    t = pos.get_text(strip=True)
+                    if t and len(t) < 100:
+                        profile.title = t
+
+        # Troutman Pepper: <div class="general"><h1>Name</h1><p>Associate</p>
+        if not profile.title and "troutman.com" in url:
+            general = soup.find(class_="general")
+            if general:
+                h1 = general.find("h1")
+                if h1:
+                    nxt = h1.find_next_sibling("p")
+                    if nxt:
+                        t = nxt.get_text(strip=True)
+                        if t and len(t) < 100:
+                            profile.title = t
+
+        # Susman Godfrey: <section class="page-header"><h1>Name</h1>...sibling "Associate"
+        if not profile.title and "susmangodfrey.com" in url:
+            ph = soup.find("section", class_="page-header")
+            if ph:
+                h1 = ph.find("h1")
+                if h1:
+                    for sib in h1.next_siblings:
+                        t = sib.get_text(strip=True) if hasattr(sib, "get_text") else str(sib).strip()
+                        if t and len(t) < 100 and "@" not in t and not t[0].isdigit():
+                            profile.title = t
+                            break
+
+        # Sullivan & Cromwell: <div class="bio-hero-panel">...<p class="BioHeroPanel_subtitle__HASH">Associate</p>
+        if not profile.title and "sullcrom.com" in url:
+            hero = soup.find(class_="bio-hero-panel")
+            if hero:
+                sub = hero.find(
+                    lambda tag: tag.name == "p"
+                    and any("BioHeroPanel_subtitle" in c for c in (tag.get("class") or []))
+                )
+                if sub:
+                    t = sub.get_text(strip=True)
+                    if t and len(t) < 100:
+                        profile.title = t
+
+        # Saul Ewing: <se-profile-hero main-title="Partner" primary-office-location="Harrisburg">
+        if "saul.com" in url:
+            hero_el = soup.find("se-profile-hero")
+            if hero_el:
+                if not profile.title:
+                    for attr in ("main-title", "title", "role"):
+                        val = (hero_el.get(attr) or "").strip()
+                        if val and len(val) < 100:
+                            profile.title = val
+                            break
+                if not profile.offices:
+                    for attr in ("primary-office-location", "office", "location"):
+                        val = (hero_el.get(attr) or "").strip()
+                        if val and len(val) < 60:
+                            profile.offices.append(val)
+                            break
 
     # ---- Offices ----
     if not profile.offices:
@@ -764,6 +834,28 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str) -> None:
                             if not profile.offices and _wc_office:
                                 profile.offices.append(_wc_office)
                         break
+
+        # Weil Gotshal: <header class="bio-bar-header"><span class="h3">Title<span>City</span></span>
+        if not profile.offices and "weil.com" in url:
+            bbh = soup.find("header", class_="bio-bar-header")
+            if bbh:
+                h3_span = bbh.find("span", class_="h3")
+                if h3_span:
+                    for span in h3_span.find_all("span"):
+                        if not span.get("class"):
+                            city = span.get_text(strip=True)
+                            if city and len(city) < 60 and city not in profile.offices:
+                                profile.offices.append(city)
+
+        # Sullivan & Cromwell: <div class="bio-loc"><p class="sc-font-secondary ...">New York</p>
+        if not profile.offices and "sullcrom.com" in url:
+            bio_loc = soup.find(class_="bio-loc")
+            if bio_loc:
+                p = bio_loc.find("p")
+                if p:
+                    city = p.get_text(strip=True)
+                    if city and len(city) < 60 and city not in profile.offices:
+                        profile.offices.append(city)
 
     # ---- Practice Areas ----
     if not profile.practice_areas:
@@ -1163,7 +1255,9 @@ def _extract_from_section_map(
             profile.title = _extract_title_proximity(html)
 
     # --- Offices ---
-    if not profile.offices:
+    # Skip section-parser office extraction for Weil (section parser returns full firm office
+    # directory from page nav, not the individual attorney's office)
+    if not profile.offices and "weil.com" not in url:
         for text in find_section(section_map, "offices"):
             if text and text not in profile.offices:
                 profile.offices.append(text)
