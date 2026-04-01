@@ -1,41 +1,75 @@
 {
-  "active_plan": "/home/pcho/projects/political_tendency/.sisyphus/plans/title-office-dept-fix.md",
-  "started_at": "2026-03-25T13:38:00.274Z",
+  "active_plan": "/home/paul/dev/personal/projects/political_tendency/.sisyphus/plans/title-office-dept-fix-recovery.md",
+  "started_at": "2026-04-01T18:36:37.732Z",
   "session_ids": [
-    "ses_2dae7d8eeffex38xXrciVr0inA",
-    "ses_2dac4fbd0ffeiu8ruFaUysGHNs",
-    "ses_2dabdab97ffel2Y64wT7nuj7xk",
-    "ses_2daafe733ffeP3u1u4C9uVF33l"
+    "ses_2b5b35767ffeFqy7Mb4cIF1d6x",
+    "ses_2b5a78aa5ffenB1FKpx2Jz0eVZ",
+    "ses_2b59fd527ffe5JbxUbH5SaY8ah",
+    "ses_2b59cef4affekO2fkkqm0tk53z",
+    "ses_2b599f356ffelAn4X30DdbJIRt",
+    "ses_2b5975214ffeoa2gN2Ut5nvw03",
+    "ses_2b594a8e9ffelRi6LAZKCMn34p",
+    "ses_2b594a8e5ffePery5XoWEqvATi",
+    "ses_2b594a8e3ffe801q0hvzyE4rj4",
+    "ses_2b594a8ecffehKx21WvMMpYvSZ",
+    "ses_2b59074d0ffeUAmJ3005v6qGBt"
   ],
-  "plan_name": "title-office-dept-fix",
+  "plan_name": "title-office-dept-fix-recovery",
   "agent": "atlas",
   "task_sessions": {
     "todo:1": {
       "task_key": "todo:1",
       "task_label": "1",
-      "task_title": "Baseline 수치 저장 & 오염 경로 추적",
-      "session_id": "ses_2dac4fbd0ffeiu8ruFaUysGHNs",
+      "task_title": "현재 contamination 상태 재현 및 실제 validator 입력 확인",
+      "session_id": "ses_2b5a78aa5ffenB1FKpx2Jz0eVZ",
       "agent": "Sisyphus-Junior",
       "category": "quick",
-      "updated_at": "2026-03-25T13:44:35.604Z"
+      "updated_at": "2026-04-01T18:42:52.254Z"
     },
     "todo:2": {
       "task_key": "todo:2",
       "task_label": "2",
-      "task_title": "`_extract_title_proximity()` — hero/header 스코프 제한",
-      "session_id": "ses_2dabdab97ffel2Y64wT7nuj7xk",
+      "task_title": "contamination regression script 작성 및 failing baseline 고정",
+      "session_id": "ses_2b59fd527ffe5JbxUbH5SaY8ah",
       "agent": "Sisyphus-Junior",
-      "category": "unspecified-high",
-      "updated_at": "2026-03-25T13:56:59.206Z"
+      "category": "quick",
+      "updated_at": "2026-04-01T18:50:16.252Z"
     },
     "todo:3": {
       "task_key": "todo:3",
       "task_label": "3",
-      "task_title": "`validate_title()` — 펌 이름 필터 추가",
-      "session_id": "ses_2daafe733ffeP3u1u4C9uVF33l",
+      "task_title": "validator 누수 원인 최소 수정",
+      "session_id": "ses_2b59cef4affekO2fkkqm0tk53z",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-01T18:53:37.269Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Weil 전용 title source 추적 및 필요 시 단일 경로 수정",
+      "session_id": "ses_2b599f356ffelAn4X30DdbJIRt",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-01T18:56:37.755Z"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "targeted rerun 및 final verification evidence 재생성",
+      "session_id": "ses_2b5975214ffeoa2gN2Ut5nvw03",
       "agent": "Sisyphus-Junior",
       "category": "quick",
-      "updated_at": "2026-03-25T14:11:26.415Z"
+      "updated_at": "2026-04-01T18:59:03.002Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan Compliance Audit — oracle",
+      "session_id": "ses_2b59074d0ffeUAmJ3005v6qGBt",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-01T19:07:23.019Z"
     }
   }
 }
