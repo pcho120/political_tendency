@@ -1,0 +1,23 @@
+firm=kirkland
+sample_size=10
+source_file=outputs/attorneys_2026-04-01T18-52-29.jsonl
+
+total_rows_checked=10
+rows_with_title=10
+rows_without_title=0
+contaminated_titles=0
+newly_rejected_count=0
+
+title_sample:
+  'Anthony Abate' -> 'Associate'
+  'James P. Abate' -> 'Associate'
+  'Rajab S. Abbassi' -> 'Partner'
+  'Gabrielle Abbe' -> 'Associate'
+  'Peter Abbott' -> 'Partner'
+  'Dana Abdulkarim' -> 'Partner'
+  'Noura Abdulrahman' -> 'Associate'
+  'Amy A. Abeloff' -> 'Partner'
+  'Nathan Abernathy' -> 'Associate'
+  'Mallika Abidi' -> 'Partner'
+
+verdict=PASS (newly_rejected_count=0, no regressions introduced)

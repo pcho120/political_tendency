@@ -1,0 +1,47 @@
+TASK 1 REPRO — contamination status from fresh pipeline runs
+
+Interpreter proof
+- python3 --version: Python 3.13.7
+- which python3: /usr/bin/python3
+- which python3.12: python3.12 not found
+- execution interpreter used: python3
+
+Profile URL samples
+- knobbe: https://www.knobbe.com/professionals/paul-spiel/
+- arentfox: https://www.afslaw.com/attorneys/stanley-abramson
+- weil: https://www.weil.com/people/caren-andrango-espin
+
+Runtime handoff proof
+- latest JSONL used for knobbe: outputs/attorneys_2026-04-01T18-59-17.jsonl
+  - rows with non-empty firm field: 5
+  - sample tuple: ('knobbe martens', None, 'contaminated')
+  - validate_title('Knobbe Martens', firm_name='Knobbe Martens Olson & Bear LLP') -> (None, 'contaminated')
+- latest JSONL used for arentfox: outputs/attorneys_2026-04-01T18-59-26.jsonl
+  - rows with non-empty firm field: 5
+  - sample tuple: ('arentfox schiff', None, 'contaminated')
+  - validate_title('Senior Associate', firm_name='ArentFox Schiff LLP') -> ('Senior Associate', None)
+- latest JSONL used for weil: outputs/attorneys_2026-04-01T18-59-31.jsonl
+  - rows with non-empty firm field: 5
+  - sample tuple: ('weil', None, 'contaminated')
+  - validate_title('Weil, Gotshal & Manges LLP', firm_name='Weil, Gotshal & Manges LLP') -> (None, 'contaminated')
+
+Knobbe Martens
+- total sampled rows: 5
+- contaminated count (title == "Knobbe Martens"): 0
+- rows with diagnostics.title_reason present: 5
+- rows with diagnostics.title_reason == "contaminated": 5
+- binary verdict: CONTAMINATION_PRESENT=no
+
+ArentFox Schiff
+- total sampled rows: 5
+- contaminated count (title == "ArentFox Schiff"): 0
+- rows with diagnostics.title_reason present: 5
+- rows with diagnostics.title_reason == "contaminated": 5
+- binary verdict: CONTAMINATION_PRESENT=no
+
+Weil, Gotshal & Manges LLP
+- total sampled rows: 5
+- contaminated count (title == "Weil, Gotshal & Manges LLP"): 0
+- rows with diagnostics.title_reason present: 5
+- rows with diagnostics.title_reason == "contaminated": 5
+- binary verdict: CONTAMINATION_PRESENT=no

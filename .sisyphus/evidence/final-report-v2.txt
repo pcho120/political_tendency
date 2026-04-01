@@ -1,0 +1,42 @@
+=================================================================
+  FINAL VERIFICATION REPORT V2 — title-office-dept-fix-recovery
+  Date: 2026-04-01
+=================================================================
+
+F1 Regression: PASS
+  - knobbe: 5/5 sampled rows returned, no exact title contamination in current sample
+  - arentfox: 5/5 sampled rows returned, no exact title contamination in current sample
+  - weil: 5/5 sampled rows returned, title=None in requests mode; no contamination string assigned
+  - kirkland: 5/5 sampled rows returned, department-only misses; offices parsing unchanged
+  - paul hastings: 5/5 sampled rows returned, one empty full_name dropped by name filter; no regression signal
+
+F2 Improvements: PASS
+  - knobbe / arentfox / weil reruns stayed clean under the equality check
+  - Weil diagnosis remains non-contaminating in requests mode for the sampled rows
+  - No new rejection signal was introduced by the targeted reruns
+
+F3 Contamination: PASS
+  - knobbe: contaminated=0
+  - arentfox: contaminated=0
+  - weil: contaminated=0
+  - regression references (kirkland, paul hastings): no title contamination signal in sampled evidence
+  - total contaminated in fresh re-audit: 0/17
+
+Repro criterion clarification
+  - Task 1 did NOT reproduce the historical contamination in this runtime sample
+  - Evidence indicates the current code/runtime state was already clean for the sampled rows
+  - This recovery session therefore performed verification/harness hardening only, with no production patch
+
+F4 Scope fidelity: PASS
+  - Only targeted reruns were executed for knobbe, arentfox, weil, kirkland, paul hastings
+  - No full batch rerun was performed
+  - No production code was modified in this recovery session
+  - Evidence was generated only from existing artifacts plus fresh targeted runs
+  - Interpreter deviation: python3.12 was unavailable on the host, so verification used python3 (/usr/bin/python3, Python 3.13.7)
+
+Scope note
+- This recovery session updated evidence/docs only; it did not change production code.
+- Claims are tied to task-1-repro.txt, task-2-title-regression.txt, task-3-regression-green.txt, task-4-weil-diagnosis.txt, and task-5-final-check.txt.
+
+OVERALL: PASS
+=================================================================
