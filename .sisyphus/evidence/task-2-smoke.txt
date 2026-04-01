@@ -1,0 +1,6 @@
+python_executable=/usr/bin/python3
+python_version=3.13.7
+('Knobbe Martens', 'Knobbe Martens Olson & Bear LLP') -> (None, 'contaminated')
+('Partner', 'Knobbe Martens Olson & Bear LLP') -> ('Partner', None)
+('Senior Associate', 'ArentFox Schiff LLP') -> ('Senior Associate', None)
+('Managing Partner', 'Weil, Gotshal & Manges LLP') -> ('Managing Partner', None)
