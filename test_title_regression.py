@@ -17,25 +17,33 @@ from validators import ValidationReason, validate_title
 class Case:
     raw: str
     firm_name: str
+    expected_value: str | None
     expected_rejected: bool
 
 
 CONTAMINATED_CASES: list[Case] = [
-    Case("Knobbe Martens", "Knobbe Martens Olson & Bear LLP", True),
-    Case("ArentFox Schiff", "ArentFox Schiff LLP", True),
-    Case("Weil, Gotshal & Manges LLP", "Weil, Gotshal & Manges LLP", True),
+    Case("Knobbe Martens", "Knobbe Martens Olson & Bear LLP", None, True),
+    Case("ArentFox Schiff", "ArentFox Schiff LLP", None, True),
+    Case("Weil, Gotshal & Manges LLP", "Weil, Gotshal & Manges LLP", None, True),
 ]
 
 VALID_CASES: list[Case] = [
-    Case("Partner", "Knobbe Martens Olson & Bear LLP", False),
-    Case("Senior Associate", "ArentFox Schiff LLP", False),
-    Case("Managing Partner", "Weil, Gotshal & Manges LLP", False),
+    Case("Partner", "Knobbe Martens Olson & Bear LLP", "Partner", False),
+    Case("Senior Associate", "ArentFox Schiff LLP", "Senior Associate", False),
+    Case("Managing Partner", "Weil, Gotshal & Manges LLP", "Managing Partner", False),
+    Case("Of counsel", "Example Law LLP", "Of Counsel", False),
+    Case("Sr. Associate", "Example Law LLP", "Senior Associate", False),
+    Case("Global Head of AI", "Example Law LLP", "Global Head of AI", False),
 ]
 
 
 def _run_case(case: Case) -> tuple[bool, str | None]:
     value, reason = validate_title(case.raw, firm_name=case.firm_name)
     rejected = value is None
+    if case.expected_rejected:
+        return rejected, reason
+    if value != case.expected_value:
+        return True, reason
     return rejected, reason
 
 

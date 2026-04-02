@@ -1075,7 +1075,6 @@ def _merge_json_ld(profile: AttorneyProfile, data: dict[str, Any]) -> None:
         if job_title:
             profile.title = job_title.strip()
 
-    # Offices
     for loc_key in ("workLocation", "address"):
         loc = data.get(loc_key)
         if isinstance(loc, dict):
@@ -1085,7 +1084,45 @@ def _merge_json_ld(profile: AttorneyProfile, data: dict[str, Any]) -> None:
         elif isinstance(loc, str) and loc and loc not in profile.offices:
             profile.offices.append(loc.strip())
 
-    # Practice areas (knowsAbout)
+    if not profile.department:
+        for dept_key in ("department", "group", "practiceGroup", "division"):
+            dept_val = data.get(dept_key)
+            if isinstance(dept_val, str) and dept_val.strip():
+                profile.department.append(dept_val.strip())
+                break
+            elif isinstance(dept_val, list):
+                for d in dept_val:
+                    if d and str(d).strip() and str(d).strip() not in profile.department:
+                        profile.department.append(str(d).strip())
+                if profile.department:
+                    break
+        if not profile.department:
+            member_of = data.get("memberOf")
+            if isinstance(member_of, dict):
+                dept = member_of.get("department", "")
+                if dept and isinstance(dept, str) and dept.strip():
+                    profile.department.append(dept.strip())
+            elif isinstance(member_of, list):
+                for org in member_of:
+                    if isinstance(org, dict):
+                        dept = org.get("department", "")
+                        if dept and isinstance(dept, str) and dept.strip():
+                            if dept.strip() not in profile.department:
+                                profile.department.append(dept.strip())
+
+    if not profile.industries:
+        for ind_key in ("industries", "industry", "sectors", "clientSectors", "focusIndustries"):
+            ind_val = data.get(ind_key)
+            if isinstance(ind_val, str) and ind_val.strip():
+                profile.industries.append(ind_val.strip())
+                break
+            elif isinstance(ind_val, list):
+                for i in ind_val:
+                    if i and str(i).strip() and str(i).strip() not in profile.industries:
+                        profile.industries.append(str(i).strip())
+                if profile.industries:
+                    break
+
     knows = data.get("knowsAbout", [])
     if isinstance(knows, str):
         knows = [knows]
@@ -1093,7 +1130,6 @@ def _merge_json_ld(profile: AttorneyProfile, data: dict[str, Any]) -> None:
         if item and item not in profile.practice_areas:
             profile.practice_areas.append(str(item).strip())
 
-    # Education (alumniOf)
     alumni = data.get("alumniOf", [])
     if isinstance(alumni, dict):
         alumni = [alumni]
@@ -1159,6 +1195,18 @@ def _merge_embedded_state(profile: AttorneyProfile, data: dict[str, Any]) -> Non
             elif isinstance(items, str) and items:
                 profile.practice_areas.append(items.strip())
             break
+
+    if not profile.department:
+        _merge_list_field(
+            profile.department, data,
+            ("department", "group", "practiceGroup", "division"),
+        )
+
+    if not profile.industries:
+        _merge_list_field(
+            profile.industries, data,
+            ("industries", "industry", "sectors", "clientSectors"),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -1313,7 +1361,6 @@ def _proximity_fallback(profile: AttorneyProfile, html: str) -> None:
     soup = BeautifulSoup(html, "html.parser")
     full_text = soup.get_text(separator="\n")
 
-    # --- Name fallback: first h1 ---
     if not profile.full_name:
         h1 = soup.find("h1")
         if h1:
@@ -1321,31 +1368,44 @@ def _proximity_fallback(profile: AttorneyProfile, html: str) -> None:
             if _looks_like_name(candidate):
                 profile.full_name = candidate
 
-    # --- Title fallback: proximity to known title keywords ---
     if not profile.title:
         title = _extract_title_proximity(html)
         if title:
             profile.title = title
 
-    # --- Practice areas fallback ---
     if not profile.practice_areas:
         items = _proximity_list_items(
             soup, ["practice", "expertise", "specialt", "service"]
         )
         profile.practice_areas.extend(items)
 
-    # --- Bar admissions fallback ---
+    if not profile.department:
+        items = _proximity_list_items(
+            soup, ["department", "practice group", "industry group", "division"]
+        )
+        if items:
+            for item in items:
+                if item not in profile.department:
+                    profile.department.append(item)
+
+    if not profile.industries:
+        items = _proximity_list_items(
+            soup, ["industry", "industries", "sector", "market focus"]
+        )
+        if items:
+            for item in items:
+                if item not in profile.industries:
+                    profile.industries.append(item)
+
     if not profile.bar_admissions:
         items = _proximity_list_items(soup, ["bar admission", "admitted", "bar"])
         states = parse_bar_admissions_text_blocks(items)
         profile.bar_admissions.extend(states)
-        # Also try full-text state scan as last resort
         if not profile.bar_admissions:
             from validators import _extract_states_from_text
             states_all = _extract_states_from_text(full_text)
             profile.bar_admissions.extend(states_all)
 
-    # --- Education fallback ---
     if not profile.education:
         items = _proximity_list_items(soup, ["education", "academic"])
         records = parse_education_text_blocks(items)

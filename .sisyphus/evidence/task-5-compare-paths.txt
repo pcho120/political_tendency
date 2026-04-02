@@ -1,0 +1,196 @@
+=== SUCCESS-PATH: compare_paths.py ===
+Command: python3 compare_paths.py --main-jsonl outputs/run_pipeline_sample.jsonl --alt-jsonl outputs/find_attorney_sample.jsonl --fields title,offices,department,practice_areas,industries --report outputs/cross_path_diff.json --max-gap 0.10
+
+Report written to outputs/cross_path_diff.json
+EXIT CODE: 0
+
+=== Report Contents ===
+{
+  "schema_version": "1",
+  "inputs": {
+    "main_jsonl": "outputs/run_pipeline_sample.jsonl",
+    "alt_jsonl": "outputs/find_attorney_sample.jsonl",
+    "main_record_count": 18,
+    "alt_record_count": 18
+  },
+  "per_field": {
+    "title": {
+      "main_fill_rate": 1.0,
+      "alt_fill_rate": 1.0,
+      "gap": 0.0,
+      "abs_gap": 0.0,
+      "within_threshold": true
+    },
+    "offices": {
+      "main_fill_rate": 1.0,
+      "alt_fill_rate": 1.0,
+      "gap": 0.0,
+      "abs_gap": 0.0,
+      "within_threshold": true
+    },
+    "department": {
+      "main_fill_rate": 0.0625,
+      "alt_fill_rate": 0.0625,
+      "gap": 0.0,
+      "abs_gap": 0.0,
+      "within_threshold": true
+    },
+    "practice_areas": {
+      "main_fill_rate": 0.875,
+      "alt_fill_rate": 0.8125,
+      "gap": -0.0625,
+      "abs_gap": 0.0625,
+      "within_threshold": true
+    },
+    "industries": {
+      "main_fill_rate": 0.4375,
+      "alt_fill_rate": 0.5,
+      "gap": 0.0625,
+      "abs_gap": 0.0625,
+      "within_threshold": true
+    }
+  },
+  "per_firm": [
+    {
+      "firm": "Hunton Andrews",
+      "fields": {
+        "title": {
+          "main_fill_rate": 1.0,
+          "alt_fill_rate": 1.0,
+          "gap": 0.0
+        },
+        "offices": {
+          "main_fill_rate": 1.0,
+          "alt_fill_rate": 1.0,
+          "gap": 0.0
+        },
+        "department": {
+          "main_fill_rate": 0.0,
+          "alt_fill_rate": 0.0,
+          "gap": 0.0
+        },
+        "practice_areas": {
+          "main_fill_rate": 0.75,
+          "alt_fill_rate": 0.5,
+          "gap": -0.25
+        },
+        "industries": {
+          "main_fill_rate": 0.25,
+          "alt_fill_rate": 0.25,
+          "gap": 0.0
+        }
+      }
+    },
+    {
+      "firm": "Jones Day",
+      "fields": {
+        "title": {
+          "main_fill_rate": 1.0,
+          "alt_fill_rate": 1.0,
+          "gap": 0.0
+        },
+        "offices": {
+          "main_fill_rate": 1.0,
+          "alt_fill_rate": 1.0,
+          "gap": 0.0
+        },
+        "department": {
+          "main_fill_rate": 0.0,
+          "alt_fill_rate": 0.0,
+          "gap": 0.0
+        },
+        "practice_areas": {
+          "main_fill_rate": 1.0,
+          "alt_fill_rate": 0.75,
+          "gap": -0.25
+        },
+        "industries": {
+          "main_fill_rate": 0.5,
+          "alt_fill_rate": 0.75,
+          "gap": 0.25
+        }
+      }
+    },
+    {
+      "firm": "Kirkland",
+      "fields": {
+        "title": {
+          "main_fill_rate": 1.0,
+          "alt_fill_rate": 1.0,
+          "gap": 0.0
+        },
+        "offices": {
+          "main_fill_rate": 1.0,
+          "alt_fill_rate": 1.0,
+          "gap": 0.0
+        },
+        "department": {
+          "main_fill_rate": 0.25,
+          "alt_fill_rate": 0.25,
+          "gap": 0.0
+        },
+        "practice_areas": {
+          "main_fill_rate": 0.75,
+          "alt_fill_rate": 1.0,
+          "gap": 0.25
+        },
+        "industries": {
+          "main_fill_rate": 0.5,
+          "alt_fill_rate": 0.5,
+          "gap": 0.0
+        }
+      }
+    },
+    {
+      "firm": "Latham",
+      "fields": {
+        "title": {
+          "main_fill_rate": 1.0,
+          "alt_fill_rate": 1.0,
+          "gap": 0.0
+        },
+        "offices": {
+          "main_fill_rate": 1.0,
+          "alt_fill_rate": 1.0,
+          "gap": 0.0
+        },
+        "department": {
+          "main_fill_rate": 0.0,
+          "alt_fill_rate": 0.0,
+          "gap": 0.0
+        },
+        "practice_areas": {
+          "main_fill_rate": 1.0,
+          "alt_fill_rate": 1.0,
+          "gap": 0.0
+        },
+        "industries": {
+          "main_fill_rate": 0.5,
+          "alt_fill_rate": 0.5,
+          "gap": 0.0
+        }
+      }
+    }
+  ],
+  "threshold": {
+    "max_gap": 0.1,
+    "fields_checked": [
+      "title",
+      "offices",
+      "department",
+      "practice_areas",
+      "industries"
+    ],
+    "fields_in_breach": [],
+    "all_within_threshold": true
+  },
+  "blocked_firms_excluded": {
+    "excluded_count": 1,
+    "firms": [
+      {
+        "firm": "Wilson Sonsini",
+        "reason": "BOT_PROTECTED"
+      }
+    ]
+  }
+}

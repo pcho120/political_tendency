@@ -73,6 +73,7 @@ class ValidationReason:
     SENTINEL_APPLIED = "sentinel_applied"
     VALIDATION_REJECTED = "validation_rejected"
     CONTAMINATED = "contaminated"
+    INTERNATIONAL_OFFICE = "international_office"
     TOO_SHORT = "too_short"
     TOO_LONG = "too_long"
     NO_JD = "no_jd_sentinel"
@@ -166,6 +167,13 @@ _KNOWN_ATTORNEY_TITLES: frozenset[str] = frozenset({
     "equity partner", "non-equity partner", "senior director",
 })
 
+_TITLE_ALIAS_MAP: dict[str, str] = {
+    "sr. associate": "Senior Associate",
+    "sr associate": "Senior Associate",
+    "senior associate": "Senior Associate",
+    "of counsel": "Of Counsel",
+}
+
 _NAME_VALID_RE = re.compile(
     r"^"
     r"(?:Dr\.?\s+|Prof\.?\s+|Hon\.?\s+)?"     # optional honorific
@@ -234,8 +242,8 @@ def validate_title(raw: str | None, firm_name: str = "") -> tuple[str | None, st
     Rules:
     - 2–120 characters
     - No email / phone contamination
-    - May be a free-form title (e.g., "Senior Litigation Partner")
-    - Rejects titles that are the firm name (or composed entirely of firm name tokens)
+     - May be a free-form title (e.g., "Senior Litigation Partner")
+     - Rejects titles that are the firm name (or composed entirely of firm name tokens)
 
     Args:
         raw: Raw title string
@@ -290,32 +298,31 @@ def validate_title(raw: str | None, firm_name: str = "") -> tuple[str | None, st
         if len(firm_token_list) >= 2 and norm_title.startswith(" ".join(firm_token_list[:2])):
             return None, ValidationReason.CONTAMINATED
 
-    return title, None
+    normalized = _normalize_title(title)
+    return normalized, None
+
+
+def _normalize_title(title: str) -> str:
+    cleaned = re.sub(r"\s+", " ", title.strip())
+    alias = _TITLE_ALIAS_MAP.get(cleaned.lower())
+    if alias:
+        return alias
+
+    lowered = cleaned.lower()
+    if lowered in _KNOWN_ATTORNEY_TITLES:
+        return " ".join(part[:1].upper() + part[1:].lower() if part else part for part in cleaned.split(" "))
+
+    return cleaned
 
 
 def validate_offices(raw: list[str]) -> tuple[list[str], str | None]:
-    """Validate and normalize office locations — US only.
-
-    Accepts:
-    - "City, ST" (two-letter state code)
-    - "Washington, DC" / "Washington DC"
-    - Full city names present in US (heuristic: if city text is >= 3 chars and
-      does not look like a foreign city)
-
-    Filters out:
-    - "Location", "Lokation", "(Work)" junk labels
-    - Non-US office strings where no US state abbreviation is present
-
-    Returns:
-        (us_only_offices, None) on success
-        ([], ValidationReason.NOT_FOUND) if empty input
-        ([], ValidationReason.VALIDATION_REJECTED) if all non-US after filter
-    """
     if not raw:
         return [], ValidationReason.NOT_FOUND
 
     cleaned: list[str] = []
     seen: set[str] = set()
+    saw_international = False
+    saw_contamination = False
 
     _junk_labels = {"location", "lokation", "office", "offices", "work", "city"}
 
@@ -329,6 +336,10 @@ def validate_offices(raw: list[str]) -> tuple[list[str], str | None]:
         if text.lower() in _junk_labels:
             continue
         if len(text) < 2:
+            continue
+
+        if re.search(r"@|http|www\.|\d{3}[.\-]\d{3}|\btel\b|\bphone\b", text, re.IGNORECASE):
+            saw_contamination = True
             continue
 
         # Normalize "Washington DC" without comma
@@ -360,9 +371,20 @@ def validate_offices(raw: list[str]) -> tuple[list[str], str | None]:
                     seen.add(text)
                     cleaned.append(text)
                 break
+        else:
+            saw_international = True
+            normalized = re.sub(r"\s+", " ", text).strip()
+            if normalized and normalized not in seen:
+                seen.add(normalized)
+                cleaned.append(normalized)
 
     if not cleaned:
+        if saw_contamination:
+            return [], ValidationReason.CONTAMINATED
         return [], ValidationReason.VALIDATION_REJECTED
+
+    if saw_international:
+        return cleaned, ValidationReason.INTERNATIONAL_OFFICE
 
     return cleaned, None
 

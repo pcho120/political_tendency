@@ -1,0 +1,138 @@
+{
+  "_comment": "Sample manifest for structure-aware baseline measurement. 5 firms per improvable structure type (SITEMAP_XML, HTML_DIRECTORY_FLAT, HTML_ALPHA_PAGINATED, SPA_OTHER); up to 2 for BOT_PROTECTED/AUTH_REQUIRED exclusion-control rows. Cache files are JSONL; each line is one attorney profile record.",
+  "_schema_version": "1",
+  "entries": [
+    {
+      "firm": "Kirkland",
+      "structure_type": "SITEMAP_XML",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/kirkland.jsonl"
+    },
+    {
+      "firm": "Paul Weiss",
+      "structure_type": "SITEMAP_XML",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/paul_weiss.jsonl"
+    },
+    {
+      "firm": "Greenberg Traurig",
+      "structure_type": "SITEMAP_XML",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/greenberg_traurig.jsonl"
+    },
+    {
+      "firm": "Norton Rose (verein)",
+      "structure_type": "SITEMAP_XML",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/norton_rose_verein.jsonl"
+    },
+    {
+      "firm": "Paul Hastings",
+      "structure_type": "SITEMAP_XML",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/paul_hastings.jsonl"
+    },
+    {
+      "firm": "Jones Day",
+      "structure_type": "HTML_DIRECTORY_FLAT",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/jones_day.jsonl"
+    },
+    {
+      "firm": "Davis Polk",
+      "structure_type": "HTML_DIRECTORY_FLAT",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/davis_polk.jsonl"
+    },
+    {
+      "firm": "Goodwin Procter",
+      "structure_type": "HTML_DIRECTORY_FLAT",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/goodwin_procter.jsonl"
+    },
+    {
+      "firm": "King & Spalding",
+      "structure_type": "HTML_DIRECTORY_FLAT",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/king_spalding.jsonl"
+    },
+    {
+      "firm": "Holland & Knight",
+      "structure_type": "HTML_DIRECTORY_FLAT",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/holland_knight.jsonl"
+    },
+    {
+      "firm": "Hunton Andrews",
+      "structure_type": "HTML_ALPHA_PAGINATED",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/hunton_andrews.jsonl"
+    },
+    {
+      "firm": "Maynard Nexsen",
+      "structure_type": "HTML_ALPHA_PAGINATED",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/maynard_nexsen.jsonl"
+    },
+    {
+      "firm": "Honigman",
+      "structure_type": "HTML_ALPHA_PAGINATED",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/honigman.jsonl"
+    },
+    {
+      "firm": "Stinson",
+      "structure_type": "HTML_ALPHA_PAGINATED",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/stinson.jsonl"
+    },
+    {
+      "firm": "Chapman and Cutler",
+      "structure_type": "HTML_ALPHA_PAGINATED",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/chapman_and_cutler.jsonl"
+    },
+    {
+      "firm": "Latham",
+      "structure_type": "SPA_OTHER",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/latham.jsonl"
+    },
+    {
+      "firm": "Dentons (verein)",
+      "structure_type": "SPA_OTHER",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/dentons_verein.jsonl"
+    },
+    {
+      "firm": "Quinn Emanuel",
+      "structure_type": "SPA_OTHER",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/quinn_emanuel.jsonl"
+    },
+    {
+      "firm": "Fried Frank",
+      "structure_type": "SPA_OTHER",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/fried_frank.jsonl"
+    },
+    {
+      "firm": "Faegre Drinker",
+      "structure_type": "SPA_OTHER",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/faegre_drinker.jsonl"
+    },
+    {
+      "firm": "Wilson Sonsini",
+      "structure_type": "BOT_PROTECTED",
+      "is_blocked": true,
+      "cache_file": "tests/fixtures/cache/wilson_sonsini.jsonl"
+    },
+    {
+      "firm": "Sheppard Mullin",
+      "structure_type": "BOT_PROTECTED",
+      "is_blocked": true,
+      "cache_file": "tests/fixtures/cache/sheppard_mullin.jsonl"
+    }
+  ]
+}

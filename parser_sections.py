@@ -31,9 +31,34 @@ except ImportError:
 
 # ---------------------------------------------------------------------------
 # Synonym map: canonical key -> list of surface-form substrings (lowercase)
+#
+# Each entry is either:
+#   - A plain string: matches if the string appears anywhere in the normalized heading
+#   - A tuple (substring, require_any): matches only if substring is present AND
+#     at least one word from require_any appears in the normalized heading.
+#     This prevents generic headings (e.g. "Working Group", "Section 1: Contact")
+#     from matching risky short synonyms.
 # ---------------------------------------------------------------------------
 
-SECTION_SYNONYMS: dict[str, list[str]] = {
+# Legal/professional context words that qualify the risky bare synonyms
+_SERVICE_QUALIFIERS = frozenset({
+    "practice", "legal", "advisory", "professional", "attorney", "law",
+})
+_GROUP_QUALIFIERS = frozenset({
+    "practice", "industry", "litigation", "corporate", "tax", "advisory",
+    "regulatory", "transactional", "antitrust", "employment", "real estate",
+    "banking", "finance", "securities", "intellectual", "environmental",
+})
+_SECTION_QUALIFIERS = frozenset({
+    "practice", "tax", "litigation", "corporate", "bar", "regulatory",
+    "transactional", "employment", "antitrust", "banking", "finance",
+    "securities", "intellectual", "environmental", "real estate",
+})
+
+# Type alias for synonym entries
+_SynonymEntry = "str | tuple[str, frozenset[str]]"
+
+SECTION_SYNONYMS: dict[str, list[_SynonymEntry]] = {
     "practice_areas": [
         "practice area",
         "practice areas",
@@ -45,7 +70,9 @@ SECTION_SYNONYMS: dict[str, list[str]] = {
         "focus areas",
         "specialt",           # covers specialties / specializations
         "competen",           # covers competencies
-        "service",            # covers services
+        # "service" only fires when accompanied by a professional-context qualifier
+        # e.g. "Practice Services" ✓  but NOT "Client Services Team" ✗
+        ("service", _SERVICE_QUALIFIERS),
     ],
     "industries": [
         "industries",
@@ -57,13 +84,15 @@ SECTION_SYNONYMS: dict[str, list[str]] = {
     "departments": [
         "department",
         "departments",
-        "group",
+        # bare "group" replaced by qualified form to avoid "Working Group" false positives
+        ("group", _GROUP_QUALIFIERS),
         "practice group",
         "practice groups",
         "industry group",
         "industry groups",
         "division",
-        "section",
+        # bare "section" replaced by qualified form to avoid "Section 1: Contact" false positives
+        ("section", _SECTION_QUALIFIERS),
     ],
     "bar_admissions": [
         "bar admission",
@@ -281,6 +310,10 @@ def normalize_section_title(raw: str) -> str:
     stripped/lowercased heading text.  The first synonym that matches wins.
     If no synonym matches, returns the raw title normalized to snake_case.
 
+    Synonym entries are either plain strings (substring match) or
+    (substring, require_any) tuples where require_any is a frozenset of
+    qualifier words — at least one must appear in the heading for a match.
+
     Args:
         raw: Raw heading text (e.g. "Practice Areas", "Bar Admissions & Courts")
 
@@ -289,12 +322,18 @@ def normalize_section_title(raw: str) -> str:
         snake_case version of raw if no synonym matched.
     """
     normalized = _strip_punctuation_for_matching(raw)
+    words = set(normalized.split())
 
     for canonical_key, synonyms in SECTION_SYNONYMS.items():
         for syn in synonyms:
-            # Substring match — heading may contain extra words
-            if syn in normalized:
-                return canonical_key
+            if isinstance(syn, tuple):
+                substring, require_any = syn
+                if substring in normalized and (words & require_any):
+                    return canonical_key
+            else:
+                # Plain string: substring match — heading may contain extra words
+                if syn in normalized:
+                    return canonical_key
 
     # Fallback: snake_case of normalized text (keeps unknown sections retrievable)
     return re.sub(r"\s+", "_", normalized).strip("_") or "unknown"

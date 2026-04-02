@@ -285,18 +285,14 @@ def merge_attorney_fields(
     source_type: str,
     precedence_map: dict[str, int] | None = None
 ) -> None:
-    """Merge fields from supplemental source into base profile using precedence rules.
+    """DEPRECATED — use FieldMerger.merge() / FieldMerger.merge_all() instead.
 
-    Args:
-        base_profile: AttorneyProfile to merge into
-        supplemental_data: Dict with field values from supplemental source
-        source_type: Type of source (profile_core, education, etc.) for precedence
-        precedence_map: Custom precedence map (defaults to FIELD_SOURCE_PRECEDENCE)
-
-    Mutates base_profile in place.
-    Only overwrites fields if:
-    1. Field is empty in base_profile, OR
-    2. Source precedence is higher than current source
+    FieldMerger (field_merger.py) is the ONE canonical merge path for the alternate
+    architecture.  This function predates FieldMerger and uses a simpler dict-based
+    strategy with a dynamic ``_field_sources`` attribute; it does not track provenance
+    metadata in diagnostics and duplicates the precedence table already defined in
+    field_merger.py.  Kept to avoid breaking legacy call-sites; will be removed in a
+    future cleanup pass.
     """
     if precedence_map is None:
         precedence_map = FIELD_SOURCE_PRECEDENCE
@@ -4159,10 +4155,9 @@ class AttorneyFinder:
                 for reason, count in sorted(reason_counts.items(), key=lambda x: x[1], reverse=True)[:5]:
                     self.log(f"    {reason}: {count}")
 
-        # FieldEnricher pass: enrich PARTIAL/FAILED profiles using stored raw_html
         for att in attorneys:
             raw_html = att.diagnostics.get('raw_html', '')
-            if raw_html and getattr(att, 'extraction_status', '') in ('PARTIAL', 'FAILED'):
+            if raw_html:
                 try:
                     self.field_enricher.enrich(
                         att,
@@ -4205,12 +4200,15 @@ class AttorneyFinder:
             return []
 
     def _merge_external_data(self, firm_attorneys: list, external_attorneys: list) -> list:
-        """Merge external directory data with firm website data
+        """Merge external directory data with firm website data.
 
-        MERGE RULES:
-        - Firm website data takes precedence (never overwrite)
-        - External directory only fills missing fields
-        - All profiles include data_source indicator
+        CANONICAL MERGE PATH: uses ``self.field_merger`` (FieldMerger) so that every
+        field merge follows the single authority rule defined in field_merger.py:
+          profile_core=100 > mixed=90 > attorney_list=80 > education/bar_admission=70
+          > practice=60 > external_directory=30
+        This guarantees that firm-website data (higher precedence) is never overwritten
+        by external-directory data (lower precedence) while still filling missing fields
+        and recording provenance metadata in the merge log.
 
         Args:
             firm_attorneys: List of AttorneyProfile from firm website
@@ -4219,72 +4217,47 @@ class AttorneyFinder:
         Returns:
             Merged list of AttorneyProfile objects
         """
-        from attorney_extractor import AttorneyProfile, EducationRecord
-
-        # Mark all firm website data with data_source
         for att in firm_attorneys:
             if hasattr(att, 'diagnostics'):
-                # Only mark as firm_website if not already marked as external
                 if 'data_source' not in att.diagnostics:
                     att.diagnostics['data_source'] = 'firm_website'
 
-        # Create name index for matching
-        firm_names = {}
+        firm_names: dict[str, object] = {}
         for att in firm_attorneys:
             if hasattr(att, 'full_name') and att.full_name:
-                # Normalize name for matching
-                norm_name = att.full_name.lower().strip()
-                firm_names[norm_name] = att
+                firm_names[att.full_name.lower().strip()] = att
 
-        # Merge external data
-        merged = list(firm_attorneys)  # Start with firm website data
+        merged = list(firm_attorneys)
         new_profiles = []
+        filled_count = 0
 
         for ext_att in external_attorneys:
             if not hasattr(ext_att, 'full_name') or not ext_att.full_name:
                 continue
-
             norm_name = ext_att.full_name.lower().strip()
-
             if norm_name in firm_names:
-                # Match found - fill missing fields only
                 firm_att = firm_names[norm_name]
-
-                # Fill missing fields from external directory
-                if not firm_att.title and ext_att.title:
-                    firm_att.title = ext_att.title
-                    firm_att.diagnostics['title_source'] = 'external_directory'
-
-                if not firm_att.offices and ext_att.offices:
-                    firm_att.offices = ext_att.offices
-                    firm_att.diagnostics['offices_source'] = 'external_directory'
-
-                if not firm_att.practice_areas and ext_att.practice_areas:
-                    firm_att.practice_areas = ext_att.practice_areas
-                    firm_att.diagnostics['practice_areas_source'] = 'external_directory'
-
-                if not firm_att.bar_admissions and ext_att.bar_admissions:
-                    firm_att.bar_admissions = ext_att.bar_admissions
-                    firm_att.diagnostics['bar_admissions_source'] = 'external_directory'
-
-                if not firm_att.education and ext_att.education:
-                    firm_att.education = ext_att.education
-                    firm_att.diagnostics['education_source'] = 'external_directory'
-
-                # Recalculate status after merge
-                firm_att.calculate_status()
+                self.field_merger.merge(
+                    firm_att,
+                    ext_att,
+                    source_url=getattr(ext_att, 'profile_url', ''),
+                    source_type='external_directory',
+                )
+                if hasattr(firm_att, 'source_origin_per_field'):
+                    firm_att.diagnostics['source_origin_per_field'] = firm_att.source_origin_per_field  # type: ignore[attr-defined]
+                if hasattr(firm_att, 'merge_log'):
+                    firm_att.diagnostics['merge_log'] = firm_att.merge_log  # type: ignore[attr-defined]
+                filled_count += 1
             else:
-                # No match - apply hard gate before adding as new profile
                 ext_att.diagnostics['data_source'] = 'external_directory'
                 if _ext_dir_profile_valid(ext_att):
                     new_profiles.append(ext_att)
                 else:
-                    self.log(f"  [EXT_DIR_REJECT] {getattr(ext_att, 'full_name', 'unknown')} \u2014 failed hard gate")
+                    self.log(f"  [EXT_DIR_REJECT] {getattr(ext_att, 'full_name', 'unknown')} — failed hard gate")
 
-        # Add new external profiles
         merged.extend(new_profiles)
 
-        self.log(f"  Filled missing fields in {len(firm_names)} existing profiles")
+        self.log(f"  Merged external data for {filled_count} existing profiles")
         self.log(f"  Added {len(new_profiles)} new profiles from external directory")
 
         return merged

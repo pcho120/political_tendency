@@ -40,11 +40,11 @@
 - final verification rerun evidence
 
 ### Definition of Done (verifiable conditions with commands)
-- [ ] `python3.12 run_pipeline.py --firms "knobbe" --max-profiles 5 --verbose` 결과에서 title 이 `Knobbe Martens` 인 행 0개
-- [ ] `python3.12 run_pipeline.py --firms "arentfox" --max-profiles 5 --verbose` 결과에서 title 이 `ArentFox Schiff` 인 행 0개
-- [ ] `python3.12 run_pipeline.py --firms "weil" --max-profiles 5 --verbose` 결과에서 title 이 `Weil, Gotshal & Manges LLP` 인 행 0개
-- [ ] `python3.12 run_pipeline.py --firms "kirkland" --max-profiles 10` 결과에서 valid title 신규 rejection 0개
-- [ ] `.sisyphus/evidence/final-report-v2.txt` 에 F1/F2/F3/F4 모두 PASS 기록
+- [x] `python3.12 run_pipeline.py --firms "knobbe" --max-profiles 5 --verbose` 결과에서 title 이 `Knobbe Martens` 인 행 0개
+- [x] `python3.12 run_pipeline.py --firms "arentfox" --max-profiles 5 --verbose` 결과에서 title 이 `ArentFox Schiff` 인 행 0개
+- [x] `python3.12 run_pipeline.py --firms "weil" --max-profiles 5 --verbose` 결과에서 title 이 `Weil, Gotshal & Manges LLP` 인 행 0개
+- [x] `python3.12 run_pipeline.py --firms "kirkland" --max-profiles 10` 결과에서 valid title 신규 rejection 0개
+- [x] `.sisyphus/evidence/final-report-v2.txt` 에 F1/F2/F3/F4 모두 PASS 기록
 
 ### Must Have
 - 재현 → 테스트 작성 → 수정 → Weil 경로 진단/수정 → 최종 검증 순서 고정

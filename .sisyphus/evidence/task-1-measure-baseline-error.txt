@@ -1,0 +1,11 @@
+=== Task 1: Negative Path — Missing Cache Artifact ===
+Command: python3 measure_baseline.py --manifest /tmp/test_missing_manifest.json --use-cache --output /tmp/test_output.json
+
+Manifest content:
+{"entries": [{"firm": "Kirkland", "structure_type": "SITEMAP_XML", "is_blocked": false, "cache_file": "tests/fixtures/cache/kirkland.jsonl"}, {"firm": "NonExistentFirm", "structure_type": "SITEMAP_XML", "is_blocked": false, "cache_file": "tests/fixtures/cache/nonexistent_firm.jsonl"}]}
+Running script...
+ERROR: manifest references missing cached inputs:
+  firm='NonExistentFirm': cache_file not found: tests/fixtures/cache/nonexistent_firm.jsonl
+
+Exit code: 1
+EXPECTED: non-zero exit on missing cache artifact — PASS
