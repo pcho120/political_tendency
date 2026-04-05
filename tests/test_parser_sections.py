@@ -46,6 +46,12 @@ RISKY_POSITIVE_CASES: list[NormalizeCase] = [
     NormalizeCase("Tax Section", "departments", "section synonym"),
 ]
 
+NORMALIZE_NEW_CASES: list[NormalizeCase] = [
+    NormalizeCase("Practice Group", "departments", "practice group synonym"),
+    NormalizeCase("Working Group", "working_group", "working group guard"),
+    NormalizeCase("Practice Department", "departments", "practice department synonym"),
+]
+
 RISKY_ADVERSARIAL_CASES: list[NormalizeCase] = [
     NormalizeCase("Client Services Team", "client_services_team", "service false-positive guard"),
     NormalizeCase("Working Group", "working_group", "group false-positive guard"),
@@ -73,6 +79,52 @@ BOUNDARY_CASE = ParseCase(
     expected_not_contains=("Should stay out",),
 )
 
+BOUNDARY_OFFICES_BAR = ParseCase(
+    label="boundary: offices does not bleed into bar_admissions",
+    html="""
+        <html><body>
+          <h2>Office</h2>
+          <p>New York</p>
+          <h2>Bar Admissions</h2>
+          <p>New York Bar</p>
+        </body></html>
+    """,
+    key="offices",
+    expected_contains=("New York",),
+    expected_not_contains=("New York Bar",),
+)
+
+BOUNDARY_PRACTICE_BIO = ParseCase(
+    label="boundary: practice_areas does not bleed into biography",
+    html="""
+        <html><body>
+          <h2>Practice Areas</h2>
+          <li>M&amp;A</li>
+          <h2>Biography</h2>
+          <p>Jane advises clients on complex matters.</p>
+        </body></html>
+    """,
+    key="practice_areas",
+    expected_contains=("M&A",),
+    expected_not_contains=("Jane advises clients on complex matters.",),
+)
+
+LATHAM_H3_UNDER_H2 = ParseCase(
+    label="latham: h3 sub-sections under h2 Qualifications map correctly",
+    html="""
+        <html><body>
+          <h2>Qualifications</h2>
+          <h3>Education</h3>
+          <p>Harvard Law School, J.D.</p>
+          <h3>Practices</h3>
+          <li>Antitrust</li>
+        </body></html>
+    """,
+    key="practice_areas",
+    expected_contains=("Antitrust",),
+    expected_not_contains=(),
+)
+
 
 def _report(result: bool, label: str, detail: str) -> tuple[int, int]:
     status = "PASS" if result else "FAIL"
@@ -96,7 +148,10 @@ def _run_parse_case(case: ParseCase) -> tuple[int, int]:
     if heading is None:
         return _report(False, case.label, "missing heading fixture")
 
-    blocks = parser_sections._collect_content_after(soup, heading, parser_sections._tag_heading_level(heading) or 2)
+    try:
+        blocks = parser_sections._collect_content_after(soup, heading, parser_sections._tag_heading_level(heading) or 2)
+    except Exception as exc:
+        return _report(False, case.label, f"collect failed: {exc!r}")
     ok = True
     details: list[str] = [f"blocks={blocks!r}"]
     for text in case.expected_contains:
@@ -107,7 +162,10 @@ def _run_parse_case(case: ParseCase) -> tuple[int, int]:
         if text in blocks:
             ok = False
             details.append(f"unexpected={text!r}")
-    section_map = parser_sections.parse_sections(case.html)
+    try:
+        section_map = parser_sections.parse_sections(case.html)
+    except Exception as exc:
+        return _report(False, case.label, f"parse_sections failed: {exc!r} {details!r}")
     mapped = section_map.get(case.key, [])
     if any(text not in mapped for text in case.expected_contains):
         ok = False
@@ -140,6 +198,17 @@ def main() -> int:
     print("== risky adversarial ==")
     for case in RISKY_ADVERSARIAL_CASES:
         passed, failed = _run_adversarial_case(case)
+        total_pass += passed
+        total_fail += failed
+
+    print("== new boundary cases ==")
+    for case in NORMALIZE_NEW_CASES:
+        passed, failed = _run_normalize_case(case)
+        total_pass += passed
+        total_fail += failed
+
+    for case in (BOUNDARY_OFFICES_BAR, BOUNDARY_PRACTICE_BIO, LATHAM_H3_UNDER_H2):
+        passed, failed = _run_parse_case(case)
         total_pass += passed
         total_fail += failed
 

@@ -160,6 +160,30 @@ _JUNK_PHRASES: frozenset[str] = frozenset({
     "here.", "skip to main", "skip navigation", "toggle menu",
 })
 
+_BIO_VERB_PATTERN = re.compile(
+    r'\b(represents|advises|advised|focuses|focused|has represented|has advised|'
+    r'her practice|his practice|her work|his work|she has|he has|her clients|'
+    r'his clients|specializes in|concentrates in)\b',
+    re.IGNORECASE,
+)
+_AWARD_PATTERN = re.compile(
+    r'\b(chambers|legal 500|recognized|ranked|named|honored|awarded)\b',
+    re.IGNORECASE,
+)
+_DATE_PATTERN = re.compile(
+    r'\b(January|February|March|April|May|June|July|August|September|October|'
+    r'November|December)\s+\d{1,2},\s+\d{4}\b',
+    re.IGNORECASE,
+)
+
+# Known uppercase legal practice area abbreviations that should NOT be
+# filtered by the isupper() junk guard.
+_KNOWN_UPPERCASE_PRACTICES: frozenset[str] = frozenset({
+    "m&a", "ipo", "erisa", "fcpa", "cfius", "esg", "reit", "reits",
+    "spac", "spacs", "aml", "bsa", "sec", "doj", "ftc", "nlrb",
+    "osha", "epc", "lng", "p3", "ppp", "ip",
+})
+
 _KNOWN_ATTORNEY_TITLES: frozenset[str] = frozenset({
     "partner", "associate", "counsel", "of counsel", "senior associate",
     "managing partner", "senior partner", "member", "shareholder",
@@ -173,6 +197,29 @@ _TITLE_ALIAS_MAP: dict[str, str] = {
     "senior associate": "Senior Associate",
     "of counsel": "Of Counsel",
 }
+
+_TITLE_PLACEHOLDER_RE = re.compile(r"\{\{.*?\}\}|\[\[.*?\]\]", re.IGNORECASE)
+_CAMELCASE_NAME_RE = re.compile(r"^[A-Z][a-z]+(?:[A-Z][a-z]+)+$")
+
+
+def _looks_like_office_label(text: str) -> bool:
+    """Return True when text is clearly an office/location label."""
+    candidate = re.sub(r"\b\d{5}(?:-\d{4})?\b", "", text).strip(" ,")
+    if not candidate:
+        return False
+    if candidate in _US_MAJOR_LAW_CITIES or candidate.lower() in {
+        city.lower() for city in _US_MAJOR_LAW_CITIES
+    }:
+        return True
+    if candidate in US_STATES or candidate.upper() in _US_STATE_ABBR:
+        return True
+    if "," in candidate:
+        parts = [part.strip() for part in candidate.split(",") if part.strip()]
+        if len(parts) == 2 and (
+            parts[1] in US_STATES or parts[1].upper() in _US_STATE_ABBR
+        ):
+            return True
+    return False
 
 _NAME_VALID_RE = re.compile(
     r"^"
@@ -268,6 +315,12 @@ def validate_title(raw: str | None, firm_name: str = "") -> tuple[str | None, st
         return None, ValidationReason.CONTAMINATED
 
     if re.search(r"\d{3}[.\-]\d{3}|\btel\b|\bphone\b", title, re.IGNORECASE):
+        return None, ValidationReason.CONTAMINATED
+
+    if _TITLE_PLACEHOLDER_RE.search(title):
+        return None, ValidationReason.CONTAMINATED
+
+    if _CAMELCASE_NAME_RE.match(title):
         return None, ValidationReason.CONTAMINATED
 
     # Firm-name contamination filter (conservative token matching)
@@ -422,6 +475,10 @@ def validate_department(raw: list[str]) -> tuple[list[str], str | None]:
         dept = dept.strip()
         if not dept or len(dept) < 3 or len(dept) > 150:
             continue
+        if dept.isupper() and len(dept.split()) <= 3:
+            continue
+        if re.search(r"read more|expand biography|publication", dept, re.IGNORECASE):
+            continue
         if any(re.search(p, dept, re.IGNORECASE) for p in contamination_patterns):
             continue
         if dept.lower() in seen:
@@ -458,8 +515,26 @@ def validate_practice_areas(raw: list[str]) -> tuple[list[str], str | None]:
         if any(junk in practice.lower() for junk in _JUNK_PHRASES):
             continue
 
+        if practice.isupper() and len(practice.split()) <= 3:
+            if practice.lower() not in _KNOWN_UPPERCASE_PRACTICES:
+                continue
+
+        if re.search(r"read more|expand biography|publication|government experience|clerkship", practice, re.IGNORECASE):
+            continue
+
+        if _looks_like_office_label(practice):
+            continue
+
         if "http" in practice.lower() or "@" in practice:
             continue
+
+        if len(practice) >= 50:
+            if _BIO_VERB_PATTERN.search(practice):
+                continue
+            if _AWARD_PATTERN.search(practice):
+                continue
+            if _DATE_PATTERN.search(practice):
+                continue
 
         key = practice.lower()
         if key in seen:

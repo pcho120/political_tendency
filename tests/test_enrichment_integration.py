@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import Any
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_ROOT)
@@ -22,6 +23,35 @@ sys.path.insert(0, REPO_ROOT)
 FIXTURE_DIR = os.path.join(REPO_ROOT, "tests", "fixtures", "html")
 
 MIN_HTML_BYTES = 10_500
+
+LATHAM_INLINE_HTML = """<!DOCTYPE html>
+<html>
+<head><title>Stephanie Adams - Latham &amp; Watkins LLP</title></head>
+<body>
+<div class="hero-section">
+  <h1>Stephanie Adams</h1>
+  <p class="attorney-title">Partner</p>
+  <p class="attorney-office">New York</p>
+</div>
+<h2>Profile</h2>
+<p>Stephanie Adams is a partner in the New York office of Latham &amp; Watkins.</p>
+<h2>Experience</h2>
+<h3>Merger Control</h3>
+<p>Extensive experience in merger control filings.</p>
+<h2>Qualifications</h2>
+<h3>Bar Qualification</h3>
+<p>New York Bar, 2005</p>
+<h3>Education</h3>
+<p>Harvard Law School, J.D.</p>
+<h3>Practices</h3>
+<ul>
+  <li>Antitrust</li>
+  <li>Corporate</li>
+</ul>
+<h2>Recognition</h2>
+<p>Chambers USA, 2024</p>
+</body>
+</html>"""
 
 
 def _load_fixture(name: str) -> str:
@@ -50,7 +80,7 @@ def _pad_to_min_size(html: str) -> str:
     return html[:insert_pos] + padding_block + html[insert_pos:]
 
 
-def _run_enricher(html: str, fixture_label: str) -> object:
+def _run_enricher(html: str, fixture_label: str) -> Any:
     try:
         from enrichment import ProfileEnricher
     except ImportError as exc:
@@ -329,6 +359,24 @@ def run_adversarial_nav_pollution_fixture() -> None:
     )
 
 
+def _test_latham_spa_other() -> None:
+    """Test that Latham-style SPA_OTHER HTML extracts key fields correctly."""
+    profile = _run_enricher(LATHAM_INLINE_HTML, "latham-spa-other")
+    _assert(
+        bool(getattr(profile, "full_name", None)) and "Practice" not in (getattr(profile, "full_name", "") or ""),
+        f"full_name should be a person name, not contain 'Practice' (got: {getattr(profile, 'full_name', None)!r})",
+    )
+    pas = getattr(profile, "practice_areas", []) or []
+    _assert(
+        len(pas) > 0,
+        f"practice_areas should not be empty for Latham fixture (got: {pas!r})",
+    )
+    _assert(
+        not any(len(s) > 100 for s in pas),
+        f"practice_areas should not contain long bio/award sentences (got: {pas!r})",
+    )
+
+
 def main() -> None:
     global _PASS, _FAIL
 
@@ -340,6 +388,7 @@ def main() -> None:
     run_html_directory_flat_fixture()
     run_html_alpha_paginated_fixture()
     run_spa_other_fixture()
+    _test_latham_spa_other()
     run_adversarial_nav_pollution_fixture()
 
     print("\n" + "=" * 60)

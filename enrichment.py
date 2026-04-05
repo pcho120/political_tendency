@@ -591,6 +591,16 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
                 if _looks_like_name(text):
                     profile.full_name = text
 
+    # Generic fallback: any h1 on the page (works for Latham-style pages with plain <h1>)
+    if not profile.full_name:
+        for h1 in soup.find_all("h1"):
+            raw = h1.get_text(separator=" ", strip=True)
+            raw = re.sub(r",\s*P\.?\s*C\.?\s*$", "", raw).strip()
+            text = _clean_name_text(raw)
+            if _looks_like_name(text):
+                profile.full_name = text
+                break
+
     # ---- Title / Position ----
     if not profile.title:
         for selector_class in [
@@ -598,16 +608,23 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
             "profile-header-position",       # Skadden (may contain "Title, Department")
             "bio-card-title",                # Baker Botts
             "qtph-profprofile-title-txt",    # Paul Hastings (may contain "Title, Department")
-            "attorney-title",
+            "attorney-title",                # generic (Latham-style)
             "bio-title",
+            "bio-hero-title",               # generic hero variant
+            "profile-title",                # generic profile variant
+            "person-title",                 # generic person variant
             "lawyer-title",
+            "lawyer-position",              # generic lawyer variant
             "professional-title",
+            "staff-title",                  # generic staff variant
             "attorney-position",
         ]:
             el = soup.find(class_=selector_class)
             if el:
                 raw = el.get_text(strip=True)
                 if raw and len(raw) < 120:
+                    raw = _clean_title_candidate(raw, profile.full_name) or ""
+                if raw:
                     # Some firms encode "Title, Department" in one field — split on first comma
                     parts = [p.strip() for p in raw.split(",", 1)]
                     profile.title = parts[0]
@@ -621,6 +638,7 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
         if not profile.title:
             for el in soup.find_all(class_="eyebrow"):
                 text = el.get_text(strip=True)
+                text = _clean_title_candidate(text, profile.full_name) or ""
                 if text and "@" not in text and len(text) < 80:
                     profile.title = text
                     break
@@ -632,6 +650,7 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
                 pos = bio.find("p", class_="position")
                 if pos:
                     t = pos.get_text(strip=True)
+                    t = _clean_title_candidate(t, profile.full_name) or ""
                     if t and len(t) < 100:
                         profile.title = t
 
@@ -644,6 +663,7 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
                     nxt = h1.find_next_sibling("p")
                     if nxt:
                         t = nxt.get_text(strip=True)
+                        t = _clean_title_candidate(t, profile.full_name) or ""
                         if t and len(t) < 100:
                             profile.title = t
 
@@ -655,6 +675,7 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
                 if h1:
                     for sib in h1.next_siblings:
                         t = sib.get_text(strip=True) if hasattr(sib, "get_text") else str(sib).strip()
+                        t = _clean_title_candidate(t, profile.full_name) or ""
                         if t and len(t) < 100 and "@" not in t and not t[0].isdigit():
                             profile.title = t
                             break
@@ -669,6 +690,7 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
                 )
                 if sub:
                     t = sub.get_text(strip=True)
+                    t = _clean_title_candidate(t, profile.full_name) or ""
                     if t and len(t) < 100:
                         profile.title = t
 
@@ -678,16 +700,32 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
             if hero_el:
                 if not profile.title:
                     for attr in ("main-title", "title", "role"):
-                        val = (hero_el.get(attr) or "").strip()
+                        val = _attr_text(hero_el.get(attr))
+                        val = _clean_title_candidate(val, profile.full_name) or ""
                         if val and len(val) < 100:
                             profile.title = val
                             break
                 if not profile.offices:
                     for attr in ("primary-office-location", "office", "location"):
-                        val = (hero_el.get(attr) or "").strip()
+                        val = _attr_text(hero_el.get(attr))
                         if val and len(val) < 60:
                             profile.offices.append(val)
                             break
+
+        # Generic regex-based class pattern fallback for title
+        if not profile.title:
+            _title_class_re = re.compile(r'title|position|role', re.I)
+            _title_skip_tags = frozenset({'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                                          'body', 'html', 'head', 'nav', 'footer'})
+            title_el = soup.find(True, class_=_title_class_re)
+            if title_el and title_el.name not in _title_skip_tags:
+                text = title_el.get_text(strip=True)
+                text = _clean_title_candidate(text, profile.full_name) or ""
+                if (text and 2 < len(text) < 80
+                        and text.lower() not in _HEADER_TERMS
+                        and "@" not in text
+                        and not text[0].isdigit()):
+                    profile.title = text
 
     # ---- Offices ----
     if not profile.offices:
@@ -700,7 +738,12 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
             "bio-contract-geo",              # Baker Botts
             "attorney-office",               # Milbank (also matches attorney-office-container — handled below)
             "bio-office",
+            "bio-hero-office",               # generic hero variant
+            "profile-office",                # generic profile variant
+            "person-office",                 # generic person variant
             "lawyer-office",
+            "lawyer-location",               # generic lawyer variant
+            "staff-office",                  # generic staff variant
             "office-name",
             "vcard-office",                  # Covington
             "location-name",                 # K&L Gates
@@ -778,7 +821,7 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
             _noise_exact_tokens = {"footer", "nav", "menu", "sitemap", "navigation"}
             _noise_prefix_tokens = ("footer", "nav-", "navigation-", "site-nav", "site-footer")
             for a in soup.find_all("a", href=True):
-                href = a.get("href", "")
+                href = _attr_text(a.get("href", ""))
                 if not _office_href_pat.search(href):
                     continue
                 text = a.get_text(strip=True)
@@ -829,6 +872,7 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
                             else:
                                 _wc_title = raw.strip()
                                 _wc_office = ""
+                            _wc_title = _clean_title_candidate(_wc_title, profile.full_name) or ""
                             if not profile.title and _wc_title:
                                 profile.title = _wc_title
                             if not profile.offices and _wc_office:
@@ -857,6 +901,22 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
                     if city and len(city) < 60 and city not in profile.offices:
                         profile.offices.append(city)
 
+        # Generic regex-based class pattern fallback for office
+        if not profile.offices:
+            _office_class_re = re.compile(r'office|location|city', re.I)
+            _office_skip_tags = frozenset({'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                                           'body', 'html', 'head', 'nav', 'footer'})
+            office_el = soup.find(True, class_=_office_class_re)
+            if office_el and office_el.name not in _office_skip_tags:
+                # Skip containers (e.g. attorney-office-container) and elements with too many children
+                el_classes_str = " ".join(office_el.get("class") or []).lower()
+                if "container" not in el_classes_str and "list" not in el_classes_str:
+                    text = office_el.get_text(strip=True)
+                    if (text and 2 < len(text) < 80
+                            and "@" not in text
+                            and not re.match(r'^\+?\d[\d\s\-().]+$', text)):  # skip phone numbers
+                        profile.offices.append(text)
+
     # ---- Practice Areas ----
     if not profile.practice_areas:
         # Kirkland: <ul class="listing-services__items"><li class="listing-services__item">
@@ -876,6 +936,12 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
                 if text and text not in profile.practice_areas:
                     profile.practice_areas.append(text)
 
+    if not profile.practice_areas:
+        for block in soup.find_all(True, class_=re.compile(r'practice|expertise|industry|service', re.I)):
+            for candidate in _extract_block_items(block, allow_links=True):
+                if candidate not in profile.practice_areas:
+                    profile.practice_areas.append(candidate)
+
     # ---- Department (Kirkland group heading: "Transactional", "Litigation", etc.) ----
     if not profile.department:
         # Kirkland: <h3 class="listing-services__heading">Transactional</h3>
@@ -891,13 +957,102 @@ def _extract_from_css_classes(profile: AttorneyProfile, html: str, url: str = ""
                 if profile.department:
                     break
 
+    # ---- Department (generic CSS patterns) ----
+    if not profile.department:
+        _dept_generic_headings = {"practices", "services", "expertise",
+                                  "industries", "sectors", "overview"}
+        # Generic: elements with class names containing 'department', 'practice-group', 'dept'
+        for el in soup.find_all(True, class_=re.compile(
+                r'department|practice[-_]?group|dept', re.I)):
+            text = el.get_text(strip=True)
+            text = re.sub(r'\s+', ' ', text).strip()
+            if (text and 2 < len(text) < 80
+                    and text.lower() not in _dept_generic_headings
+                    and text not in profile.department):
+                profile.department.append(text)
+        # Also check data attributes: data-department, data-dept
+        if not profile.department:
+            for attr_name in ("data-department", "data-dept"):
+                for el in soup.find_all(True, attrs={attr_name: True}):
+                    val = _attr_text(el.get(attr_name))
+                    if val and 2 < len(val) < 80 and val not in profile.department:
+                        profile.department.append(val)
+                if profile.department:
+                    break
+
     # ---- Education ----
     if not profile.education:
         _extract_normalized_rte_list_education(profile, soup)
 
+    if not profile.education:
+        edu_blocks: list[str] = []
+        for block in soup.find_all(True, class_=re.compile(r'education|academic|credential', re.I)):
+            edu_blocks.extend(_extract_block_items(block))
+        for rec in parse_education_text_blocks(edu_blocks):
+            _add_edu_if_new(profile, cast(EducationRecord, rec))
+
     # ---- Bar Admissions ----
     if not profile.bar_admissions:
         _extract_normalized_rte_list_bar(profile, soup)
+
+    if not profile.bar_admissions:
+        bar_blocks: list[str] = []
+        for block in soup.find_all(True, class_=re.compile(r'admission|bar', re.I)):
+            bar_blocks.extend(_extract_block_items(block, allow_links=True))
+        for state in parse_bar_admissions_text_blocks(bar_blocks):
+            if state not in profile.bar_admissions:
+                profile.bar_admissions.append(state)
+
+
+def _extract_block_items(block: Tag, *, allow_links: bool = False) -> list[str]:
+    """Extract short content items from a semantic content block."""
+    results: list[str] = []
+    seen: set[str] = set()
+    if allow_links:
+        link_texts = [
+            re.sub(r"\s+", " ", node.get_text(" ", strip=True)).strip()
+            for node in block.find_all("a")
+        ]
+        for text in link_texts:
+            if _is_semantic_block_item(text) and text not in seen:
+                seen.add(text)
+                results.append(text)
+        if results:
+            return results
+
+    for node in block.find_all(["li", "p", "span", "div"]):
+        if node.find(["li", "p", "div"], recursive=False):
+            continue
+        text = re.sub(r"\s+", " ", node.get_text(" ", strip=True)).strip()
+        if _is_semantic_block_item(text) and text not in seen:
+            seen.add(text)
+            results.append(text)
+    return results
+
+
+def _is_semantic_block_item(text: str) -> bool:
+    """Return True when text looks like a short profile field item."""
+    if not text or len(text) > 120:
+        return False
+    lowered = text.lower()
+    if lowered in _HEADER_TERMS:
+        return False
+    if lowered in {
+        "practices & industries", "practices", "industries", "education",
+        "bar admissions", "publications", "read more", "expand biography",
+        "read more expand biography", "government experience", "clerkships",
+        "view more",
+    }:
+        return False
+    if "@" in text or text.startswith("Tel:"):
+        return False
+    if re.search(r"^\+?\d[\d\s().-]+$", text):
+        return False
+    if re.search(r"\b(avenue|street|road|suite|floor|plaza|parkway|drive|boulevard|lane|court)\b", lowered):
+        return False
+    if re.search(r"\b(admission|education|publication|biography|experience|represented|advises|focuses|named|ranked|recognized)\b", lowered):
+        return False
+    return True
 
 
 def _extract_normalized_rte_list_education(
@@ -1294,9 +1449,27 @@ def _extract_from_section_map(
     if not profile.title:
         # Check section_map["title"] from og:title parsing
         for candidate in find_section(section_map, "title"):
-            if candidate:
-                profile.title = candidate
+            if not candidate:
+                continue
+            candidate_clean = _clean_title_candidate(candidate, profile.full_name)
+            if candidate_clean:
+                profile.title = candidate_clean
                 break
+
+        if not profile.title and BS4_AVAILABLE:
+            assert BeautifulSoup is not None
+            soup = BeautifulSoup(html, "lxml")
+            detail_row = soup.find(class_=re.compile(r"\bdetail-row-1\b", re.I))
+            if detail_row:
+                texts = [
+                    re.sub(r"\s+", " ", node.get_text(strip=True))
+                    for node in detail_row.find_all(["div", "span", "p"], recursive=True)
+                ]
+                for candidate in texts:
+                    cleaned = _clean_title_candidate(candidate, profile.full_name)
+                    if cleaned and len(cleaned) <= 80 and "@" not in cleaned:
+                        profile.title = cleaned
+                        break
 
         # Fallback: look for known title keywords just below the h1
         if not profile.title:
@@ -1482,6 +1655,23 @@ def _extract_title_proximity(html: str) -> str | None:
     return None
 
 
+def _clean_title_candidate(text: str, full_name: str | None = None) -> str | None:
+    """Remove title candidates that are placeholders or duplicated names."""
+    candidate = re.sub(r"\s+", " ", text.strip())
+    if not candidate:
+        return None
+    if re.search(r"\{\{.*?\}\}|\[\[.*?\]\]", candidate):
+        return None
+    compact = re.sub(r"[\s,.-]+", "", candidate).lower()
+    if full_name:
+        full_name_compact = re.sub(r"[\s,.-]+", "", full_name).lower()
+        if compact == full_name_compact:
+            return None
+    if _looks_like_name(_clean_name_text(candidate)):
+        return None
+    return candidate
+
+
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -1515,6 +1705,15 @@ def _clean_name_text(text: str) -> str:
     # Normalize multiple spaces
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
     return cleaned
+
+
+def _attr_text(value: Any) -> str:
+    """Normalize BeautifulSoup attribute values to plain text."""
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        return " ".join(str(item).strip() for item in value if str(item).strip()).strip()
+    return str(value).strip()
 
 
 def _looks_like_name(text: str) -> bool:

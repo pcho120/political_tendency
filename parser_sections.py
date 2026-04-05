@@ -44,6 +44,13 @@ except ImportError:
 _SERVICE_QUALIFIERS = frozenset({
     "practice", "legal", "advisory", "professional", "attorney", "law",
 })
+# Qualifiers that distinguish "Practice Areas" / "Practice Services" (→ practice_areas)
+# from "Practice Group" / "Practice Section" (→ departments)
+_PRACTICE_AREA_QUALIFIERS = frozenset({
+    "area", "areas", "service", "services", "expertise", "focus",
+    "specialty", "specialties", "specialization", "specializations",
+    "competency", "competencies", "capability", "capabilities",
+})
 _GROUP_QUALIFIERS = frozenset({
     "practice", "industry", "litigation", "corporate", "tax", "advisory",
     "regulatory", "transactional", "antitrust", "employment", "real estate",
@@ -63,7 +70,9 @@ SECTION_SYNONYMS: dict[str, list[_SynonymEntry]] = {
         "practice area",
         "practice areas",
         "practices",
-        "practice",
+        # bare "practice" only fires when accompanied by area-context qualifier
+        # e.g. "Practice Areas" ✓, "Practice Services" ✓, but NOT "Practice Group" ✗ (→ departments)
+        ("practice", _PRACTICE_AREA_QUALIFIERS),
         "capabilities",
         "expertise",
         "focus area",
@@ -149,7 +158,6 @@ SECTION_SYNONYMS: dict[str, list[_SynonymEntry]] = {
         "about",
         "summary",
         "bio",
-        "profile",
     ],
 }
 
@@ -222,8 +230,12 @@ def _collect_content_after(
     anchor: Tag,
     stop_level: int,
 ) -> list[str]:
-    """Walk forward siblings (and cousins) after *anchor* until the next heading
-    at the same or higher level, collecting text blocks from content tags.
+    """Walk forward siblings (and parent siblings) after *anchor* until the
+    next heading at the same or higher level, collecting text blocks from
+    content tags.
+
+    Uses sibling traversal instead of ``find_all_next()`` to prevent
+    depth-first DOM walking that bleeds content across section boundaries.
 
     Args:
         soup: Full page soup (unused directly; kept for signature consistency)
@@ -254,34 +266,80 @@ def _collect_content_after(
                 # Recurse into containers (div, section, ul, ol, dl, etc.)
                 _harvest(child)
 
-    for sibling in anchor.find_all_next():
-        # Stop if we enter a structural footer container
-        sib_classes = set(sibling.get("class") or [])
-        sib_id = (sibling.get("id") or "").lower()
-        if sibling.name in _FOOTER_CONTAINER_NAMES:
-            break
-        if sib_classes & _FOOTER_CONTAINER_CLASSES:
-            break
-        if any(fc in sib_id for fc in _FOOTER_CONTAINER_CLASSES):
-            break
-        # Stop at a heading that is same or higher (lower number = higher level)
-        if _is_heading(sibling):
-            sib_level = _tag_heading_level(sibling)
-            if sib_level <= stop_level:
-                break
-            # Higher-level heading encountered — still a sub-section, keep going
-            # but DON'T treat it as stop; collect its content instead
-            continue
-        # Collect from content nodes
-        if sibling.name in _CONTENT_TAGS:
-            text = _clean_text(sibling.get_text())
-            if text and len(text) <= _MAX_BLOCK_LEN and text not in seen:
-                seen.add(text)
-                blocks.append(text)
-        # Also descend into containers that are siblings
-        elif sibling.name in {"ul", "ol", "dl", "div", "section", "article",
-                               "table", "tbody", "tr", "aside"}:
-            _harvest(sibling)
+    def _walk_after(node: Tag, level: int) -> bool:
+        """Walk siblings of *node* starting after node itself.
+
+        Returns True if a stop heading was found (caller should stop too).
+        """
+        for sibling in node.next_siblings:
+            if isinstance(sibling, NavigableString) or not isinstance(sibling, Tag):
+                continue
+            # Footer check
+            sib_classes = set(sibling.get("class") or [])
+            sib_id = (sibling.get("id") or "").lower()
+            if sibling.name in _FOOTER_CONTAINER_NAMES:
+                return True
+            if sib_classes & _FOOTER_CONTAINER_CLASSES:
+                return True
+            if any(fc in sib_id for fc in _FOOTER_CONTAINER_CLASSES):
+                return True
+            # Stop at heading of same or higher level
+            if _is_heading(sibling):
+                sib_level = _tag_heading_level(sibling)
+                if sib_level <= level:
+                    return True  # stop
+                # Sub-heading: skip it, keep going to collect its siblings
+                continue
+            # Collect from content nodes
+            if sibling.name in _CONTENT_TAGS:
+                text = _clean_text(sibling.get_text())
+                if text and len(text) <= _MAX_BLOCK_LEN and text not in seen:
+                    seen.add(text)
+                    blocks.append(text)
+            elif sibling.name in {"ul", "ol", "dl", "div", "section", "article",
+                                   "table", "tbody", "tr", "aside"}:
+                if _walk_children(sibling, level):
+                    return True
+        return False
+
+    def _walk_children(container: Tag, level: int) -> bool:
+        """Walk children of a container, respecting stop_level for headings.
+
+        Returns True if a stop heading was found (caller should stop).
+        """
+        for child in container.children:
+            if isinstance(child, NavigableString) or not isinstance(child, Tag):
+                continue
+            # Stop at heading of same or higher level
+            if _is_heading(child):
+                child_level = _tag_heading_level(child)
+                if child_level <= level:
+                    return True  # stop
+                # Sub-heading: skip heading text, keep going
+                continue
+            # Collect from content nodes
+            if child.name in _CONTENT_TAGS:
+                text = _clean_text(child.get_text())
+                if text and len(text) <= _MAX_BLOCK_LEN and text not in seen:
+                    seen.add(text)
+                    blocks.append(text)
+            elif child.name in {"ul", "ol", "dl", "div", "section", "article",
+                                 "table", "tbody", "tr", "aside"}:
+                if _walk_children(child, level):
+                    return True
+        return False
+
+    # Walk siblings of anchor at anchor's own level
+    stopped = _walk_after(anchor, stop_level)
+
+    # If anchor's parent is a container and we didn't hit a stop heading,
+    # also walk the parent's siblings to handle content wrapped in container divs
+    if not stopped:
+        parent = anchor.parent
+        if parent and getattr(parent, "name", None) in {
+            "div", "section", "article", "main", "aside",
+        }:
+            _walk_after(parent, stop_level)
 
     return blocks
 
