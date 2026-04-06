@@ -1,1 +1,530 @@
-[]
+[
+  {
+    "firm": "Kirkland",
+    "profile_url": "https://www.kirkland.com/lawyers/a/abbassi-rajab",
+    "full_name": "Rajab S. Abbassi, P.C.",
+    "title": "Partner",
+    "offices": [
+      "New York"
+    ],
+    "department": [
+      "Mergers & Acquisitions"
+    ],
+    "practice_areas": [
+      "Transactional",
+      "Restructuring",
+      "Intellectual Property",
+      "Litigation"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [
+      "2005 New York"
+    ],
+    "education": [
+      {
+        "degree": "J.D.",
+        "school": "Fordham University School of Law",
+        "year": "2004"
+      },
+      {
+        "degree": "B.A.",
+        "school": "Rutgers University",
+        "year": "2000"
+      }
+    ],
+    "extraction_status": "SUCCESS",
+    "missing_fields": [],
+    "diagnostics": {
+      "html_size": 51280,
+      "duration_ms": 1168,
+      "data_source": "firm_website",
+      "us_filter": "us_offices_kept"
+    }
+  },
+  {
+    "firm": "Kirkland",
+    "profile_url": "https://www.kirkland.com/lawyers/a/abdulrahman-noura",
+    "full_name": "Noura Abdulrahman",
+    "title": "Associate",
+    "offices": [],
+    "department": [
+      "Mergers & Acquisitions"
+    ],
+    "practice_areas": [
+      "Private Equity",
+      "Mergers & Acquisitions",
+      "Intellectual Property",
+      "Litigation",
+      "Restructuring",
+      "Transactional"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [],
+    "education": [
+      {
+        "degree": "Legal Practice Course",
+        "school": "University of Law, London",
+        "year": "2017"
+      },
+      {
+        "degree": "Graduate Diploma in Law",
+        "school": "BPP University, London",
+        "year": "2015"
+      },
+      {
+        "degree": "B.A., International Politics",
+        "school": "King’s College London",
+        "year": "2014"
+      }
+    ],
+    "extraction_status": "PARTIAL",
+    "missing_fields": [
+      "offices",
+      "bar_admissions"
+    ],
+    "diagnostics": {
+      "html_size": 164562,
+      "duration_ms": 1262,
+      "data_source": "firm_website",
+      "us_office_not_found": true,
+      "offices_reason": "not_found_in_raw_html",
+      "bar_admissions_reason": "not_found_in_raw_html",
+      "us_filter": "kept_no_office_data"
+    }
+  },
+  {
+    "firm": "Kirkland",
+    "profile_url": "https://www.kirkland.com/lawyers/a/abbe-gabrielle-christine",
+    "full_name": "Gabrielle Abbe",
+    "title": "Associate",
+    "offices": [
+      "Chicago"
+    ],
+    "department": [
+      "Restructuring"
+    ],
+    "practice_areas": [
+      "Transactional",
+      "Restructuring",
+      "Intellectual Property",
+      "Litigation"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [
+      "2022 Illinois"
+    ],
+    "education": [
+      {
+        "degree": "J.D.",
+        "school": "Northwestern Pritzker School of Law",
+        "year": "2022"
+      },
+      {
+        "degree": "M.F.A., Musicology",
+        "school": "Brandeis University",
+        "year": "2017"
+      },
+      {
+        "degree": "B.M., Trumpet Performance",
+        "school": "Furman University",
+        "year": "2014"
+      }
+    ],
+    "extraction_status": "SUCCESS",
+    "missing_fields": [],
+    "diagnostics": {
+      "html_size": 46325,
+      "duration_ms": 1566,
+      "data_source": "firm_website",
+      "us_filter": "us_offices_kept"
+    }
+  },
+  {
+    "firm": "Kirkland",
+    "profile_url": "https://www.kirkland.com/lawyers/a/abeloff-amy",
+    "full_name": "Amy A. Abeloff",
+    "title": "Partner",
+    "offices": [
+      "Los Angeles"
+    ],
+    "department": [
+      "Intellectual Property"
+    ],
+    "practice_areas": [
+      "Transactional",
+      "Restructuring",
+      "Intellectual Property",
+      "Litigation"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [
+      "2015 California"
+    ],
+    "education": [
+      {
+        "degree": "J.D.",
+        "school": "University of New Hampshire Franklin Pierce School of Law",
+        "year": "2015"
+      },
+      {
+        "degree": "B.A., Spanish & Government; European Studies Minor",
+        "school": "Cornell University",
+        "year": "2011"
+      }
+    ],
+    "extraction_status": "SUCCESS",
+    "missing_fields": [],
+    "diagnostics": {
+      "html_size": 38619,
+      "duration_ms": 1723,
+      "data_source": "firm_website",
+      "us_filter": "us_offices_kept"
+    }
+  },
+  {
+    "firm": "Kirkland",
+    "profile_url": "https://www.kirkland.com/lawyers/a/abate-james",
+    "full_name": "James P. Abate",
+    "title": "Associate",
+    "offices": [
+      "New York"
+    ],
+    "department": [
+      "Capital Markets"
+    ],
+    "practice_areas": [
+      "Transactional",
+      "Restructuring",
+      "Intellectual Property",
+      "Litigation"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [
+      "2021 New York",
+      "2020 New Jersey"
+    ],
+    "education": [
+      {
+        "degree": "J.D.",
+        "school": "University of California, Berkeley, School of Law",
+        "year": "2020"
+      },
+      {
+        "degree": "B.S.F.S., International Politics & Arab Studies",
+        "school": "Georgetown University Walsh School of Foreign Service",
+        "year": "2017"
+      }
+    ],
+    "extraction_status": "SUCCESS",
+    "missing_fields": [],
+    "diagnostics": {
+      "html_size": 37807,
+      "duration_ms": 1194,
+      "data_source": "firm_website",
+      "us_filter": "us_offices_kept"
+    }
+  },
+  {
+    "firm": "Kirkland",
+    "profile_url": "https://www.kirkland.com/lawyers/a/abdulkarim-dana",
+    "full_name": "Dana Abdulkarim",
+    "title": "Partner",
+    "offices": [],
+    "department": [
+      "Mergers & Acquisitions"
+    ],
+    "practice_areas": [
+      "Private Equity",
+      "Mergers & Acquisitions",
+      "Intellectual Property",
+      "Litigation",
+      "Restructuring",
+      "Transactional"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [],
+    "education": [
+      {
+        "degree": "LL.M., Professional Legal Practice",
+        "school": "University of Law, London",
+        "year": "2014"
+      },
+      {
+        "degree": "LL.B.",
+        "school": "London School of Economics and Political Science",
+        "year": "2014"
+      }
+    ],
+    "extraction_status": "PARTIAL",
+    "missing_fields": [
+      "offices",
+      "bar_admissions"
+    ],
+    "diagnostics": {
+      "html_size": 168177,
+      "duration_ms": 1838,
+      "data_source": "firm_website",
+      "us_office_not_found": true,
+      "offices_reason": "not_found_in_raw_html",
+      "bar_admissions_reason": "not_found_in_raw_html",
+      "us_filter": "kept_no_office_data"
+    }
+  },
+  {
+    "firm": "Kirkland",
+    "profile_url": "https://www.kirkland.com/lawyers/a/abi-nassif-marie-joe",
+    "full_name": "Marie-Joe Abi-Nassif",
+    "title": "Partner",
+    "offices": [
+      "New York"
+    ],
+    "department": [
+      "Mergers & Acquisitions"
+    ],
+    "practice_areas": [
+      "Transactional",
+      "Restructuring",
+      "Intellectual Property",
+      "Litigation"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [
+      "New York"
+    ],
+    "education": [
+      {
+        "degree": "LL.M.",
+        "school": "Columbia Law School",
+        "year": null
+      },
+      {
+        "degree": "Master in Corporate Law",
+        "school": "Université Paris II Panthéon-Assas",
+        "year": null
+      },
+      {
+        "degree": "LL.B., Private Law",
+        "school": "Saint Joseph University",
+        "year": null
+      }
+    ],
+    "extraction_status": "SUCCESS",
+    "missing_fields": [],
+    "diagnostics": {
+      "html_size": 39381,
+      "duration_ms": 1290,
+      "data_source": "firm_website",
+      "us_filter": "us_offices_kept"
+    }
+  },
+  {
+    "firm": "Kirkland",
+    "profile_url": "https://www.kirkland.com/lawyers/a/abate-anthony",
+    "full_name": "Anthony Abate",
+    "title": "Associate",
+    "offices": [
+      "Chicago"
+    ],
+    "department": [
+      "Restructuring"
+    ],
+    "practice_areas": [
+      "Transactional",
+      "Restructuring",
+      "Intellectual Property",
+      "Litigation"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [
+      "2023 Illinois"
+    ],
+    "education": [
+      {
+        "degree": "J.D.",
+        "school": "University of Illinois Chicago School of Law",
+        "year": "2023"
+      },
+      {
+        "degree": "B.A., Political Science; Sociology Minor",
+        "school": "University of Illinois at Urbana-Champaign",
+        "year": "2015"
+      }
+    ],
+    "extraction_status": "SUCCESS",
+    "missing_fields": [],
+    "diagnostics": {
+      "html_size": 35006,
+      "duration_ms": 2112,
+      "data_source": "firm_website",
+      "us_filter": "us_offices_kept"
+    }
+  },
+  {
+    "firm": "Kirkland",
+    "profile_url": "https://www.kirkland.com/lawyers/a/abbott-peter",
+    "full_name": "Peter Abbott",
+    "title": "Partner",
+    "offices": [],
+    "department": [
+      "Tax"
+    ],
+    "practice_areas": [
+      "Warburg Pincus on the launch of Unity Advisory",
+      "King’s College LondonB.A., Philosophy2003",
+      "CPP Investments on the acquisition of a minority stake in Regnology",
+      "Social Commitment",
+      "Allwyn on its acquisition of stake in Instant Win Gaming Limited",
+      "Warburg Pincus on the investment in Acclime",
+      "InfraVia-backed Blue Phoenix on its €750 million refinancing transaction",
+      "Bain Capital on the acquisition of a controlling stake in Eleda",
+      "AppLearn International on its sale to Permira-backed Nexthink",
+      "Vista Equity Partners and Playlist on the $7.5 billion merger with EGYM",
+      "Services",
+      "Blue Wolf on the acquisition of seven CDMO sites from Recipharm",
+      "Transactional",
+      "Warburg Pincus on the investment in Aztec Group",
+      "Silver Lake-backed Oak View Group on the acquisition of The Brewery",
+      "GBL on the acquisition of a stake in Rayner",
+      "Amcor on the $37 billion merger with Berry Global",
+      "Hellman & Friedman on the investment in Mehiläinen",
+      "Proofpoint on the acquisition of Tessian",
+      "HGGC on the sale of Specialist Risk Group to Warburg Pincus and Temasek",
+      "EW Healthcare Partners on the acquisition of a majority stake in Grundium Oy",
+      "2008, Admitted to practice as a Solicitor of England and Wales",
+      "Bain Capital on the investment in Tingstad",
+      "Igneo Infrastructure Partners on the financing for the acquisition of City Green Light",
+      "Lawyers",
+      "Thoma Bravo and its portfolio company Veriforce on the acquisition of CHAS",
+      "Nordic Capital on the acquisition of Ascot Lloyd",
+      "K1 on the strategic investment to combine Singu and Micad",
+      "Medallia, a portfolio company of Thoma Bravo, on its acquisition of Thunderhead",
+      "Thoma Bravo-backed Flexera on its debt financing recapitalization",
+      "Thoma Bravo on its acquisition of a majority stake in Hypergene",
+      "Main Street Capital on the financing for the acquisition of Critical Mention",
+      "BPP Law School, LondonGraduate Diploma in Law2005",
+      "Warburg Pincus on the sale of its remaining stake in Reiss to NEXT plc",
+      "Warburg Pincus and ArchiMed on the sale of Polyplus",
+      "Apollo on the acquisition of a stake in bp Pipelines TAP",
+      "Thoma Bravo-backed Darktrace on the acquisition of Cado Security",
+      "Thoma Bravo and its portfolio company SailPoint on its take private of Osirium Technologies plc",
+      "Coller Capital on the strategic minority investment from Hunter Point Capital",
+      "KKR on the investment in Enilive",
+      "Litigation",
+      "Vitruvian-backed Aspia on the acquisition of Accountor Outsourcing",
+      "CPP Investments on the minority investment in EQT-backed IFS",
+      "AA, TowerBrook Capital Partners and Warburg Pincus on Stonepeak’s investment in AA",
+      "Restructuring",
+      "Warburg Pincus on its acquisition of a majority stake in Epassi Group, alongside TA Associates",
+      "Warburg Pincus on the sale of Once For All to GTCR",
+      "GBL on the acquisition of Sanoptis",
+      "BPP Law School, LondonLegal Practice Course2006",
+      "Norwegian Cruise Line on the closing of a $790 million note offering",
+      "Careers",
+      "Warburg Pincus on the acquisition of Pharma Intelligence from Informa PLC",
+      "A consortium led by Sandbrook Capital on the acquisition of NeXtWind Capital",
+      "Vitruvian Partners on the acquisition of Aspia",
+      "GBL on the acquisition of Affidea",
+      "Orchid Orthopedic Solutions on the merger with Tecomet",
+      "Intellectual Property",
+      "Nordic Capital on the sale of Sunrise Medical to Platinum Equity",
+      "GTCR on the acquisition of JMG Group",
+      "KKR and GED Capital on the acquisition of Eugin Group",
+      "CPP Investments on the acquisition of a stake in Universal Investment"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [],
+    "education": [
+      {
+        "degree": "Legal Practice Course",
+        "school": "BPP Law School, London",
+        "year": "2006"
+      },
+      {
+        "degree": "Graduate Diploma in Law",
+        "school": "BPP Law School, London",
+        "year": "2005"
+      },
+      {
+        "degree": "B.A., Philosophy",
+        "school": "King’s College London",
+        "year": "2003"
+      }
+    ],
+    "extraction_status": "PARTIAL",
+    "missing_fields": [
+      "offices",
+      "bar_admissions"
+    ],
+    "diagnostics": {
+      "html_size": 44310,
+      "duration_ms": 1795,
+      "data_source": "firm_website",
+      "us_office_not_found": true,
+      "offices_reason": "not_found_in_raw_html",
+      "bar_admissions_reason": "not_found_in_raw_html",
+      "us_filter": "kept_no_office_data"
+    }
+  },
+  {
+    "firm": "Kirkland",
+    "profile_url": "https://www.kirkland.com/lawyers/a/abernathy-nathan",
+    "full_name": "Nathan Abernathy",
+    "title": "Associate",
+    "offices": [
+      "Austin"
+    ],
+    "department": [
+      "Technology & IP Transactions"
+    ],
+    "practice_areas": [
+      "Transactional",
+      "Restructuring",
+      "Intellectual Property",
+      "Litigation"
+    ],
+    "industries": [
+      "no industry field"
+    ],
+    "bar_admissions": [
+      "2025 Texas"
+    ],
+    "education": [
+      {
+        "degree": "J.D.",
+        "school": "University of Southern California, Gould School of Law",
+        "year": "2025"
+      },
+      {
+        "degree": "B.S., Mechanical Engineering",
+        "school": "Texas A&M University",
+        "year": "2016"
+      }
+    ],
+    "extraction_status": "SUCCESS",
+    "missing_fields": [],
+    "diagnostics": {
+      "html_size": 34604,
+      "duration_ms": 858,
+      "data_source": "firm_website",
+      "us_filter": "us_offices_kept"
+    }
+  }
+]

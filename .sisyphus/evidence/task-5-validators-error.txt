@@ -1,0 +1,4 @@
+command=python -c "from validators import validate_offices; print(validate_offices(['Chen, CA','Davis, CA','partner@firm.com','http://x.com']))"
+result=PASS
+observed=([], 'contaminated')
+notes=Contamination-defense check confirmed URLs/emails still reject and surname+state artifacts are not normalized into guessed offices.

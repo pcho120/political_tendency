@@ -1,0 +1,13 @@
+site_structures.json entry count: 200
+
+Newly added firms:
+  Rank   3: DLA Piper (verein)             -> HTML_ALPHA_PAGINATED      confidence=0.7
+  Rank   4: Skadden                        -> SITEMAP_XML               confidence=0.9
+  Rank   5: Gibson Dunn                    -> HTML_ALPHA_PAGINATED      confidence=0.7
+  Rank   6: Sidley                         -> HTML_ALPHA_PAGINATED      confidence=0.8
+  Rank   7: Ropes & Gray                   -> BOT_PROTECTED             confidence=0.9
+  Rank   8: Baker McKenzie (verein)        -> SITEMAP_XML               confidence=0.9
+  Rank   9: White & Case                   -> BOT_PROTECTED             confidence=0.9
+  Rank  10: Morgan Lewis                   -> HTML_ALPHA_PAGINATED      confidence=0.8
+  Rank  11: Hogan Lovells                  -> BOT_PROTECTED             confidence=0.9
+  Rank  12: Simpson Thacher                -> HTML_ALPHA_PAGINATED      confidence=0.8

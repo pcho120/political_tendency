@@ -1,0 +1,4 @@
+﻿python_executable=C:\Python314\python.exe
+python_version=3.14.0
+PASS | list merge should preserve lower-precedence practice areas | expected_practice_areas=['Corporate', 'IP', 'Litigation'] actual_practice_areas=['Corporate', 'IP', 'Litigation']
+OVERALL: PASS

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Emily Park - Ashford Quinn LLP</title>
+  <!-- Failure mode (d): SPA small-content / Playwright-recoverable case.
+       The page has a __NEXT_DATA__ JSON payload with full profile data,
+       but the rendered HTML body is minimal — just a loading shell.
+       Without Playwright or JSON payload parsing, the enricher sees
+       very little content and may produce an all-empty profile. -->
+  <script id="__NEXT_DATA__" type="application/json">
+  {
+    "props": {
+      "pageProps": {
+        "attorney": {
+          "name": "Emily Park",
+          "title": "Senior Associate",
+          "offices": ["Boston"],
+          "department": "Litigation",
+          "practiceAreas": ["Securities Litigation", "White Collar Defense", "Government Investigations"],
+          "industries": ["Financial Services", "Banking"],
+          "barAdmissions": ["Massachusetts, 2016", "New York, 2017"],
+          "education": [
+            "J.D., NYU School of Law, 2015",
+            "B.A. in History, Brown University, 2012"
+          ]
+        }
+      }
+    }
+  }
+  </script>
+</head>
+<body>
+
+<!-- Minimal rendered shell — SPA content loads client-side via JS -->
+<div id="__next">
+  <div class="loading-shell">
+    <p>Loading attorney profile...</p>
+  </div>
+</div>
+
+</body>
+</html>

@@ -13,11 +13,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from validators import ValidationReason, validate_offices, validate_title
+from validators import validate_department, validate_practice_areas
 
 
 @dataclass(frozen=True)
@@ -31,6 +34,22 @@ class TitleCase:
 
 @dataclass(frozen=True)
 class OfficeCase:
+    name: str
+    raw: list[str]
+    expected_value: list[str]
+    expected_reason: str | None
+
+
+@dataclass(frozen=True)
+class PracticeCase:
+    name: str
+    raw: list[str]
+    expected_value: list[str]
+    expected_reason: str | None
+
+
+@dataclass(frozen=True)
+class DepartmentCase:
     name: str
     raw: list[str]
     expected_value: list[str]
@@ -103,6 +122,24 @@ OFFICE_CASES: list[OfficeCase] = [
     ),
 ]
 
+PRACTICE_CASES: list[PracticeCase] = [
+    PracticeCase(
+        name="short_valid_practice_tokens_are_preserved",
+        raw=["IP", "M&A", "Tax"],
+        expected_value=["IP", "M&A", "Tax"],
+        expected_reason=None,
+    ),
+]
+
+DEPARTMENT_CASES: list[DepartmentCase] = [
+    DepartmentCase(
+        name="short_valid_department_tokens_are_preserved",
+        raw=["IP", "M&A", "Tax"],
+        expected_value=["IP", "M&A", "Tax"],
+        expected_reason=None,
+    ),
+]
+
 
 def _print_result(kind: str, case_name: str, ok: bool, details: str) -> None:
     status = "PASS" if ok else "FAIL"
@@ -136,6 +173,48 @@ def _run_office_case(case: OfficeCase, non_us_policy: str) -> bool:
     return ok
 
 
+def _run_practice_case(case: PracticeCase) -> bool:
+    value, reason = validate_practice_areas(case.raw)
+    ok = value == case.expected_value and reason == case.expected_reason
+    details = (
+        f"raw={case.raw!r} expected_value={case.expected_value!r} actual_value={value!r} "
+        f"expected_reason={case.expected_reason!r} actual_reason={reason!r}"
+    )
+    _print_result("practice_areas", case.name, ok, details)
+    return ok
+
+
+def _run_department_case(case: DepartmentCase) -> bool:
+    value, reason = validate_department(case.raw)
+    ok = value == case.expected_value and reason == case.expected_reason
+    details = (
+        f"raw={case.raw!r} expected_value={case.expected_value!r} actual_value={value!r} "
+        f"expected_reason={case.expected_reason!r} actual_reason={reason!r}"
+    )
+    _print_result("department", case.name, ok, details)
+    return ok
+
+
+@pytest.mark.parametrize("case", TITLE_CASES, ids=lambda case: case.name)
+def test_validate_title(case: TitleCase) -> None:
+    assert _run_title_case(case)
+
+
+@pytest.mark.parametrize("case", OFFICE_CASES, ids=lambda case: case.name)
+def test_validate_offices(case: OfficeCase) -> None:
+    assert _run_office_case(case, non_us_policy="reject")
+
+
+@pytest.mark.parametrize("case", PRACTICE_CASES, ids=lambda case: case.name)
+def test_validate_practice_areas(case: PracticeCase) -> None:
+    assert _run_practice_case(case)
+
+
+@pytest.mark.parametrize("case", DEPARTMENT_CASES, ids=lambda case: case.name)
+def test_validate_department(case: DepartmentCase) -> None:
+    assert _run_department_case(case)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -157,6 +236,14 @@ def main() -> int:
 
     for case in OFFICE_CASES:
         if not _run_office_case(case, args.non_us_policy):
+            failures += 1
+
+    for case in PRACTICE_CASES:
+        if not _run_practice_case(case):
+            failures += 1
+
+    for case in DEPARTMENT_CASES:
+        if not _run_department_case(case):
             failures += 1
 
     if failures:

@@ -399,12 +399,32 @@ def validate_offices(raw: list[str]) -> tuple[list[str], str | None]:
         if re.match(r"(?i)^washington\s+dc$", text):
             text = "Washington, DC"
 
+        compact = re.sub(r"\s+", " ", text).strip()
+
+        # Accept unambiguous comma-free city/state forms like "Boston MA".
+        city_state_match = re.match(r"^(?P<city>.+?)\s+(?P<state>[A-Z]{2})$", compact)
+        if city_state_match:
+            city = city_state_match.group("city").strip(" ,")
+            state_code = city_state_match.group("state").upper()
+            if city in _US_MAJOR_LAW_CITIES or city.lower() in {c.lower() for c in _US_MAJOR_LAW_CITIES}:
+                normalized = f"{city}, {state_code}"
+                if normalized not in seen:
+                    seen.add(normalized)
+                    cleaned.append(normalized)
+                continue
+            if "," not in compact:
+                continue
+
         # US state code check: "City, ST"
         if ", " in text:
             parts = text.split(", ")
             state_code = parts[-1].strip().upper()
             if state_code in _US_STATE_ABBR:
-                normalized = text
+                city = ", ".join(parts[:-1]).strip()
+                if city and (city in _US_MAJOR_LAW_CITIES or city.lower() in {c.lower() for c in _US_MAJOR_LAW_CITIES}):
+                    normalized = f"{city}, {state_code}"
+                else:
+                    continue
                 if normalized not in seen:
                     seen.add(normalized)
                     cleaned.append(normalized)
@@ -466,6 +486,8 @@ def validate_department(raw: list[str]) -> tuple[list[str], str | None]:
         r"always\s*active",
         r"(?i)english\w{4,}",
         r"^\w+\s*\|\s*\w+$",
+        r"search|login|home|people|lawyers|practices|industries|offices|careers|insights",
+        r"go\s+back|proceed|our firm|inclusion|alumni",
     ]
 
     cleaned: list[str] = []
@@ -473,11 +495,13 @@ def validate_department(raw: list[str]) -> tuple[list[str], str | None]:
 
     for dept in raw:
         dept = dept.strip()
-        if not dept or len(dept) < 3 or len(dept) > 150:
+        if not dept or len(dept) < 2 or len(dept) > 100:
             continue
-        if dept.isupper() and len(dept.split()) <= 3:
+        if dept.isupper() and len(dept.split()) <= 3 and dept.lower() not in _KNOWN_UPPERCASE_PRACTICES:
             continue
         if re.search(r"read more|expand biography|publication", dept, re.IGNORECASE):
+            continue
+        if len(dept) >= 35 and _BIO_VERB_PATTERN.search(dept):
             continue
         if any(re.search(p, dept, re.IGNORECASE) for p in contamination_patterns):
             continue
@@ -509,7 +533,7 @@ def validate_practice_areas(raw: list[str]) -> tuple[list[str], str | None]:
     for practice in raw:
         practice = practice.strip()
 
-        if not practice or len(practice) < 3 or len(practice) > 150:
+        if not practice or len(practice) < 2 or len(practice) > 150:
             continue
 
         if any(junk in practice.lower() for junk in _JUNK_PHRASES):

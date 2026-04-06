@@ -11,9 +11,10 @@ Precedence (higher = more trusted):
 
 Rules:
   - Scalar fields (full_name, title): higher precedence wins; ties keep existing
-  - List fields (offices, department, practice_areas, industries,
-    bar_admissions, education): higher precedence OVERWRITES; same
-    precedence UNION-DEDUP (merge without duplicates)
+  - Target list fields (offices, department, practice_areas): higher precedence
+    UNION-DEDUP with existing entries (never destructively overwrites)
+  - Other list fields (industries, bar_admissions, education): higher precedence
+    OVERWRITES; same precedence UNION-DEDUP (merge without duplicates)
   - Every field that receives a value tracks source_origin_per_field[field] = source_url
 """
 
@@ -49,6 +50,9 @@ LIST_FIELDS: tuple[str, ...] = (
     "education",
 )
 ALL_PROFILE_FIELDS: tuple[str, ...] = SCALAR_FIELDS + LIST_FIELDS
+
+# Target fields use union-dedup even across precedence levels (never overwrite)
+_TARGET_LIST_FIELDS: frozenset[str] = frozenset({"department", "practice_areas", "offices"})
 
 
 # ---------------------------------------------------------------------------
@@ -180,10 +184,17 @@ class FieldMerger:
             else:
                 # --- List merge ---
                 cur_list: list = cur_val if isinstance(cur_val, list) else []
+                # Narrow new_val to list for type safety (all LIST_FIELDS
+                # are list-typed on AttorneyProfile; _is_empty already
+                # rejected None and empty collections above).
+                if isinstance(new_val, list):
+                    new_items: list = new_val
+                else:
+                    new_items = [new_val]  # defensive: wrap scalar in list
 
                 if _is_empty(cur_list):
                     # Empty — take new list
-                    new_list = list(new_val)
+                    new_list = list(new_items)
                     setattr(base, f_name, new_list)
                     prec_cache[f_name] = src_prec
                     if is_merged:
@@ -192,19 +203,32 @@ class FieldMerger:
                             f"SET   {f_name}=[{len(new_list)} items] from {source_type}({source_url})"
                         )
                 elif src_prec > cur_prec:
-                    # Higher precedence — overwrite entirely
-                    new_list = list(new_val)
-                    setattr(base, f_name, new_list)
-                    prec_cache[f_name] = src_prec
-                    if is_merged:
-                        base.source_origin_per_field[f_name] = source_url  # type: ignore[union-attr]
-                        base.merge_log.append(  # type: ignore[union-attr]
-                            f"OVR   {f_name}: [{len(cur_list)} items] -> [{len(new_list)} items] "
-                            f"({cur_prec} -> {src_prec}) from {source_type}({source_url})"
-                        )
+                    if f_name in _TARGET_LIST_FIELDS:
+                        # Target fields: union-dedup (preserve earlier valid entries)
+                        merged_list = _dedup_list(new_items + cur_list)
+                        added = len(merged_list) - len(cur_list)
+                        setattr(base, f_name, merged_list)
+                        prec_cache[f_name] = src_prec
+                        if is_merged:
+                            base.source_origin_per_field[f_name] = source_url  # type: ignore[union-attr]
+                            base.merge_log.append(  # type: ignore[union-attr]
+                                f"UNION↑{f_name}: [{len(cur_list)} items] -> [{len(merged_list)} items] "
+                                f"(+{added}) ({cur_prec} -> {src_prec}) from {source_type}({source_url})"
+                            )
+                    else:
+                        # Non-target list fields: higher precedence overwrites entirely
+                        new_list = list(new_items)
+                        setattr(base, f_name, new_list)
+                        prec_cache[f_name] = src_prec
+                        if is_merged:
+                            base.source_origin_per_field[f_name] = source_url  # type: ignore[union-attr]
+                            base.merge_log.append(  # type: ignore[union-attr]
+                                f"OVR   {f_name}: [{len(cur_list)} items] -> [{len(new_list)} items] "
+                                f"({cur_prec} -> {src_prec}) from {source_type}({source_url})"
+                            )
                 elif src_prec == cur_prec:
                     # Same precedence — union-dedup
-                    merged_list = _dedup_list(cur_list + list(new_val))
+                    merged_list = _dedup_list(cur_list + new_items)
                     added = len(merged_list) - len(cur_list)
                     if added > 0:
                         setattr(base, f_name, merged_list)
@@ -215,7 +239,21 @@ class FieldMerger:
                             base.merge_log.append(  # type: ignore[union-attr]
                                 f"UNION {f_name}: +{added} items from {source_type}({source_url})"
                             )
-                # Lower precedence list — keep existing, no-op
+                else:
+                    # Lower precedence
+                    if f_name in _TARGET_LIST_FIELDS:
+                        # Target fields: union-dedup even from lower-precedence sources
+                        merged_list = _dedup_list(cur_list + new_items)
+                        added = len(merged_list) - len(cur_list)
+                        if added > 0:
+                            setattr(base, f_name, merged_list)
+                            # Precedence stays at the higher level (cur_prec)
+                            if is_merged:
+                                base.merge_log.append(  # type: ignore[union-attr]
+                                    f"UNION↓{f_name}: +{added} items from {source_type}({source_url}) "
+                                    f"(prec {src_prec} < {cur_prec})"
+                                )
+                    # Non-target lower-precedence list — keep existing, no-op
 
         # Recalculate extraction status after merge
         if hasattr(base, "calculate_status"):

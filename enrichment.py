@@ -438,6 +438,15 @@ class ProfileEnricher:
             if reason:
                 profile.diagnostics["department_reason"] = reason
 
+        # Department inference fallback: infer from practice areas when empty
+        if not profile.department:
+            inferred = infer_department_from_practices(
+                profile.practice_areas, profile.department,
+            )
+            if inferred:
+                profile.department = inferred
+                profile.diagnostics["department_inferred"] = True
+
         # Practice areas
         pa_clean, reason = validate_practice_areas(profile.practice_areas)
         if pa_clean:
@@ -1340,22 +1349,41 @@ def _merge_embedded_state(profile: AttorneyProfile, data: dict[str, Any]) -> Non
                 profile.title = str(data[key]).strip()
                 break
 
+    # Target list fields: additive union/dedup for practice_areas
     for key in ("practices", "practiceAreas", "expertise", "specialties"):
-        if key in data and not profile.practice_areas:
+        if key in data:
             items = data[key]
             if isinstance(items, list):
                 for p in items:
-                    if p:
+                    if p and str(p).strip() not in profile.practice_areas:
                         profile.practice_areas.append(str(p).strip())
-            elif isinstance(items, str) and items:
+            elif isinstance(items, str) and items and items.strip() not in profile.practice_areas:
                 profile.practice_areas.append(items.strip())
             break
 
-    if not profile.department:
-        _merge_list_field(
-            profile.department, data,
-            ("department", "group", "practiceGroup", "division"),
-        )
+    # Target list fields: additive union/dedup for department
+    for key in ("department", "group", "practiceGroup", "division"):
+        if key in data:
+            val = data[key]
+            if isinstance(val, list):
+                for d in val:
+                    if d and str(d).strip() not in profile.department:
+                        profile.department.append(str(d).strip())
+            elif isinstance(val, str) and val and val.strip() not in profile.department:
+                profile.department.append(val.strip())
+            break
+
+    # Target list fields: additive union/dedup for offices
+    for key in ("offices", "office", "location", "officeLocation"):
+        if key in data:
+            val = data[key]
+            if isinstance(val, list):
+                for o in val:
+                    if o and str(o).strip() not in profile.offices:
+                        profile.offices.append(str(o).strip())
+            elif isinstance(val, str) and val and val.strip() not in profile.offices:
+                profile.offices.append(val.strip())
+            break
 
     if not profile.industries:
         _merge_list_field(
@@ -1390,14 +1418,28 @@ def _merge_captured_json(profile: AttorneyProfile, payloads: list[dict[str, Any]
                     profile.title = str(attorney[key]).strip()
                     break
 
-        _merge_list_field(
-            profile.offices, attorney,
-            ("office", "location", "officeLocation"),
-        )
-        _merge_list_field(
-            profile.practice_areas, attorney,
-            ("practiceAreas", "practices", "expertise"),
-        )
+        # Target list fields: additive union/dedup for offices
+        for key in ("offices", "office", "location", "officeLocation"):
+            if key in attorney:
+                val = attorney[key]
+                if isinstance(val, list):
+                    for o in val:
+                        if o and str(o).strip() not in profile.offices:
+                            profile.offices.append(str(o).strip())
+                elif isinstance(val, str) and val and val.strip() not in profile.offices:
+                    profile.offices.append(val.strip())
+                break
+        # Target list fields: additive union/dedup for practice_areas
+        for key in ("practiceAreas", "practices", "expertise"):
+            if key in attorney:
+                val = attorney[key]
+                if isinstance(val, list):
+                    for p in val:
+                        if p and str(p).strip() not in profile.practice_areas:
+                            profile.practice_areas.append(str(p).strip())
+                elif isinstance(val, str) and val and val.strip() not in profile.practice_areas:
+                    profile.practice_areas.append(val.strip())
+                break
         _merge_list_field(
             profile.industries, attorney,
             ("industries", "sectors"),
@@ -1475,25 +1517,23 @@ def _extract_from_section_map(
         if not profile.title:
             profile.title = _extract_title_proximity(html)
 
-    # --- Offices ---
+    # --- Offices (additive union/dedup for target list fields) ---
     # Skip section-parser office extraction for Weil (section parser returns full firm office
     # directory from page nav, not the individual attorney's office)
-    if not profile.offices and "weil.com" not in url:
+    if "weil.com" not in url:
         for text in find_section(section_map, "offices"):
             if text and text not in profile.offices:
                 profile.offices.append(text)
 
-    # --- Departments ---
-    if not profile.department:
-        for text in find_section(section_map, "departments"):
-            if text and text not in profile.department:
-                profile.department.append(text)
+    # --- Departments (additive union/dedup for target list fields) ---
+    for text in find_section(section_map, "departments"):
+        if text and text not in profile.department:
+            profile.department.append(text)
 
-    # --- Practice Areas ---
-    if not profile.practice_areas:
-        for text in find_section(section_map, "practice_areas"):
-            if text and text not in profile.practice_areas:
-                profile.practice_areas.append(text)
+    # --- Practice Areas (additive union/dedup for target list fields) ---
+    for text in find_section(section_map, "practice_areas"):
+        if text and text not in profile.practice_areas:
+            profile.practice_areas.append(text)
 
     # --- Industries ---
     if not profile.industries:
@@ -1788,3 +1828,65 @@ def _all_field_names() -> list[str]:
         "full_name", "title", "offices", "department",
         "practice_areas", "industries", "bar_admissions", "education",
     ]
+
+
+# ---------------------------------------------------------------------------
+# Practice → Department inference fallback
+# ---------------------------------------------------------------------------
+
+_PRACTICE_DEPARTMENT_MAP: list[dict] | None = None
+
+
+def _load_practice_department_map() -> list[dict]:
+    """Load and cache the practice-department mapping table."""
+    global _PRACTICE_DEPARTMENT_MAP
+    if _PRACTICE_DEPARTMENT_MAP is not None:
+        return _PRACTICE_DEPARTMENT_MAP
+    import json as _json
+    from pathlib import Path
+    map_path = Path(__file__).resolve().parent / "config" / "practice_department_map.json"
+    try:
+        with open(map_path, encoding="utf-8") as f:
+            data = _json.load(f)
+        _PRACTICE_DEPARTMENT_MAP = sorted(
+            data.get("mappings", []),
+            key=lambda m: m.get("priority", 99),
+        )
+    except Exception:
+        _PRACTICE_DEPARTMENT_MAP = []
+    return _PRACTICE_DEPARTMENT_MAP
+
+
+def infer_department_from_practices(
+    practice_areas: list[str],
+    department: list[str],
+) -> list[str]:
+    """Infer department from practice areas when department is empty.
+
+    Only runs if department is empty (``[]``).  Iterates over practice_areas
+    and checks each mapping's patterns list — if ANY pattern is a
+    case-insensitive substring of the practice area, the first match's
+    department is returned with an ``" (inferred)"`` suffix.
+
+    Args:
+        practice_areas: Current practice areas on the profile.
+        department: Current department list on the profile.
+
+    Returns:
+        A list like ``["Litigation (inferred)"]`` on match, or ``[]`` if
+        department is already populated, practice_areas is empty, or no
+        mapping matched.
+    """
+    if department:
+        return []
+    if not practice_areas:
+        return []
+
+    mappings = _load_practice_department_map()
+    for practice in practice_areas:
+        practice_lower = practice.lower()
+        for mapping in mappings:
+            for pattern in mapping.get("patterns", []):
+                if pattern.lower() in practice_lower:
+                    return [f"{mapping['department']} (inferred)"]
+    return []

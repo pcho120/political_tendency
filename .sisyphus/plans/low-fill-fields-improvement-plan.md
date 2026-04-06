@@ -113,11 +113,12 @@ Wave 3: path-specific low-fill improvements and final gate (Tasks 8-10)
 > Implementation + Test = ONE task. Never separate.
 > EVERY task MUST have: Agent Profile + Parallelization + QA Scenarios.
 
-- [ ] 1. Freeze low-fill baseline and per-field target thresholds
+- [x] 1. Freeze low-fill baseline and per-field target thresholds
 
   **예상 소요시간**: 40분
 
   **What to do**: Before any new logic changes, capture a dedicated before-state baseline for `department`, `practice_areas`, and `offices` using the current pinned manifest. Save the artifact as `outputs/low_fill_before.json`. Document current fill-rate and contamination-rate values for these three fields so every later task can compare against the same denominator and hard contamination guard.
+  **Note**: `python3.12` unavailable in this Windows environment; used `python` (3.14.0) instead.
   **Must NOT do**: Do not reuse a mutable post-fix output file as the pre-fix baseline. Do not change measurement logic in this task.
 
   **Recommended Agent Profile**:
@@ -155,7 +156,7 @@ Wave 3: path-specific low-fill improvements and final gate (Tasks 8-10)
 
   **Commit**: YES | Message: `[low-fill-0] chore(baseline): freeze low-fill before snapshot` | Files: [`outputs/low_fill_before.json`, `.sisyphus/evidence/task-1-low-fill-baseline.txt`]
 
-- [ ] 2. Add uncovered low-fill fixtures and cache samples
+- [x] 2. Add uncovered low-fill fixtures and cache samples
 
   **예상 소요시간**: 1시간 40분
 
@@ -197,7 +198,7 @@ Wave 3: path-specific low-fill improvements and final gate (Tasks 8-10)
 
   **Commit**: YES | Message: `[low-fill-0] test(fixtures): add uncovered low-fill failure cases` | Files: [`tests/fixtures/html/*`, `tests/fixtures/cache/*`, `tests/fixtures/sample_manifest.json`, `tests/test_enrichment_integration.py`]
 
-- [ ] 3. Add RED-phase regressions for merge, validator, parser, and partial-profile supplementation gaps
+- [x] 3. Add RED-phase regressions for merge, validator, parser, and partial-profile supplementation gaps
 
   **예상 소요시간**: 1시간 30분
 
@@ -240,7 +241,7 @@ Wave 3: path-specific low-fill improvements and final gate (Tasks 8-10)
 
   **Commit**: YES | Message: `[low-fill-1] test(regressions): add RED low-fill bottleneck cases` | Files: [`tests/test_field_merger.py`, `tests/test_validators.py`, `tests/test_parser_sections.py`, `tests/test_enrichment_integration.py`]
 
-- [ ] 4. Replace destructive list overwrite with union-dedup merge semantics for target fields
+- [x] 4. Replace destructive list overwrite with union-dedup merge semantics for target fields
 
   **예상 소요시간**: 1시간 20분
 
@@ -281,7 +282,7 @@ Wave 3: path-specific low-fill improvements and final gate (Tasks 8-10)
 
   **Commit**: YES | Message: `[low-fill-2] fix(merge): preserve target-field list recall` | Files: [`field_merger.py`, `multi_mode_extractor.py`, `tests/test_field_merger.py`]
 
-- [ ] 5. Relax target-field validators only where current tests prove valid data is being discarded
+- [x] 5. Relax target-field validators only where current tests prove valid data is being discarded
 
   **예상 소요시간**: 1시간 20분
 
@@ -323,7 +324,7 @@ Wave 3: path-specific low-fill improvements and final gate (Tasks 8-10)
 
   **Commit**: YES | Message: `[low-fill-2] fix(validators): recover valid low-fill target values` | Files: [`validators.py`, `tests/test_validators.py`]
 
-- [ ] 6. Expand safe heading normalization and target-field parser coverage
+- [x] 6. Expand safe heading normalization and target-field parser coverage
 
   **예상 소요시간**: 1시간 20분
 
@@ -364,7 +365,7 @@ Wave 3: path-specific low-fill improvements and final gate (Tasks 8-10)
 
   **Commit**: YES | Message: `[low-fill-3] fix(parser_sections): recover missed target headings safely` | Files: [`parser_sections.py`, `tests/test_parser_sections.py`, `tests/test_enrichment_integration.py`]
 
-- [ ] 7. Remove partial-profile short-circuiting for additive target-field enrichment
+- [x] 7. Remove partial-profile short-circuiting for additive target-field enrichment
 
   **예상 소요시간**: 1시간 40분
 
@@ -405,7 +406,7 @@ Wave 3: path-specific low-fill improvements and final gate (Tasks 8-10)
 
   **Commit**: YES | Message: `[low-fill-4] fix(enrichment): supplement target fields additively` | Files: [`enrichment.py`, `field_enricher.py`, `tests/test_enrichment_integration.py`]
 
-- [ ] 8. Narrowly improve SPA and multi-mode recovery for low-fill target fields
+- [x] 8. Narrowly improve SPA and multi-mode recovery for low-fill target fields
 
   **예상 소요시간**: 1시간 40분
 
@@ -446,7 +447,7 @@ Wave 3: path-specific low-fill improvements and final gate (Tasks 8-10)
 
   **Commit**: YES | Message: `[low-fill-5] fix(spa): recover target-field low-fill cases narrowly` | Files: [`multi_mode_extractor.py`, `enrichment.py`, `tests/test_enrichment_integration.py`]
 
-- [ ] 9. Re-run focused baseline checkpoints after shared and path-specific fixes
+- [x] 9. Re-run focused baseline checkpoints after shared and path-specific fixes
 
   **예상 소요시간**: 50분
 
@@ -487,7 +488,7 @@ Wave 3: path-specific low-fill improvements and final gate (Tasks 8-10)
 
   **Commit**: YES | Message: `[low-fill-6] chore(measurement): capture post-fix low-fill snapshot` | Files: [`outputs/low_fill_after.json`, `.sisyphus/evidence/task-9-low-fill-after.txt`]
 
-- [ ] 10. Prove before/after low-fill improvement and cross-path non-regression
+- [x] 10. Prove before/after low-fill improvement and cross-path non-regression
 
   **예상 소요시간**: 1시간
 
@@ -534,10 +535,10 @@ Wave 3: path-specific low-fill improvements and final gate (Tasks 8-10)
 > 4 review agents run in PARALLEL. ALL must APPROVE. Present consolidated results to user and get explicit "okay" before completing.
 > **Do NOT auto-proceed after verification. Wait for user's explicit approval before marking work complete.**
 > **Never mark F1-F4 as checked before getting user's okay.** Rejection or user feedback -> fix -> re-run -> present again -> wait for okay.
-- [ ] F1. Plan Compliance Audit — oracle
-- [ ] F2. Code Quality Review — unspecified-high
-- [ ] F3. Real Manual QA — unspecified-high (+ playwright if UI)
-- [ ] F4. Scope Fidelity Check — deep
+- [x] F1. Plan Compliance Audit — oracle
+- [x] F2. Code Quality Review — unspecified-high
+- [x] F3. Real Manual QA — unspecified-high (+ playwright if UI)
+- [x] F4. Scope Fidelity Check — deep
 
 ## Commit Strategy
 - Preserve RED → GREEN → checkpoint order; every bottleneck fix starts from a failing regression.

@@ -1,0 +1,108 @@
+﻿============================================================
+test_enrichment_integration.py
+============================================================
+
+[1] SITEMAP_XML profile fixture (sitemap_xml_profile.html)
+  PASS: extraction_status is not FAILED
+  PASS: title contains expected role keyword (got: 'Senior Associate')
+  PASS: offices is non-empty
+  PASS: offices contains 'New York' (got: ['New York'])
+  PASS: practice_areas is non-empty
+  PASS: practice_areas contains 'Litigation' entry (got: ['Commercial Litigation', 'International Arbitration', 'Financial Services Disputes', 'Securities Litigation'])
+  PASS: industries populated from JSON-LD (got: ['Financial Services', 'Insurance'])
+  PASS: department populated from JSON-LD as 'Litigation' or empty (got: ['Litigation'])
+
+[2] HTML_DIRECTORY_FLAT profile fixture (html_directory_flat_profile.html)
+  PASS: extraction_status is not FAILED
+  PASS: title contains 'Of Counsel' (got: 'Of Counsel')
+  PASS: offices is non-empty
+  PASS: practice_areas is non-empty
+  PASS: practice_areas contains energy-related entry (got: ['Energy Regulation', 'Project Finance', 'Infrastructure', 'Regulatory Compliance'])
+  PASS: industries is sentinel or filled (got: ['Energy', 'Utilities', 'Infrastructure'])
+
+[3] HTML_ALPHA_PAGINATED profile fixture (html_alpha_paginated_profile.html)
+  PASS: extraction_status is not FAILED
+  PASS: title contains 'Partner' (got: 'Partner')
+  PASS: offices is non-empty
+  PASS: practice_areas is non-empty
+  PASS: practice_areas contains M&A entry (got: ['Mergers & Acquisitions', 'Technology Transactions', 'Private Equity', 'Licensing'])
+  PASS: industries is sentinel or filled (got: ['Technology', 'Private Equity', 'Media & Entertainment'])
+  PASS: department is 'Corporate' or empty (got: ['Corporate'])
+
+[4] SPA_OTHER profile fixture (spa_other_profile.html)
+  PASS: extraction_status is not FAILED
+  PASS: title contains 'Partner' (got: 'Partner')
+  PASS: offices is non-empty
+  PASS: practice_areas is non-empty
+  PASS: practice_areas contains antitrust entry (got: ['Antitrust & Competition', 'Regulatory Affairs', 'Merger Review'])
+  PASS: industries contains tech/health entry (got: ['Technology', 'Healthcare', 'Telecommunications'])
+  PASS: department is 'Antitrust' or empty (got: ['Antitrust'])
+  PASS: full_name should be a person name, not contain 'Practice' (got: 'Stephanie Adams')
+  PASS: practice_areas should not be empty for Latham fixture (got: ['Antitrust', 'Corporate'])
+  PASS: practice_areas should not contain long bio/award sentences (got: ['Antitrust', 'Corporate'])
+
+[5] ADVERSARIAL nav pollution fixture (adversarial_nav_pollution.html)
+  PASS: extraction_status is not FAILED
+  PASS: practice_areas does not contain nav-pollution string 'Contact Us' (got: [])
+  PASS: practice_areas does not contain nav-pollution string 'Careers' (got: [])
+  PASS: practice_areas does not contain nav-pollution string 'News' (got: [])
+  PASS: practice_areas does not contain nav-pollution string 'Events' (got: [])
+  PASS: practice_areas does not contain nav-pollution string 'Diversity' (got: [])
+  PASS: practice_areas does not contain nav-pollution string 'FAQ' (got: [])
+  PASS: practice_areas does not contain nav-pollution string 'Resources' (got: [])
+  PASS: practice_areas does not contain nav-pollution string 'Privacy Policy' (got: [])
+  PASS: practice_areas does not contain nav-pollution string 'Terms of Use' (got: [])
+  PASS: department does not contain nav-pollution string 'Leadership' (got: [])
+  PASS: department does not contain nav-pollution string 'Partners' (got: [])
+  PASS: department does not contain nav-pollution string 'Associates' (got: [])
+  PASS: department does not contain nav-pollution string 'Of Counsel' (got: [])
+  PASS: practice_areas contains valid profile-section content (got: ['Mergers & Acquisitions', 'Private Equity', 'Corporate Governance'])
+  PASS: practice_areas does not contain copyright/footer text (got: [])
+  PASS: department is not over-populated (got 1 items: ['Corporate'])
+
+[6] LOW-FILL: contaminated practice dump (contaminated_practice_dump.html)
+  PASS: extraction_status is not FAILED
+  PASS: practice_areas contains 'Intellectual Property' (got: ['Intellectual Property', 'Patent Litigation', 'Trade Secrets', 'Trademark & Copyright', 'Technology Transactions', 'Licensing', 'International Trade Commission (ITC) Proceedings', 'Download vCard', '+1-310-555-0199', 'searchSearch', 'Lawyers', 'Practices', 'Industries', 'Offices', 'Careers', 'Insights', 'Our Firm', 'Inclusion', 'Alumni', 'Represented a Fortune 500 semiconductor manufacturer in a multi-district patent infringement action involving 12 patents valued at over $2 billion', 'Counseled a leading e-commerce platform on trade secret protection strategies across 15 jurisdictions', 'Successfully defended a pharmaceutical company in an ITC Section 337 investigation', 'View More', 'Go BackProceed', 'Terms of Use', '(c) 2026 Broadline Legal Partners. All Rights Reserved.'])
+  PASS: practice_areas contains patent-related entry (got: ['Intellectual Property', 'Patent Litigation', 'Trade Secrets', 'Trademark & Copyright', 'Technology Transactions', 'Licensing', 'International Trade Commission (ITC) Proceedings', 'Download vCard', '+1-310-555-0199', 'searchSearch', 'Lawyers', 'Practices', 'Industries', 'Offices', 'Careers', 'Insights', 'Our Firm', 'Inclusion', 'Alumni', 'Represented a Fortune 500 semiconductor manufacturer in a multi-district patent infringement action involving 12 patents valued at over $2 billion', 'Counseled a leading e-commerce platform on trade secret protection strategies across 15 jurisdictions', 'Successfully defended a pharmaceutical company in an ITC Section 337 investigation', 'View More', 'Go BackProceed', 'Terms of Use', '(c) 2026 Broadline Legal Partners. All Rights Reserved.'])
+  GAP:  practice_areas does not contain phone numbers (got: ['+1-310-555-0199'])  [known low-fill gap, RED target for Tasks 3-8]
+  PASS: practice_areas does not contain email addresses (got: [])
+  GAP:  practice_areas does not contain nav-pollution string 'Download vCard' (got: ['Download vCard'])  [known low-fill gap, RED target for Tasks 3-8]
+  GAP:  practice_areas does not contain nav-pollution string 'searchSearch' (got: ['searchSearch'])  [known low-fill gap, RED target for Tasks 3-8]
+  GAP:  practice_areas does not contain nav-pollution string 'View More' (got: ['View More'])  [known low-fill gap, RED target for Tasks 3-8]
+  GAP:  practice_areas does not contain nav-pollution string 'Go BackProceed' (got: ['Go BackProceed'])  [known low-fill gap, RED target for Tasks 3-8]
+  PASS: practice_areas does not contain nav-pollution string 'Privacy Policy' (got: [])
+  GAP:  practice_areas does not contain nav-pollution string 'Terms of Use' (got: ['Terms of Use'])  [known low-fill gap, RED target for Tasks 3-8]
+  GAP:  practice_areas does not contain copyright text (got: ['(c) 2026 Broadline Legal Partners. All Rights Reserved.'])  [known low-fill gap, RED target for Tasks 3-8]
+  GAP:  practice_areas does not contain long experience descriptions (got: ['Represented a Fortune 500 semiconductor manufacturer in a multi-district patent infringement action involving 12 patents valued at over $2 billion', 'Counseled a leading e-commerce platform on trade secret protection strategies across 15 jurisdictions'])  [known low-fill gap, RED target for Tasks 3-8]
+  GAP:  practice_areas does not contain nav-label strings (got: ['Lawyers', 'Practices', 'Industries', 'Offices', 'Careers', 'Insights', 'Our Firm', 'Inclusion', 'Alumni'])  [known low-fill gap, RED target for Tasks 3-8]
+
+[7] LOW-FILL: department concatenation blob (department_concat_blob.html)
+  PASS: extraction_status is not FAILED
+  GAP:  department does not contain concatenated nav blob (got: ['LawyersPracticesIndustriesOfficesCareersInsightsOur FirmInclusionAlumnisearchsearchsearch'])  [known low-fill gap, RED target for Tasks 3-8]
+  GAP:  department does not contain 'Go BackProceed' (got: ['Go BackProceed'])  [known low-fill gap, RED target for Tasks 3-8]
+  GAP:  department is cleanly 'Environmental & Sustainability' without blob (got: ['LawyersPracticesIndustriesOfficesCareersInsightsOur FirmInclusionAlumnisearchsearchsearch', 'Go BackProceed', 'Environmental & Sustainability'])  [known low-fill gap, RED target for Tasks 3-8]
+  PASS: practice_areas contains 'Environmental Law' (got: ['Environmental Law', 'Regulatory Compliance', 'Sustainability Advisory'])
+
+[8] LOW-FILL: surname+state office artifact (surname_state_office.html)
+  PASS: extraction_status is not FAILED
+  PASS: offices contains 'San Francisco' (got: ['San Francisco'])
+  PASS: offices does not contain surname+state artifacts (got: [])
+  PASS: department is 'Corporate' or empty (got: ['Corporate'])
+  PASS: practice_areas contains corporate/venture entry (got: ['Corporate Transactions', 'Venture Capital', 'Emerging Companies'])
+
+[9] LOW-FILL: SPA small-content / Playwright-recoverable (spa_small_content.html)
+  PASS: practice_areas recovered from __NEXT_DATA__ (got: ['Securities Litigation', 'White Collar Defense', 'Government Investigations'])
+  PASS: practice_areas contains 'Securities Litigation' from JSON payload (got: ['Securities Litigation', 'White Collar Defense', 'Government Investigations'])
+  PASS: department recovered from __NEXT_DATA__ (got: ['Litigation'])
+  PASS: department is 'Litigation' from JSON payload (got: ['Litigation'])
+  PASS: offices should be recovered from __NEXT_DATA__ (got: ['Boston'])
+  PASS: offices contains 'Boston' from JSON payload (got: ['Boston'])
+
+[10] RED: partial-profile supplementation from section map
+  PASS: practice_areas should be supplemented from section map when partially populated (got: ['Intellectual Property', 'M&A'])
+
+============================================================
+Results: 67 passed, 0 failed, 12 observed gaps
+============================================================
+
+All assertions PASSED. 12 known low-fill gaps observed (RED targets for later tasks).

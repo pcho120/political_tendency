@@ -1,0 +1,124 @@
+{
+  "mappings": [
+    {
+      "patterns": ["litigation", "trial", "dispute", "appellate"],
+      "department": "Litigation",
+      "priority": 1
+    },
+    {
+      "patterns": ["corporate", "m&a", "mergers", "acquisitions", "transactions", "capital markets"],
+      "department": "Corporate",
+      "priority": 1
+    },
+    {
+      "patterns": ["tax", "taxation", "estate planning", "tax controversy"],
+      "department": "Tax",
+      "priority": 1
+    },
+    {
+      "patterns": ["intellectual property", "patent", "trademark", "copyright", "ip litigation", "trade secret"],
+      "department": "Intellectual Property",
+      "priority": 1
+    },
+    {
+      "patterns": ["real estate", "property", "land use", "zoning", "construction", "reit"],
+      "department": "Real Estate",
+      "priority": 1
+    },
+    {
+      "patterns": ["labor", "employment", "wage", "discrimination", "erisa", "workplace"],
+      "department": "Labor & Employment",
+      "priority": 1
+    },
+    {
+      "patterns": ["restructuring", "bankruptcy", "insolvency", "creditor", "debtor"],
+      "department": "Restructuring",
+      "priority": 1
+    },
+    {
+      "patterns": ["antitrust", "competition", "monopoly", "cartel"],
+      "department": "Antitrust",
+      "priority": 1
+    },
+    {
+      "patterns": ["environmental", "climate", "sustainability", "clean energy", "esg"],
+      "department": "Environmental",
+      "priority": 1
+    },
+    {
+      "patterns": ["finance", "banking", "lending", "credit facilit", "structured finance", "leveraged finance"],
+      "department": "Finance",
+      "priority": 1
+    },
+    {
+      "patterns": ["insurance", "reinsurance", "coverage"],
+      "department": "Insurance",
+      "priority": 1
+    },
+    {
+      "patterns": ["securities", "sec enforcement", "securities regulation"],
+      "department": "Securities",
+      "priority": 2
+    },
+    {
+      "patterns": ["healthcare", "health law", "fda", "pharmaceutical", "life sciences", "biotech"],
+      "department": "Healthcare",
+      "priority": 1
+    },
+    {
+      "patterns": ["technology", "privacy", "data protection", "cyber", "fintech", "artificial intelligence"],
+      "department": "Technology",
+      "priority": 1
+    },
+    {
+      "patterns": ["government", "public law", "regulatory affairs", "policy", "public policy", "government contracts"],
+      "department": "Government",
+      "priority": 1
+    },
+    {
+      "patterns": ["energy", "oil", "gas", "utilities", "power", "renewable"],
+      "department": "Energy",
+      "priority": 1
+    },
+    {
+      "patterns": ["international", "cross-border", "trade", "global"],
+      "department": "International",
+      "priority": 2
+    },
+    {
+      "patterns": ["private equity", "fund formation", "hedge fund", "investment management", "venture capital"],
+      "department": "Private Equity",
+      "priority": 1
+    },
+    {
+      "patterns": ["white collar", "criminal defense", "internal investigation", "fcpa", "fraud"],
+      "department": "White Collar",
+      "priority": 1
+    },
+    {
+      "patterns": ["arbitration", "mediation", "alternative dispute"],
+      "department": "Arbitration",
+      "priority": 2
+    },
+    {
+      "patterns": ["trusts", "estates", "wealth management", "probate", "fiduciary"],
+      "department": "Trusts & Estates",
+      "priority": 1
+    },
+    {
+      "patterns": ["pro bono", "community service"],
+      "department": "Pro Bono",
+      "priority": 2
+    },
+    {
+      "patterns": ["media", "entertainment", "sports", "advertising"],
+      "department": "Media & Entertainment",
+      "priority": 1
+    },
+    {
+      "patterns": ["immigration", "visa", "i-9"],
+      "department": "Immigration",
+      "priority": 1
+    }
+  ]
+}

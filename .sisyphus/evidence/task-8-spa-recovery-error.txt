@@ -1,0 +1,30 @@
+Task 8 — Non-regression verification
+=====================================
+Date: 2026-04-05
+
+All 4 test suites pass after Task 8 changes:
+
+1. test_enrichment_integration.py: 67 passed, 0 failed, 12 observed gaps
+   - Same pass/gap count as before Task 8 attorney_extractor/multi_mode changes
+   - SPA case [9] remains fully green for all 3 target fields
+   - Adversarial nav-pollution [5] fully green (no new contamination)
+   - Non-SPA fixtures [1]-[4], [6]-[8], [10] unchanged
+
+2. test_field_merger.py: PASS
+3. test_validators.py: PASS (11/11)
+4. test_parser_sections.py: 17 pass, 0 fail
+
+Changes made:
+- attorney_extractor.py: Added department + offices extraction to both
+  _merge_embedded_data() instances (additive union/dedup for target list fields)
+- multi_mode_extractor.py: Added department extraction to _extract_from_json_payloads()
+
+Spillover analysis:
+- No new fields extracted (only department/offices added to paths that already
+  extract practice_areas — symmetric coverage)
+- No changes to title, industries, education, bar_admissions, or full_name handling
+- No changes to mode escalation, Playwright strategy, or extraction order
+- Additive semantics prevent overwriting earlier strong values
+
+LSP diagnostics: 0 new errors in attorney_extractor.py, multi_mode_extractor.py,
+enrichment.py (all pre-existing diagnostics are unchanged)

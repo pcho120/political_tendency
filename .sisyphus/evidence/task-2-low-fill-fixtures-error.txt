@@ -1,0 +1,17 @@
+﻿python : FAIL: fixture not found: 
+C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\tests\fixtures\html\nonexistent_fixture.html
+At line:1 char:1
++ python -c "
++ ~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (FAIL: fixture n...nt_fixture.html:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+FAIL: fixture appears malformed (< 500 bytes): 
+C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\tests\fixtures\html\malformed_test_temp.html
+Test: loading nonexistent fixture: C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\tests\fixtures\html\nonexistent_fixture.html
+Expected behavior: harness correctly reports missing fixture
+
+Test: loading malformed (tiny) fixture: C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\tests\fixtures\html\malformed_test_temp.html
+Expected behavior: harness correctly reports malformed fixture
+
+Failure-path verification complete: both missing and malformed fixtures produce clear errors.

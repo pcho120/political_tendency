@@ -10,6 +10,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -50,6 +52,7 @@ NORMALIZE_NEW_CASES: list[NormalizeCase] = [
     NormalizeCase("Practice Group", "departments", "practice group synonym"),
     NormalizeCase("Working Group", "working_group", "working group guard"),
     NormalizeCase("Practice Department", "departments", "practice department synonym"),
+    NormalizeCase("Areas of Focus", "practice_areas", "focus heading synonym"),
 ]
 
 RISKY_ADVERSARIAL_CASES: list[NormalizeCase] = [
@@ -174,6 +177,45 @@ def _run_parse_case(case: ParseCase) -> tuple[int, int]:
         ok = False
         details.append(f"mapped={mapped!r}")
     return _report(ok, case.label, " ".join(details))
+
+
+@pytest.mark.parametrize("case", NORMALIZE_POSITIVE_CASES, ids=lambda case: case.label)
+def test_normalize_positive_cases(case: NormalizeCase) -> None:
+    passed, failed = _run_normalize_case(case)
+    assert passed == 1 and failed == 0
+
+
+@pytest.mark.parametrize("case", RISKY_POSITIVE_CASES, ids=lambda case: case.label)
+def test_normalize_risky_positive_cases(case: NormalizeCase) -> None:
+    passed, failed = _run_normalize_case(case)
+    assert passed == 1 and failed == 0
+
+
+@pytest.mark.parametrize("case", RISKY_ADVERSARIAL_CASES, ids=lambda case: case.label)
+def test_normalize_risky_adversarial_cases(case: NormalizeCase) -> None:
+    passed, failed = _run_adversarial_case(case)
+    assert passed == 1 and failed == 0
+
+
+@pytest.mark.parametrize("case", NORMALIZE_NEW_CASES, ids=lambda case: case.label)
+def test_normalize_new_cases(case: NormalizeCase) -> None:
+    passed, failed = _run_normalize_case(case)
+    assert passed == 1 and failed == 0
+
+
+@pytest.mark.parametrize(
+    "case",
+    [BOUNDARY_OFFICES_BAR, BOUNDARY_PRACTICE_BIO, LATHAM_H3_UNDER_H2],
+    ids=lambda case: case.label,
+)
+def test_parse_boundary_cases(case: ParseCase) -> None:
+    passed, failed = _run_parse_case(case)
+    assert passed == 1 and failed == 0
+
+
+def test_parse_nested_heading_boundary() -> None:
+    passed, failed = _run_parse_case(BOUNDARY_CASE)
+    assert passed == 1 and failed == 0
 
 
 def main() -> int:

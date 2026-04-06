@@ -133,6 +133,34 @@
       "structure_type": "BOT_PROTECTED",
       "is_blocked": true,
       "cache_file": "tests/fixtures/cache/sheppard_mullin.jsonl"
+    },
+    {
+      "firm": "Synth ContamPractice",
+      "structure_type": "SITEMAP_XML",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/synth_contam_practice.jsonl",
+      "_failure_mode": "large_contaminated_practice_dump"
+    },
+    {
+      "firm": "Synth DeptBlob",
+      "structure_type": "HTML_DIRECTORY_FLAT",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/synth_dept_blob.jsonl",
+      "_failure_mode": "department_concatenation_blob"
+    },
+    {
+      "firm": "Synth SurnameOffice",
+      "structure_type": "HTML_DIRECTORY_FLAT",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/synth_surname_office.jsonl",
+      "_failure_mode": "surname_state_office_artifact"
+    },
+    {
+      "firm": "Synth SPASmall",
+      "structure_type": "SPA_OTHER",
+      "is_blocked": false,
+      "cache_file": "tests/fixtures/cache/synth_spa_small.jsonl",
+      "_failure_mode": "spa_small_content_playwright_recoverable"
     }
   ]
 }

@@ -1,0 +1,24 @@
+﻿Task 7 Contamination/Non-Regression Verification
+==================================================
+Date: 2026-04-05 17:29:22
+
+All test suites pass without regression:
+
+1. test_enrichment_integration.py: 65 passed, 0 failed, 13 observed gaps
+   - Adversarial nav pollution fixture [5]: ALL 17 assertions PASS
+   - No nav junk leaked into practice_areas or department
+   - Partial-profile supplementation [10]: PASS (was RED, now GREEN)
+
+2. test_field_merger.py: PASS
+   - Union-dedup merge semantics preserved
+
+3. test_validators.py: PASS
+   - Short valid tokens still accepted, contamination still rejected
+
+4. test_parser_sections.py: 17 pass, 0 fail
+   - Heading normalization and adversarial guards intact
+
+Strategy: Proximity fallback (STAGE 5, weak source) retains `if not profile.X`
+guard for target list fields to prevent weak-source contamination. Only
+section-map extraction (STAGE 4, same-strength source) and embedded state
+(STAGE 2, higher-strength structured source) use additive union/dedup.

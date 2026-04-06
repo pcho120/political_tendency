@@ -666,22 +666,39 @@ class MultiModeExtractor:
                     if title:
                         profile.title = str(title)
                 
-                # Extract offices
-                office = attorney_data.get("office") or attorney_data.get("location") or attorney_data.get("officeLocation")
-                if office and not profile.offices:
+                # Extract offices — additive union/dedup for target list field
+                office = (attorney_data.get("offices") or attorney_data.get("office")
+                          or attorney_data.get("location") or attorney_data.get("officeLocation"))
+                if office:
                     if isinstance(office, list):
-                        profile.offices = [str(o) for o in office]
-                    else:
-                        profile.offices = [str(office)]
+                        for o in office:
+                            if o and str(o).strip() not in profile.offices:
+                                profile.offices.append(str(o).strip())
+                    elif isinstance(office, str) and office.strip() not in profile.offices:
+                        profile.offices.append(office.strip())
                 
-                # Extract practice areas
+                # Extract practice areas — additive union/dedup for target list field
                 practices = attorney_data.get("practiceAreas") or attorney_data.get("practices") or attorney_data.get("expertise")
-                if practices and not profile.practice_areas:
+                if practices:
                     if isinstance(practices, list):
-                        profile.practice_areas = [str(p) for p in practices]
-                    elif isinstance(practices, str):
-                        profile.practice_areas = [practices]
+                        for p in practices:
+                            if p and str(p).strip() not in profile.practice_areas:
+                                profile.practice_areas.append(str(p).strip())
+                    elif isinstance(practices, str) and practices.strip() not in profile.practice_areas:
+                        profile.practice_areas.append(practices.strip())
                 
+                # Extract department — additive union/dedup for target list field
+                for dept_key in ("department", "group", "practiceGroup", "division"):
+                    dept_val = attorney_data.get(dept_key)
+                    if dept_val:
+                        if isinstance(dept_val, list):
+                            for d in dept_val:
+                                if d and str(d).strip() not in profile.department:
+                                    profile.department.append(str(d).strip())
+                        elif isinstance(dept_val, str) and dept_val.strip() not in profile.department:
+                            profile.department.append(dept_val.strip())
+                        break
+
                 # Extract industries
                 industries = attorney_data.get("industries") or attorney_data.get("sectors")
                 if industries and not profile.industries:
@@ -892,19 +909,40 @@ class MultiModeExtractor:
         profile2: AttorneyProfile,
         precedence: str = "mode2"
     ) -> AttorneyProfile:
-        """Merge two profiles, with precedence for non-null fields"""
+        """Merge two profiles, with precedence for non-null fields.
+
+        Target list fields (offices, department, practice_areas) use
+        union-dedup so that neither side's valid entries are lost.
+        """
         merged = AttorneyProfile(firm=profile1.firm, profile_url=profile1.profile_url)
         
         # Determine which takes precedence
         primary = profile2 if precedence in ["mode2", "mode3"] else profile1
         fallback = profile1 if precedence in ["mode2", "mode3"] else profile2
         
-        # Merge fields (primary takes precedence for non-null)
+        # Merge scalar fields (primary takes precedence for non-null)
         merged.full_name = primary.full_name or fallback.full_name
         merged.title = primary.title or fallback.title
-        merged.offices = primary.offices if primary.offices else fallback.offices
-        merged.department = primary.department if primary.department else fallback.department
-        merged.practice_areas = primary.practice_areas if primary.practice_areas else fallback.practice_areas
+
+        # Target list fields: union-dedup (preserve both sides)
+        _target = {"offices", "department", "practice_areas"}
+        for f_name in _target:
+            pri_val: list = getattr(primary, f_name, []) or []
+            fb_val: list = getattr(fallback, f_name, []) or []
+            if pri_val and fb_val:
+                # Union-dedup: primary values first, then unique fallback values
+                seen: set[str] = set()
+                result: list[str] = []
+                for v in pri_val + fb_val:
+                    key = str(v)
+                    if key not in seen:
+                        seen.add(key)
+                        result.append(v)
+                setattr(merged, f_name, result)
+            else:
+                setattr(merged, f_name, pri_val if pri_val else fb_val)
+
+        # Non-target list fields: primary takes precedence
         merged.industries = primary.industries if primary.industries else fallback.industries
         merged.bar_admissions = primary.bar_admissions if primary.bar_admissions else fallback.bar_admissions
         merged.education = primary.education if primary.education else fallback.education

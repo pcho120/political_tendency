@@ -514,6 +514,30 @@ class AttorneyExtractor:
                 elif isinstance(practices, str) and practices:
                     if practices not in profile.practice_areas:
                         profile.practice_areas.append(practices.strip())
+
+        # Target list fields: additive union/dedup for department
+        for dept_key in ["department", "group", "practiceGroup", "division"]:
+            if dept_key in data:
+                dept_val = data[dept_key]
+                if isinstance(dept_val, list):
+                    for d in dept_val:
+                        if d and str(d).strip() not in profile.department:
+                            profile.department.append(str(d).strip())
+                elif isinstance(dept_val, str) and dept_val and dept_val.strip() not in profile.department:
+                    profile.department.append(dept_val.strip())
+                break
+
+        # Target list fields: additive union/dedup for offices
+        for office_key in ["offices", "office", "location", "officeLocation"]:
+            if office_key in data:
+                office_val = data[office_key]
+                if isinstance(office_val, list):
+                    for o in office_val:
+                        if o and str(o).strip() not in profile.offices:
+                            profile.offices.append(str(o).strip())
+                elif isinstance(office_val, str) and office_val and office_val.strip() not in profile.offices:
+                    profile.offices.append(office_val.strip())
+                break
     
     # ========================================================================
     # STAGE 3: BEAUTIFULSOUP SEMANTIC EXTRACTION
@@ -750,30 +774,179 @@ class AttorneyExtractor:
     
     def _extract_departments_bs4(self, soup: BeautifulSoup) -> list[str]:
         """Extract department/group using BeautifulSoup"""
-        departments = []
-        
-        dept_selectors = [
-            {'class': re.compile(r'(department|group|division|section)', re.I)},
-        ]
-        
-        for selector in dept_selectors:
-            elems = soup.find_all(['div', 'span', 'p', 'li'], selector)
-            for elem in elems:
-                text = elem.get_text(strip=True)
-                if text and len(text) < 200:
-                    departments.append(text)
-        
-        # Look for section headers
-        for header in soup.find_all(['h2', 'h3', 'h4']):
-            header_text = header.get_text(strip=True).lower()
-            if any(kw in header_text for kw in ['department', 'group', 'division', 'section']):
-                # Extract following content
-                next_elem = header.find_next_sibling()
-                if next_elem:
-                    text = next_elem.get_text(strip=True)
-                    if text and len(text) < 200:
-                        departments.append(text)
-        
+        departments: list[str] = []
+        seen: set[str] = set()
+        inline_tags = {"span", "a", "strong", "em", "b", "small", "label"}
+        generic_labels = {
+            "department", "departments", "group", "groups", "division", "section",
+            "practice group", "practice groups", "team", "overview",
+        }
+        nav_keywords = (
+            "home", "people", "lawyers", "practices", "industries", "offices", "careers",
+            "insights", "our firm", "inclusion", "alumni", "search", "login", "go back",
+            "proceed",
+        )
+        bio_verbs = re.compile(
+            r"\b(advises|advised|represents|represented|focuses|focused|works on|clients|"
+            r"experience|distressed debt|workouts|compliance)\b",
+            re.IGNORECASE,
+        )
+
+        def _clean_candidate(text: str) -> str:
+            text = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", text)
+            return re.sub(r"\s+", " ", text).strip(" \t\r\n:-•|")
+
+        def _is_noise(candidate: str) -> bool:
+            lowered = candidate.lower()
+            if not candidate or len(candidate) < 2 or len(candidate) > 100:
+                return True
+            if lowered in generic_labels:
+                return True
+            if re.search(r"@|http|www\.|cookie|consent|tel:|phone", candidate, re.IGNORECASE):
+                return True
+            if any(keyword in lowered for keyword in nav_keywords):
+                return True
+            if len(candidate) >= 35 and bio_verbs.search(candidate):
+                return True
+            return False
+
+        def _add_candidate(candidate: str | None) -> None:
+            if not candidate:
+                return
+            cleaned = _clean_candidate(candidate)
+            if _is_noise(cleaned):
+                return
+            key = cleaned.lower()
+            if key in seen:
+                return
+            seen.add(key)
+            departments.append(cleaned)
+
+        def _extract_json_ld_departments() -> None:
+            def _collect_department_values(value: Any) -> None:
+                if isinstance(value, str):
+                    _add_candidate(value)
+                elif isinstance(value, list):
+                    for item in value:
+                        _collect_department_values(item)
+                elif isinstance(value, dict):
+                    _collect_department_values(value.get("name") or value.get("department"))
+
+            def _walk_json_ld(node: Any) -> None:
+                if isinstance(node, list):
+                    for item in node:
+                        _walk_json_ld(item)
+                    return
+                if not isinstance(node, dict):
+                    return
+
+                node_type = node.get("@type")
+                node_types = node_type if isinstance(node_type, list) else [node_type]
+                if any(str(item).lower().endswith("person") for item in node_types if item):
+                    _collect_department_values(node.get("department"))
+
+                for value in node.values():
+                    if isinstance(value, (dict, list)):
+                        _walk_json_ld(value)
+
+            for script in soup.find_all("script", attrs={"type": re.compile(r"application/ld\+json", re.I)}):
+                raw = script.string or script.get_text()
+                if not raw:
+                    continue
+                try:
+                    payload = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                _walk_json_ld(payload)
+
+        def _extract_label_from_container(elem: Tag) -> str | None:
+            for attr_name in ("data-department", "data-dept"):
+                attr_value = elem.get(attr_name)
+                if isinstance(attr_value, str) and attr_value.strip():
+                    return attr_value.strip()
+
+            heading = elem.find(["h1", "h2", "h3", "h4", "h5", "h6", "button", "summary", "label"])
+            if heading:
+                heading_text = heading.get_text(" ", strip=True)
+                if heading_text and heading_text.lower() not in generic_labels:
+                    return heading_text
+
+            direct_parts: list[str] = []
+            for child in elem.children:
+                if isinstance(child, str):
+                    part = child.strip()
+                elif getattr(child, "name", None) in inline_tags:
+                    part = child.get_text(" ", strip=True)
+                else:
+                    continue
+                if part:
+                    direct_parts.append(part)
+
+            if direct_parts:
+                return " ".join(direct_parts)
+
+            return None
+
+        def _candidate_texts_from_sibling(elem: Tag) -> list[str]:
+            if elem.get("role") == "tablist" or elem.find(attrs={"role": "tab"}):
+                return []
+
+            items: list[str] = []
+            for node in elem.find_all(["li", "p", "dd"]):
+                text = node.get_text(" ", strip=True)
+                if text:
+                    items.append(text)
+
+            if items:
+                return items
+
+            fallback = _extract_label_from_container(elem)
+            return [fallback] if fallback else []
+
+        _extract_json_ld_departments()
+
+        for elem in soup.find_all(
+            lambda tag: tag.name and not tag.find_parent(["nav", "header", "footer"]) and (
+                any(
+                    re.search(r"department|practice[-_ ]?group|dept", cls, re.I)
+                    for cls in (tag.get("class") or [])
+                )
+                or tag.has_attr("data-department")
+                or tag.has_attr("data-dept")
+            )
+        ):
+            _add_candidate(_extract_label_from_container(elem))
+
+        for header in soup.find_all(["h2", "h3", "h4", "h5"]):
+            if header.find_parent(["nav", "header", "footer"]):
+                continue
+            header_text = _clean_candidate(header.get_text(" ", strip=True)).lower()
+            header_keywords = ["department", "group", "division", "section", "practice group", "team"]
+            if not any(keyword in header_text for keyword in header_keywords):
+                continue
+
+            for sibling in header.next_siblings:
+                if not getattr(sibling, "name", None):
+                    continue
+                if sibling.name in {"h2", "h3", "h4", "h5"}:
+                    break
+                if sibling.name in {"nav", "header", "footer"}:
+                    continue
+                sibling_marker = " ".join(
+                    str(part)
+                    for part in [
+                        sibling.get("data-tab", ""),
+                        sibling.get("id", ""),
+                        sibling.get("aria-label", ""),
+                        " ".join(sibling.get("class") or []),
+                    ]
+                    if part
+                ).lower()
+                if sibling_marker and not any(keyword in sibling_marker for keyword in header_keywords):
+                    continue
+                for candidate in _candidate_texts_from_sibling(sibling):
+                    _add_candidate(candidate)
+
         return departments
     
     # ========================================================================
@@ -904,9 +1077,119 @@ class AttorneyExtractor:
     
     def _extract_industries_bs4(self, soup: BeautifulSoup) -> list[str]:
         """Extract industries using BeautifulSoup"""
-        # Section-header approach: find h2/h3/h4 whose text contains 'industr'
-        industries = self._extract_section_items_after_header(soup, ['industr'])
-        return industries
+        industries: list[str] = []
+        seen: set[str] = set()
+        header_keywords = [
+            'industr',
+            'sector',
+            'market',
+            'industry focus',
+            'industry experience',
+            'industries served',
+        ]
+
+        def _add_candidate(value: str | None) -> None:
+            if not value:
+                return
+            candidate = re.sub(r'\s+', ' ', str(value)).strip(' \t\r\n:-•|')
+            if not candidate or len(candidate) > 150:
+                return
+            key = candidate.lower()
+            if key in {
+                'industry', 'industries', 'sector', 'sectors', 'market', 'markets',
+                'industry focus', 'industry experience', 'industries served',
+            }:
+                return
+            if key in seen:
+                return
+            seen.add(key)
+            industries.append(candidate)
+
+        def _add_from_value(value: Any) -> None:
+            if isinstance(value, str):
+                _add_candidate(value)
+            elif isinstance(value, list):
+                for item in value:
+                    _add_from_value(item)
+            elif isinstance(value, dict):
+                _add_from_value(value.get('name') or value.get('@value'))
+
+        def _walk_json_ld(node: Any) -> None:
+            if isinstance(node, list):
+                for item in node:
+                    _walk_json_ld(item)
+                return
+            if not isinstance(node, dict):
+                return
+
+            if 'knowsAbout' in node:
+                _add_from_value(node.get('knowsAbout'))
+
+            for value in node.values():
+                if isinstance(value, (dict, list)):
+                    _walk_json_ld(value)
+
+        def _add_direct_texts(elem: Tag) -> None:
+            for child in elem.children:
+                if isinstance(child, str):
+                    _add_candidate(child.strip())
+                    continue
+                if getattr(child, 'name', None) in {'span', 'a', 'p', 'div', 'strong', 'em'}:
+                    _add_candidate(child.get_text(' ', strip=True))
+
+        def _extract_from_container(container: Tag) -> None:
+            for header in container.find_all(['h2', 'h3', 'h4', 'h5', 'h6']):
+                if header.find_parent(['nav', 'header', 'footer']):
+                    continue
+                header_text = header.get_text(' ', strip=True).lower()
+                if not any(keyword in header_text for keyword in header_keywords):
+                    continue
+
+                for sibling in header.next_siblings:
+                    if not getattr(sibling, 'name', None):
+                        continue
+                    if sibling.name in {'h2', 'h3', 'h4', 'h5', 'h6'}:
+                        break
+                    if sibling.find_parent(['nav', 'header', 'footer']):
+                        continue
+
+                    list_items = sibling.find_all('li') if hasattr(sibling, 'find_all') else []
+                    if list_items:
+                        for li in list_items:
+                            _add_candidate(li.get_text(' ', strip=True))
+                        continue
+
+                    if sibling.name in {'li', 'p', 'dd', 'a', 'span', 'div'}:
+                        _add_candidate(sibling.get_text(' ', strip=True))
+                    _add_direct_texts(sibling)
+
+        for script in soup.find_all('script', attrs={'type': re.compile(r'application/ld\+json', re.I)}):
+            raw = script.string or script.get_text()
+            if not raw:
+                continue
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            _walk_json_ld(payload)
+
+        for elem in soup.select('[class*="industr"], [class*="sector"], [data-industry]'):
+            if elem.find_parent(['nav', 'header', 'footer']):
+                continue
+            if elem.find_all('li'):
+                for li in elem.find_all('li'):
+                    _add_candidate(li.get_text(' ', strip=True))
+            else:
+                _add_direct_texts(elem)
+
+        for container in soup.find_all('aside'):
+            _extract_from_container(container)
+        for container in soup.select('[class*="sidebar"], [class*="aside"]'):
+            _extract_from_container(container)
+
+        _extract_from_container(soup)
+
+        return industries or ['no industry field']
 
     def _extract_bar_admissions_bs4(self, soup: BeautifulSoup) -> list[str]:
         """Extract bar admissions using BeautifulSoup"""
@@ -1802,6 +2085,30 @@ class AttorneyExtractor:
                 elif isinstance(practices, str) and practices:
                     if practices not in profile.practice_areas:
                         profile.practice_areas.append(practices.strip())
+
+        # Target list fields: additive union/dedup for department
+        for dept_key in ["department", "group", "practiceGroup", "division"]:
+            if dept_key in data:
+                dept_val = data[dept_key]
+                if isinstance(dept_val, list):
+                    for d in dept_val:
+                        if d and str(d).strip() not in profile.department:
+                            profile.department.append(str(d).strip())
+                elif isinstance(dept_val, str) and dept_val and dept_val.strip() not in profile.department:
+                    profile.department.append(dept_val.strip())
+                break
+
+        # Target list fields: additive union/dedup for offices
+        for office_key in ["offices", "office", "location", "officeLocation"]:
+            if office_key in data:
+                office_val = data[office_key]
+                if isinstance(office_val, list):
+                    for o in office_val:
+                        if o and str(o).strip() not in profile.offices:
+                            profile.offices.append(str(o).strip())
+                elif isinstance(office_val, str) and office_val and office_val.strip() not in profile.offices:
+                    profile.offices.append(office_val.strip())
+                break
     
     # ========================================================================
     # STAGE 3: BEAUTIFULSOUP SEMANTIC EXTRACTION
@@ -2038,30 +2345,179 @@ class AttorneyExtractor:
     
     def _extract_departments_bs4(self, soup: BeautifulSoup) -> list[str]:
         """Extract department/group using BeautifulSoup"""
-        departments = []
-        
-        dept_selectors = [
-            {'class': re.compile(r'(department|group|division|section)', re.I)},
-        ]
-        
-        for selector in dept_selectors:
-            elems = soup.find_all(['div', 'span', 'p', 'li'], selector)
-            for elem in elems:
-                text = elem.get_text(strip=True)
-                if text and len(text) < 200:
-                    departments.append(text)
-        
-        # Look for section headers
-        for header in soup.find_all(['h2', 'h3', 'h4']):
-            header_text = header.get_text(strip=True).lower()
-            if any(kw in header_text for kw in ['department', 'group', 'division', 'section']):
-                # Extract following content
-                next_elem = header.find_next_sibling()
-                if next_elem:
-                    text = next_elem.get_text(strip=True)
-                    if text and len(text) < 200:
-                        departments.append(text)
-        
+        departments: list[str] = []
+        seen: set[str] = set()
+        inline_tags = {"span", "a", "strong", "em", "b", "small", "label"}
+        generic_labels = {
+            "department", "departments", "group", "groups", "division", "section",
+            "practice group", "practice groups", "team", "overview",
+        }
+        nav_keywords = (
+            "home", "people", "lawyers", "practices", "industries", "offices", "careers",
+            "insights", "our firm", "inclusion", "alumni", "search", "login", "go back",
+            "proceed",
+        )
+        bio_verbs = re.compile(
+            r"\b(advises|advised|represents|represented|focuses|focused|works on|clients|"
+            r"experience|distressed debt|workouts|compliance)\b",
+            re.IGNORECASE,
+        )
+
+        def _clean_candidate(text: str) -> str:
+            text = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", text)
+            return re.sub(r"\s+", " ", text).strip(" \t\r\n:-•|")
+
+        def _is_noise(candidate: str) -> bool:
+            lowered = candidate.lower()
+            if not candidate or len(candidate) < 2 or len(candidate) > 100:
+                return True
+            if lowered in generic_labels:
+                return True
+            if re.search(r"@|http|www\.|cookie|consent|tel:|phone", candidate, re.IGNORECASE):
+                return True
+            if any(keyword in lowered for keyword in nav_keywords):
+                return True
+            if len(candidate) >= 35 and bio_verbs.search(candidate):
+                return True
+            return False
+
+        def _add_candidate(candidate: str | None) -> None:
+            if not candidate:
+                return
+            cleaned = _clean_candidate(candidate)
+            if _is_noise(cleaned):
+                return
+            key = cleaned.lower()
+            if key in seen:
+                return
+            seen.add(key)
+            departments.append(cleaned)
+
+        def _extract_json_ld_departments() -> None:
+            def _collect_department_values(value: Any) -> None:
+                if isinstance(value, str):
+                    _add_candidate(value)
+                elif isinstance(value, list):
+                    for item in value:
+                        _collect_department_values(item)
+                elif isinstance(value, dict):
+                    _collect_department_values(value.get("name") or value.get("department"))
+
+            def _walk_json_ld(node: Any) -> None:
+                if isinstance(node, list):
+                    for item in node:
+                        _walk_json_ld(item)
+                    return
+                if not isinstance(node, dict):
+                    return
+
+                node_type = node.get("@type")
+                node_types = node_type if isinstance(node_type, list) else [node_type]
+                if any(str(item).lower().endswith("person") for item in node_types if item):
+                    _collect_department_values(node.get("department"))
+
+                for value in node.values():
+                    if isinstance(value, (dict, list)):
+                        _walk_json_ld(value)
+
+            for script in soup.find_all("script", attrs={"type": re.compile(r"application/ld\+json", re.I)}):
+                raw = script.string or script.get_text()
+                if not raw:
+                    continue
+                try:
+                    payload = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                _walk_json_ld(payload)
+
+        def _extract_label_from_container(elem: Tag) -> str | None:
+            for attr_name in ("data-department", "data-dept"):
+                attr_value = elem.get(attr_name)
+                if isinstance(attr_value, str) and attr_value.strip():
+                    return attr_value.strip()
+
+            heading = elem.find(["h1", "h2", "h3", "h4", "h5", "h6", "button", "summary", "label"])
+            if heading:
+                heading_text = heading.get_text(" ", strip=True)
+                if heading_text and heading_text.lower() not in generic_labels:
+                    return heading_text
+
+            direct_parts: list[str] = []
+            for child in elem.children:
+                if isinstance(child, str):
+                    part = child.strip()
+                elif getattr(child, "name", None) in inline_tags:
+                    part = child.get_text(" ", strip=True)
+                else:
+                    continue
+                if part:
+                    direct_parts.append(part)
+
+            if direct_parts:
+                return " ".join(direct_parts)
+
+            return None
+
+        def _candidate_texts_from_sibling(elem: Tag) -> list[str]:
+            if elem.get("role") == "tablist" or elem.find(attrs={"role": "tab"}):
+                return []
+
+            items: list[str] = []
+            for node in elem.find_all(["li", "p", "dd"]):
+                text = node.get_text(" ", strip=True)
+                if text:
+                    items.append(text)
+
+            if items:
+                return items
+
+            fallback = _extract_label_from_container(elem)
+            return [fallback] if fallback else []
+
+        _extract_json_ld_departments()
+
+        for elem in soup.find_all(
+            lambda tag: tag.name and not tag.find_parent(["nav", "header", "footer"]) and (
+                any(
+                    re.search(r"department|practice[-_ ]?group|dept", cls, re.I)
+                    for cls in (tag.get("class") or [])
+                )
+                or tag.has_attr("data-department")
+                or tag.has_attr("data-dept")
+            )
+        ):
+            _add_candidate(_extract_label_from_container(elem))
+
+        for header in soup.find_all(["h2", "h3", "h4", "h5"]):
+            if header.find_parent(["nav", "header", "footer"]):
+                continue
+            header_text = _clean_candidate(header.get_text(" ", strip=True)).lower()
+            header_keywords = ["department", "group", "division", "section", "practice group", "team"]
+            if not any(keyword in header_text for keyword in header_keywords):
+                continue
+
+            for sibling in header.next_siblings:
+                if not getattr(sibling, "name", None):
+                    continue
+                if sibling.name in {"h2", "h3", "h4", "h5"}:
+                    break
+                if sibling.name in {"nav", "header", "footer"}:
+                    continue
+                sibling_marker = " ".join(
+                    str(part)
+                    for part in [
+                        sibling.get("data-tab", ""),
+                        sibling.get("id", ""),
+                        sibling.get("aria-label", ""),
+                        " ".join(sibling.get("class") or []),
+                    ]
+                    if part
+                ).lower()
+                if sibling_marker and not any(keyword in sibling_marker for keyword in header_keywords):
+                    continue
+                for candidate in _candidate_texts_from_sibling(sibling):
+                    _add_candidate(candidate)
+
         return departments
     
     def _extract_practices_bs4(self, soup: BeautifulSoup) -> list[str]:
@@ -2203,9 +2659,119 @@ class AttorneyExtractor:
 
     def _extract_industries_bs4(self, soup: BeautifulSoup) -> list[str]:
         """Extract industries using BeautifulSoup"""
-        # Section-header approach: find h2/h3/h4 whose text contains 'industr'
-        industries = self._extract_section_items_after_header(soup, ['industr'])
-        return industries
+        industries: list[str] = []
+        seen: set[str] = set()
+        header_keywords = [
+            'industr',
+            'sector',
+            'market',
+            'industry focus',
+            'industry experience',
+            'industries served',
+        ]
+
+        def _add_candidate(value: str | None) -> None:
+            if not value:
+                return
+            candidate = re.sub(r'\s+', ' ', str(value)).strip(' \t\r\n:-•|')
+            if not candidate or len(candidate) > 150:
+                return
+            key = candidate.lower()
+            if key in {
+                'industry', 'industries', 'sector', 'sectors', 'market', 'markets',
+                'industry focus', 'industry experience', 'industries served',
+            }:
+                return
+            if key in seen:
+                return
+            seen.add(key)
+            industries.append(candidate)
+
+        def _add_from_value(value: Any) -> None:
+            if isinstance(value, str):
+                _add_candidate(value)
+            elif isinstance(value, list):
+                for item in value:
+                    _add_from_value(item)
+            elif isinstance(value, dict):
+                _add_from_value(value.get('name') or value.get('@value'))
+
+        def _walk_json_ld(node: Any) -> None:
+            if isinstance(node, list):
+                for item in node:
+                    _walk_json_ld(item)
+                return
+            if not isinstance(node, dict):
+                return
+
+            if 'knowsAbout' in node:
+                _add_from_value(node.get('knowsAbout'))
+
+            for value in node.values():
+                if isinstance(value, (dict, list)):
+                    _walk_json_ld(value)
+
+        def _add_direct_texts(elem: Tag) -> None:
+            for child in elem.children:
+                if isinstance(child, str):
+                    _add_candidate(child.strip())
+                    continue
+                if getattr(child, 'name', None) in {'span', 'a', 'p', 'div', 'strong', 'em'}:
+                    _add_candidate(child.get_text(' ', strip=True))
+
+        def _extract_from_container(container: Tag) -> None:
+            for header in container.find_all(['h2', 'h3', 'h4', 'h5', 'h6']):
+                if header.find_parent(['nav', 'header', 'footer']):
+                    continue
+                header_text = header.get_text(' ', strip=True).lower()
+                if not any(keyword in header_text for keyword in header_keywords):
+                    continue
+
+                for sibling in header.next_siblings:
+                    if not getattr(sibling, 'name', None):
+                        continue
+                    if sibling.name in {'h2', 'h3', 'h4', 'h5', 'h6'}:
+                        break
+                    if sibling.find_parent(['nav', 'header', 'footer']):
+                        continue
+
+                    list_items = sibling.find_all('li') if hasattr(sibling, 'find_all') else []
+                    if list_items:
+                        for li in list_items:
+                            _add_candidate(li.get_text(' ', strip=True))
+                        continue
+
+                    if sibling.name in {'li', 'p', 'dd', 'a', 'span', 'div'}:
+                        _add_candidate(sibling.get_text(' ', strip=True))
+                    _add_direct_texts(sibling)
+
+        for script in soup.find_all('script', attrs={'type': re.compile(r'application/ld\+json', re.I)}):
+            raw = script.string or script.get_text()
+            if not raw:
+                continue
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            _walk_json_ld(payload)
+
+        for elem in soup.select('[class*="industr"], [class*="sector"], [data-industry]'):
+            if elem.find_parent(['nav', 'header', 'footer']):
+                continue
+            if elem.find_all('li'):
+                for li in elem.find_all('li'):
+                    _add_candidate(li.get_text(' ', strip=True))
+            else:
+                _add_direct_texts(elem)
+
+        for container in soup.find_all('aside'):
+            _extract_from_container(container)
+        for container in soup.select('[class*="sidebar"], [class*="aside"]'):
+            _extract_from_container(container)
+
+        _extract_from_container(soup)
+
+        return industries or ['no industry field']
 
     def _extract_bar_admissions_bs4(self, soup: BeautifulSoup) -> list[str]:
         """Extract bar admissions using BeautifulSoup"""

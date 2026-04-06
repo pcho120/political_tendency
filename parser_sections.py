@@ -77,6 +77,7 @@ SECTION_SYNONYMS: dict[str, list[_SynonymEntry]] = {
         "expertise",
         "focus area",
         "focus areas",
+        "areas of focus",
         "specialt",           # covers specialties / specializations
         "competen",           # covers competencies
         # "service" only fires when accompanied by a professional-context qualifier
@@ -86,8 +87,13 @@ SECTION_SYNONYMS: dict[str, list[_SynonymEntry]] = {
     "industries": [
         "industries",
         "industry",
+        "industry focus",
+        "industry experience",
+        "industries served",
         "sectors",
+        "sector",
         "markets",
+        "market",
         "market sector",
     ],
     "departments": [
@@ -97,6 +103,9 @@ SECTION_SYNONYMS: dict[str, list[_SynonymEntry]] = {
         ("group", _GROUP_QUALIFIERS),
         "practice group",
         "practice groups",
+        ("team", _GROUP_QUALIFIERS),
+        "practice team",
+        "practice teams",
         "industry group",
         "industry groups",
         "division",

@@ -13,7 +13,7 @@ CONSTRAINTS:
 
 DATA SOURCES (in priority order):
 1. Justia Lawyer Directory (public, no auth, paginated)
-2. Martindale-Hubbell (public search, no auth, paginated)
+2. Martindale-Hubbell (public organization + attorney pages via allowed sitemap URLs)
 3. California State Bar (CSLB public search — CA attorneys only)
 4. Texas State Bar (TBL public search — TX attorneys only)
 5. JSON-LD extraction from any profile HTML (via extruct)
@@ -45,6 +45,7 @@ try:
     EXTRUCT_AVAILABLE = True
 except ImportError:
     EXTRUCT_AVAILABLE = False
+    extruct = None  # type: ignore[assignment]
 
 try:
     import pdfplumber
@@ -58,11 +59,24 @@ log = logging.getLogger(__name__)
 # Rate-limit constants (generous — legal, non-abusive)
 # ---------------------------------------------------------------------------
 _DELAY_JUSTIA = 1.0        # 1 req/sec
-_DELAY_MARTINDALE = 1.5    # 1 req/1.5s
+_DELAY_MARTINDALE = 3.0    # honor Martindale robots + conservative crawl delay
 _DELAY_CALBAR = 1.5
 _DELAY_TXBAR = 1.5
 _MAX_PAGES = 40            # never paginate > 40 pages per source
 _MAX_EMPTY_PAGES = 3       # stop after N consecutive pages with 0 results
+
+_MARTINDALE_BASE_URL = "https://www.martindale.com"
+_MARTINDALE_ALLOWED_PREFIXES = ("/organization/", "/attorney/")
+_MARTINDALE_SITEMAP_URLS = (
+    f"{_MARTINDALE_BASE_URL}/sitemap_browse.xml",
+    f"{_MARTINDALE_BASE_URL}/sitemap_new_profiles.xml",
+    f"{_MARTINDALE_BASE_URL}/sitemap_profiles.xml",
+)
+_FIRM_STOP_WORDS = {
+    'llp', 'llc', 'pc', 'p.c', 'pllc', 'lpa', 'apc', 'pa',
+    'law', 'firm', 'group', 'office', 'offices', 'attorneys', 'lawyers',
+    'the', 'and', '&', 'of', 'co', 'company',
+}
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +306,9 @@ class ExternalDirectoryExtractor:
     def _justia_profile_links(self, soup: BeautifulSoup) -> list[str]:
         links = []
         for a in soup.find_all('a', href=True):
-            href = a['href']
+            href = _href_to_str(a.get('href'))
+            if not href:
+                continue
             # Justia profile pattern: /lawyers/{state}/{city}/{name}-{id}
             if re.search(r'/lawyers/[a-z\-]+/[a-z\-]+/[a-z\-]+-\d+', href):
                 full = f"https://www.justia.com{href}" if href.startswith('/') else href
@@ -351,79 +367,38 @@ class ExternalDirectoryExtractor:
         self, firm_name: str, max_results: int
     ) -> tuple[list[AttorneyProfile], ExternalResult]:
         """
-        Martindale-Hubbell: https://www.martindale.com/search/
-        API-based JSON endpoint; paginated via start parameter.
+        Martindale-Hubbell extraction using allowed sitemap + organization pages.
         """
         attorneys: list[AttorneyProfile] = []
         errors: list[str] = []
         pages_fetched = 0
         estimated_total: int | None = None
-        empty_streak = 0
+        seen_keys: set[str] = set()
 
-        # Martindale uses a JSON search API
-        api_base = "https://www.martindale.com/api/search"
-        page_size = 25
-
-        for page in range(1, _MAX_PAGES + 1):
+        for page_url in self._martindale_candidate_urls(firm_name)[:_MAX_PAGES]:
             if len(attorneys) >= max_results:
                 break
-            start = (page - 1) * page_size
-            params = {
-                "q": firm_name,
-                "start": start,
-                "rows": page_size,
-                "type": "lawyer",
-            }
             try:
-                time.sleep(_DELAY_MARTINDALE)
-                resp = self.session.get(api_base, params=params, timeout=self.timeout)
+                resp = self._martindale_get(page_url)
                 if resp.status_code != 200:
-                    # Fallback to HTML search if JSON API returns non-200
-                    if page == 1:
-                        html_attorneys, html_summary = self._extract_martindale_html(firm_name, max_results)
-                        return html_attorneys, html_summary
-                    errors.append(f"HTTP {resp.status_code} at page {page}")
-                    break
+                    errors.append(f"HTTP {resp.status_code} at {page_url}")
+                    continue
 
                 pages_fetched += 1
-                try:
-                    data = resp.json()
-                except Exception:
-                    # Not JSON — try HTML fallback on page 1
-                    if page == 1:
-                        html_attorneys, html_summary = self._extract_martindale_html(firm_name, max_results)
-                        return html_attorneys, html_summary
-                    break
+                if estimated_total is None:
+                    estimated_total = self._parse_total_count(resp.text)
 
-                # Extract total from first page
-                if page == 1:
-                    estimated_total = _json_search_total(data)
-
-                profiles_data = _json_search_results(data)
-                if not profiles_data:
-                    empty_streak += 1
-                    if empty_streak >= _MAX_EMPTY_PAGES:
-                        break
-                    continue
-                empty_streak = 0
-
-                for item in profiles_data:
+                for profile in self._martindale_profiles_from_response(firm_name, page_url, resp.text):
                     if len(attorneys) >= max_results:
                         break
-                    profile = _martindale_item_to_profile(item, firm_name)
-                    if profile and profile.full_name:
-                        attorneys.append(profile)
+                    profile_key = (profile.profile_url or profile.full_name or "").lower().strip()
+                    if not profile_key or profile_key in seen_keys:
+                        continue
+                    seen_keys.add(profile_key)
+                    attorneys.append(profile)
 
             except Exception as exc:
-                errors.append(f"page {page}: {exc}")
-                if page == 1:
-                    # Attempt HTML fallback
-                    try:
-                        html_attorneys, html_summary = self._extract_martindale_html(firm_name, max_results)
-                        return html_attorneys, html_summary
-                    except Exception:
-                        pass
-                break
+                errors.append(f"{page_url}: {exc}")
 
         summary = ExternalResult(
             source="martindale",
@@ -437,71 +412,123 @@ class ExternalDirectoryExtractor:
     def _extract_martindale_html(
         self, firm_name: str, max_results: int
     ) -> tuple[list[AttorneyProfile], ExternalResult]:
-        """HTML fallback for Martindale when JSON API is unavailable."""
-        attorneys: list[AttorneyProfile] = []
-        errors: list[str] = []
-        pages_fetched = 0
-        estimated_total: int | None = None
-        empty_streak = 0
+        """Backward-compatible wrapper around the compliant Martindale path flow."""
+        return self._extract_from_martindale(firm_name, max_results)
 
-        base_url = f"https://www.martindale.com/search/#q={quote_plus(firm_name)}&con=13"
+    def _martindale_get(self, url: str) -> requests.Response:
+        time.sleep(_DELAY_MARTINDALE)
+        return self.session.get(url, timeout=self.timeout)
 
-        for page in range(1, _MAX_PAGES + 1):
-            if len(attorneys) >= max_results:
-                break
-            url = f"{base_url}&page={page}" if page > 1 else base_url
+    def _martindale_candidate_urls(self, firm_name: str) -> list[str]:
+        candidates = self._martindale_sitemap_candidates(firm_name)
+        if candidates:
+            return candidates
+
+        fallback_urls: list[str] = []
+        for slug in _martindale_slug_variants(firm_name):
+            fallback_urls.append(f"{_MARTINDALE_BASE_URL}/organization/{slug}/")
+        return fallback_urls
+
+    def _martindale_sitemap_candidates(self, firm_name: str) -> list[str]:
+        candidates: list[str] = []
+        seen: set[str] = set()
+        for sitemap_url in _MARTINDALE_SITEMAP_URLS:
             try:
-                time.sleep(_DELAY_MARTINDALE)
-                resp = self.session.get(url, timeout=self.timeout)
+                resp = self._martindale_get(sitemap_url)
                 if resp.status_code != 200:
-                    errors.append(f"HTTP {resp.status_code} at page {page}")
-                    break
-                pages_fetched += 1
-                soup = BeautifulSoup(resp.text, 'html.parser')
-
-                if page == 1:
-                    estimated_total = self._parse_total_count(resp.text)
-
-                profile_cards = self._martindale_html_cards(soup, firm_name)
-                if not profile_cards:
-                    empty_streak += 1
-                    if empty_streak >= _MAX_EMPTY_PAGES:
-                        break
                     continue
-                empty_streak = 0
-                attorneys.extend(profile_cards[:max_results - len(attorneys)])
-
-            except Exception as exc:
-                errors.append(f"page {page}: {exc}")
+                soup = BeautifulSoup(resp.text, 'xml')
+                for loc in soup.find_all('loc'):
+                    url = loc.get_text(strip=True)
+                    if not url or url in seen:
+                        continue
+                    if not _is_martindale_allowed_url(url):
+                        continue
+                    if _martindale_url_matches_firm(url, firm_name):
+                        seen.add(url)
+                        candidates.append(url)
+            except Exception:
+                continue
+            if candidates:
                 break
+        return candidates
 
-        summary = ExternalResult(
-            source="martindale_html",
-            profiles_found=len(attorneys),
-            estimated_total=estimated_total,
-            pages_fetched=pages_fetched,
-            errors=errors,
-        )
-        return attorneys, summary
+    def _martindale_profiles_from_response(
+        self,
+        firm_name: str,
+        url: str,
+        html: str,
+    ) -> list[AttorneyProfile]:
+        if _is_martindale_attorney_url(url):
+            profile = self._extract_martindale_profile_page(firm_name, url, html)
+            return [profile] if profile else []
+        soup = BeautifulSoup(html, 'html.parser')
+        return self._martindale_html_cards(soup, firm_name)
+
+    def _extract_martindale_profile_page(
+        self,
+        firm_name: str,
+        profile_url: str,
+        html: str,
+    ) -> AttorneyProfile | None:
+        if not _is_martindale_allowed_url(profile_url):
+            return None
+
+        profile = AttorneyProfile(firm=firm_name, profile_url=profile_url)
+        profile.diagnostics["data_source"] = "external_directory"
+        profile.diagnostics["directory_name"] = "Martindale"
+        profile.diagnostics["original_source_url"] = profile_url
+
+        if EXTRUCT_AVAILABLE:
+            ld_data = _extract_json_ld(html, profile_url)
+            if ld_data:
+                works_for = _json_ld_firm_name(ld_data)
+                if works_for and not _firm_names_match(works_for, firm_name):
+                    return None
+                _apply_json_ld_to_profile(profile, ld_data)
+
+        soup = BeautifulSoup(html, 'html.parser')
+
+        if not profile.full_name:
+            name_el = soup.find(['h1', 'h2'], class_=re.compile(r'name|title', re.I)) or soup.find('h1')
+            if name_el:
+                profile.full_name = name_el.get_text(strip=True)
+
+        if not profile.title:
+            title_el = soup.find(class_=re.compile(r'title|position|role', re.I))
+            if title_el:
+                profile.title = title_el.get_text(strip=True)
+
+        org_text = _martindale_extract_firm_text(soup)
+        if org_text and not _firm_names_match(org_text, firm_name):
+            return None
+
+        if profile.full_name:
+            profile.calculate_status()
+            return profile
+        return None
 
     def _martindale_html_cards(
         self, soup: BeautifulSoup, firm_name: str
     ) -> list[AttorneyProfile]:
-        """Parse attorney cards from Martindale search results HTML."""
+        """Parse attorney cards from Martindale organization HTML."""
         profiles = []
-        # Martindale result cards use various class patterns
         card_selectors = [
             {'class': re.compile(r'result[-_]item|attorney[-_]card|lawyer[-_]card|profile[-_]card', re.I)},
             {'class': re.compile(r'card|listing|result', re.I)},
         ]
         cards = []
         for selector in card_selectors:
-            cards = soup.find_all(['div', 'li', 'article'], selector)
+            cards = soup.find_all(['div', 'li', 'article'], class_=selector['class'])
             if cards:
                 break
 
         for card in cards:
             try:
+                result_firm = _martindale_extract_firm_text(card)
+                if result_firm and not _firm_names_match(result_firm, firm_name):
+                    continue
+
                 profile = AttorneyProfile(firm=firm_name, profile_url="")
                 profile.diagnostics["data_source"] = "external_directory"
                 profile.diagnostics["directory_name"] = "Martindale"
@@ -515,8 +542,12 @@ class ExternalDirectoryExtractor:
                 # Profile URL
                 link = card.find('a', href=True)
                 if link:
-                    href = link['href']
-                    profile.profile_url = urljoin("https://www.martindale.com", href) if href.startswith('/') else href
+                    href = _href_to_str(link.get('href'))
+                    if not href:
+                        continue
+                    full_url = urljoin(_MARTINDALE_BASE_URL, href) if href.startswith('/') else href
+                    if _is_martindale_allowed_url(full_url):
+                        profile.profile_url = full_url
 
                 # Location
                 loc_el = card.find(class_=re.compile(r'location|city|address|office', re.I))
@@ -530,6 +561,24 @@ class ExternalDirectoryExtractor:
                 if title_el:
                     profile.title = title_el.get_text(strip=True)
 
+                for department in _string_list_from_value(
+                    _node_strings(card, re.compile(r'department|group|practice-group', re.I))
+                ):
+                    if department not in profile.department:
+                        profile.department.append(department)
+
+                for practice in _string_list_from_value(
+                    _node_strings(card, re.compile(r'practice|service', re.I))
+                ):
+                    if practice not in profile.practice_areas:
+                        profile.practice_areas.append(practice)
+
+                for industry in _string_list_from_value(
+                    _node_strings(card, re.compile(r'industry|sector', re.I))
+                ):
+                    if industry not in profile.industries:
+                        profile.industries.append(industry)
+
                 if profile.full_name:
                     profile.calculate_status()
                     profiles.append(profile)
@@ -539,13 +588,19 @@ class ExternalDirectoryExtractor:
         return profiles
 
     def _martindale_estimate_count(self, firm_name: str) -> int | None:
-        try:
-            url = f"https://www.martindale.com/search/#q={quote_plus(firm_name)}&con=13"
-            resp = self.session.get(url, timeout=self.timeout)
-            if resp.status_code == 200:
-                return self._parse_total_count(resp.text)
-        except Exception:
-            pass
+        for url in self._martindale_candidate_urls(firm_name):
+            try:
+                resp = self._martindale_get(url)
+                if resp.status_code != 200:
+                    continue
+                total = self._parse_total_count(resp.text)
+                if total:
+                    return total
+                profiles = self._martindale_profiles_from_response(firm_name, url, resp.text)
+                if profiles:
+                    return len(profiles)
+            except Exception:
+                continue
         return None
 
     # ------------------------------------------------------------------
@@ -612,7 +667,7 @@ class ExternalDirectoryExtractor:
                 break
             params = dict(params_base)
             if page > 1:
-                params["CurrentPage"] = page
+                params["CurrentPage"] = str(page)
 
             try:
                 time.sleep(_DELAY_CALBAR)
@@ -678,7 +733,9 @@ class ExternalDirectoryExtractor:
                 # Profile link
                 link = cols[0].find('a', href=True)
                 if link:
-                    href = link['href']
+                    href = _href_to_str(link.get('href'))
+                    if not href:
+                        continue
                     profile.profile_url = urljoin(
                         "https://apps.calbar.ca.gov", href
                     ) if href.startswith('/') else href
@@ -786,7 +843,9 @@ class ExternalDirectoryExtractor:
 
                 link = cols[0].find('a', href=True)
                 if link:
-                    href = link['href']
+                    href = _href_to_str(link.get('href'))
+                    if not href:
+                        continue
                     profile.profile_url = urljoin(
                         "https://www.texasbar.com", href
                     ) if href.startswith('/') else href
@@ -841,7 +900,7 @@ def _extract_json_ld(html: str, base_url: str) -> dict | None:
         return _extract_json_ld_regex(html)
 
     try:
-        data = extruct.extract(
+        data = extruct.extract(  # type: ignore[union-attr]
             html,
             base_url=base_url,
             syntaxes=['json-ld'],
@@ -1044,6 +1103,13 @@ def _json_search_results(data: dict) -> list[dict]:
 def _martindale_item_to_profile(item: dict, firm_name: str) -> AttorneyProfile | None:
     """Convert a Martindale JSON search result item to AttorneyProfile."""
     try:
+        result_firm = (
+            item.get('firmName') or item.get('firm') or item.get('organizationName') or
+            item.get('companyName') or item.get('employer') or item.get('organization') or ''
+        )
+        if result_firm and not _firm_names_match(str(result_firm), firm_name):
+            return None
+
         profile = AttorneyProfile(firm=firm_name, profile_url="")
         profile.diagnostics["data_source"] = "external_directory"
         profile.diagnostics["directory_name"] = "Martindale"
@@ -1059,29 +1125,179 @@ def _martindale_item_to_profile(item: dict, firm_name: str) -> AttorneyProfile |
         # URL
         url = item.get('profileUrl') or item.get('url') or item.get('href', '')
         if url:
-            profile.profile_url = url if url.startswith('http') else \
-                f"https://www.martindale.com{url}"
+            full_url = url if url.startswith('http') else f"{_MARTINDALE_BASE_URL}{url}"
+            if _is_martindale_allowed_url(full_url):
+                profile.profile_url = full_url
 
         # Office / city
         city = item.get('city') or item.get('location') or ''
         state = item.get('state') or item.get('stateCode') or ''
+        address = item.get('address') or {}
+        if isinstance(address, dict):
+            city = city or address.get('city', '') or address.get('addressLocality', '')
+            state = state or address.get('state', '') or address.get('addressRegion', '')
         if city or state:
             office = f"{city}, {state}".strip(', ')
             if _is_us_location(office):
                 profile.offices.append(office)
 
+        for department in _string_list_from_value(
+            item.get('department') or item.get('departments') or item.get('practiceGroups')
+        ):
+            if department not in profile.department:
+                profile.department.append(department)
+
         # Practice areas
-        for pa in (item.get('practiceAreas') or item.get('areas') or []):
-            if isinstance(pa, str) and pa not in profile.practice_areas:
-                profile.practice_areas.append(pa)
-            elif isinstance(pa, dict):
-                name = pa.get('name', '')
-                if name and name not in profile.practice_areas:
-                    profile.practice_areas.append(name)
+        for practice in _string_list_from_value(item.get('practiceAreas') or item.get('areas')):
+            if practice not in profile.practice_areas:
+                profile.practice_areas.append(practice)
+
+        for industry in _string_list_from_value(item.get('industries') or item.get('industryFocus')):
+            if industry not in profile.industries:
+                profile.industries.append(industry)
+
+        for admission in _string_list_from_value(item.get('barAdmissions') or item.get('admissions')):
+            if admission not in profile.bar_admissions:
+                profile.bar_admissions.append(admission)
+
+        for education_item in item.get('education') or item.get('schools') or []:
+            record = _education_record_from_value(education_item)
+            if record and not any(
+                existing.school == record.school and existing.degree == record.degree and existing.year == record.year
+                for existing in profile.education
+            ):
+                profile.education.append(record)
 
         return profile if profile.full_name else None
     except Exception:
         return None
+
+
+def _martindale_slug_variants(firm_name: str) -> list[str]:
+    base_slug = _slugify_for_url(firm_name)
+    variants = [base_slug]
+    trimmed_tokens = [token for token in _firm_tokens(firm_name) if token not in {'law', 'firm', 'group'}]
+    if trimmed_tokens:
+        variants.append('-'.join(trimmed_tokens))
+    deduped: list[str] = []
+    for variant in variants:
+        if variant and variant not in deduped:
+            deduped.append(variant)
+    return deduped
+
+
+def _slugify_for_url(value: str) -> str:
+    slug = re.sub(r'[^a-z0-9]+', '-', value.lower())
+    return slug.strip('-')
+
+
+def _firm_tokens(value: str) -> list[str]:
+    return [token for token in re.findall(r'[a-z0-9]+', value.lower()) if token not in _FIRM_STOP_WORDS]
+
+
+def _firm_names_match(candidate: str, target: str) -> bool:
+    candidate_tokens = set(_firm_tokens(candidate))
+    target_tokens = set(_firm_tokens(target))
+    if not candidate_tokens or not target_tokens:
+        return False
+    overlap = candidate_tokens & target_tokens
+    required_overlap = min(len(target_tokens), 2)
+    return len(overlap) >= required_overlap
+
+
+def _is_martindale_allowed_url(url: str) -> bool:
+    parsed = urlparse(url)
+    if parsed.netloc and parsed.netloc.lower() not in {'martindale.com', 'www.martindale.com'}:
+        return False
+    return any(parsed.path.startswith(prefix) for prefix in _MARTINDALE_ALLOWED_PREFIXES) or url in _MARTINDALE_SITEMAP_URLS
+
+
+def _is_martindale_attorney_url(url: str) -> bool:
+    return urlparse(url).path.startswith('/attorney/')
+
+
+def _martindale_url_matches_firm(url: str, firm_name: str) -> bool:
+    slug = urlparse(url).path.strip('/').split('/')[-1]
+    if not slug:
+        return False
+    return _firm_names_match(slug.replace('-', ' '), firm_name)
+
+
+def _martindale_extract_firm_text(node: Any) -> str:
+    el = node.find(class_=re.compile(r'firm|organization|company|employer', re.I))
+    if el:
+        return el.get_text(strip=True)
+    text = node.get_text(' ', strip=True)
+    match = re.search(r'(?:Firm|Organization|Company)\s*:?\s*([^|•]+)', text, re.I)
+    return match.group(1).strip() if match else ''
+
+
+def _node_strings(node: Any, class_pattern: re.Pattern[str]) -> list[str]:
+    values: list[str] = []
+    for el in node.find_all(class_=class_pattern):
+        text = el.get_text(' ', strip=True)
+        if text:
+            values.append(text)
+    return values
+
+
+def _string_list_from_value(value: Any) -> list[str]:
+    values: list[str] = []
+    if isinstance(value, str):
+        parts = re.split(r'\s*[,;|/]\s*', value)
+        values.extend(part.strip() for part in parts if part.strip())
+    elif isinstance(value, dict):
+        name = value.get('name') or value.get('label') or value.get('value') or ''
+        if isinstance(name, str) and name.strip():
+            values.append(name.strip())
+    elif isinstance(value, list):
+        for item in value:
+            values.extend(_string_list_from_value(item))
+    deduped: list[str] = []
+    for item in values:
+        if item not in deduped:
+            deduped.append(item)
+    return deduped
+
+
+def _education_record_from_value(value: Any) -> EducationRecord | None:
+    if isinstance(value, str):
+        return _parse_education_text(value) or EducationRecord(school=value)
+    if isinstance(value, dict):
+        school = value.get('school') or value.get('name') or value.get('institution') or ''
+        degree = value.get('degree') or value.get('credential') or value.get('description')
+        year_value = value.get('year') or value.get('graduationYear') or value.get('endDate')
+        year = None
+        if year_value:
+            match = re.search(r'\b(19|20)\d{2}\b', str(year_value))
+            if match:
+                year = int(match.group(0))
+        if school:
+            return EducationRecord(degree=degree or None, school=school, year=year)
+    return None
+
+
+def _href_to_str(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return str(value[0]) if value else ''
+    return ''
+
+
+def _json_ld_firm_name(ld: dict) -> str:
+    works_for = ld.get('worksFor') or ld.get('affiliation') or {}
+    if isinstance(works_for, dict):
+        return str(works_for.get('name', '')).strip()
+    if isinstance(works_for, list):
+        for item in works_for:
+            if isinstance(item, dict) and item.get('name'):
+                return str(item['name']).strip()
+            if isinstance(item, str) and item.strip():
+                return item.strip()
+    if isinstance(works_for, str):
+        return works_for.strip()
+    return ''
 
 
 # ---------------------------------------------------------------------------

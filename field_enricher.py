@@ -220,14 +220,13 @@ class FieldEnricher:
                 elog.add('education', source_type, source_url,
                          {'degree': edu.degree, 'school': edu.school, 'year': edu.year})
 
-        # department (from department)
-        if not profile.department:
-            dept = ld.get('department', '') or ''
-            if isinstance(dept, dict):
-                dept = dept.get('name', '') or ''
-            if dept:
-                profile.department = [dept.strip()]
-                elog.add('department', source_type, source_url, dept)
+        # department (from department) — additive union/dedup for target list field
+        dept = ld.get('department', '') or ''
+        if isinstance(dept, dict):
+            dept = dept.get('name', '') or ''
+        if dept and dept.strip() not in profile.department:
+            profile.department.append(dept.strip())
+            elog.add('department', source_type, source_url, dept)
 
         # bar_admissions (from memberOf)
         member_of = ld.get('memberOf', [])
@@ -413,15 +412,21 @@ class FieldEnricher:
                     profile.industries.append(ind)
                     elog.add('industries', source_type, source_url, ind)
 
-        # Department
-        if not profile.department:
-            dept = person.get('department') or person.get('group') or person.get('section', '')
+        # Department — additive union/dedup for target list field
+        for dept_key in ('department', 'group', 'section'):
+            dept = person.get(dept_key, '')
+            if not dept:
+                continue
             if isinstance(dept, list) and dept:
-                profile.department = [str(d) for d in dept if d]
+                for d in dept:
+                    if d and str(d).strip() not in profile.department:
+                        profile.department.append(str(d).strip())
                 elog.add('department', source_type, source_url, profile.department)
-            elif isinstance(dept, str) and dept:
-                profile.department = [dept.strip()]
+                break
+            elif isinstance(dept, str) and dept.strip() not in profile.department:
+                profile.department.append(dept.strip())
                 elog.add('department', source_type, source_url, dept)
+                break
 
         # Bar admissions
         for bar_key in ('barAdmissions', 'bar_admissions', 'admissions', 'licensedIn'):
@@ -508,13 +513,13 @@ class FieldEnricher:
                 elog.add('industries', html_source, source_url, ['no industry field'])
             return
 
-        # ── departments ──────────────────────────────────────────────────────
-        if not profile.department:
-            dept_keywords = {'department', 'group', 'teams', 'team'}
-            dept_items = _items_from_sections(sections, dept_keywords)
-            if dept_items:
-                profile.department = dept_items[:5]
-                elog.add('department', html_source, source_url, dept_items[:5])
+        # ── departments (additive union/dedup for target list field) ─────────
+        dept_keywords = {'department', 'group', 'teams', 'team'}
+        dept_items = _items_from_sections(sections, dept_keywords)
+        new_depts = [d for d in dept_items if d not in profile.department]
+        if new_depts:
+            profile.department.extend(new_depts[:5])
+            elog.add('department', html_source, source_url, new_depts[:5])
 
         # ── practice areas ───────────────────────────────────────────────────
         if 'practice_areas' in missing or not profile.practice_areas:

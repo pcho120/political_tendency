@@ -552,8 +552,15 @@ def run_compare(
     before_path: str,
     after_path: str,
     min_improvement: float,
+    fields: list[str] | None = None,
 ) -> None:
-    """Compare two baseline reports.  Exit non-zero on threshold failure."""
+    """Compare two baseline reports.  Exit non-zero on threshold failure.
+
+    If *fields* is given, only those fields are included in the average
+    fill-improvement calculation.  Contamination is still checked for all
+    TARGET_FIELDS.
+    """
+    compare_fields = fields if fields else TARGET_FIELDS
     failed = False
 
     def load_report(path: str) -> dict[str, Any]:
@@ -590,6 +597,8 @@ def run_compare(
     print(f"  after:  {after_path}")
     print(f"  min-improvement threshold: {min_improvement:.1%}")
     print(f"  max contamination increase: {MAX_CONTAMINATION_INCREASE:.1%}")
+    if fields:
+        print(f"  scoped to fields: {', '.join(fields)}")
     print()
 
     # Check each target field — collect deltas for average check
@@ -610,11 +619,14 @@ def run_compare(
         fill_delta = after_fill - before_fill
         contam_delta = after_contam - before_contam
 
-        fill_deltas.append(fill_delta)
+        # Only include scoped fields in the average
+        in_scope = field in compare_fields
+        if in_scope:
+            fill_deltas.append(fill_delta)
 
         status_parts = [f"delta {fill_delta:+.1%}"]
 
-        # Check contamination regression (per-field hard limit)
+        # Check contamination regression (per-field hard limit) — always checked
         if contam_delta > MAX_CONTAMINATION_INCREASE:
             status_parts.append(
                 f"FAIL: contamination increase {contam_delta:+.1%} > limit {MAX_CONTAMINATION_INCREASE:.1%}"
@@ -623,9 +635,10 @@ def run_compare(
         else:
             status_parts.append(f"OK: contamination delta {contam_delta:+.1%}")
 
+        scope_marker = "" if in_scope else "  [excluded from avg]"
         print(
             f"  {field:<20} before_fill={before_fill:.1%}  after_fill={after_fill:.1%}"
-            f"  |  " + "  /  ".join(status_parts)
+            f"  |  " + "  /  ".join(status_parts) + scope_marker
         )
 
     # Average fill improvement must meet min_improvement threshold
@@ -643,10 +656,10 @@ def run_compare(
 
     print()
     if failed:
-        print("RESULT: FAIL — one or more thresholds not met", file=sys.stderr)
+        print("RESULT: FAIL -- one or more thresholds not met", file=sys.stderr)
         sys.exit(2)
     else:
-        print("RESULT: PASS — all thresholds met")
+        print("RESULT: PASS -- all thresholds met")
 
 
 # ---------------------------------------------------------------------------
@@ -718,8 +731,15 @@ def main(argv: list[str] | None = None) -> None:
         compare_args.add_argument("before")
         compare_args.add_argument("after")
         compare_args.add_argument("--min-improvement", type=float, default=0.05)
+        compare_args.add_argument(
+            "--fields",
+            type=lambda s: [f.strip() for f in s.split(",")],
+            default=None,
+            help="Comma-separated list of fields to include in average improvement "
+                 "(default: all TARGET_FIELDS).",
+        )
         parsed = compare_args.parse_args(rest)
-        run_compare(parsed.before, parsed.after, parsed.min_improvement)
+        run_compare(parsed.before, parsed.after, parsed.min_improvement, parsed.fields)
         return
 
     # Normal measurement mode

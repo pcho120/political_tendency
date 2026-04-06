@@ -1,0 +1,47 @@
+Task 10: Prove before/after low-fill improvement and cross-path non-regression
+===============================================================================
+Date: 2026-04-05
+
+GATE 1: Fill-rate improvement comparison
+Command: python measure_baseline.py --compare outputs/low_fill_before.json outputs/low_fill_after.json --min-improvement 0.03 --fields department,practice_areas,offices
+Exit code: 0
+Result: PASS
+
+  Target field deltas (before → after):
+    department:      45.5% → 49.1%  fill delta +3.6pp  contamination delta +0.0pp
+    practice_areas:  64.3% → 67.9%  fill delta +3.6pp  contamination delta -0.9pp (IMPROVED)
+    offices:         82.1% → 84.8%  fill delta +2.7pp  contamination delta +0.0pp
+
+  Average fill improvement: +3.3% (threshold: 3.0%) — PASS
+  Max contamination increase: none (hard limit: +2.0pp) — PASS
+
+  Non-target fields (excluded from average):
+    title:      90.2% → 92.9% (+2.7pp fill, +0.0pp contamination)
+    industries: 36.6% → 36.6% (+0.0pp fill, +0.0pp contamination)
+
+  Denominator: 112 improvable profiles (4 blocked profiles excluded)
+  Blocked firms: Wilson Sonsini (BOT_PROTECTED), Sheppard Mullin (BOT_PROTECTED)
+
+GATE 2: Cross-path non-regression
+Command: python compare_paths.py --main-jsonl outputs/run_pipeline_sample.jsonl --alt-jsonl outputs/find_attorney_sample.jsonl --fields department,practice_areas,offices --report outputs/low_fill_cross_path_diff.json --max-gap 0.10
+Exit code: 0
+Result: PASS
+
+  Per-field gap (main vs alt path):
+    department:      main=49.11%  alt=49.11%  gap=0.0  within threshold (≤10pp) — PASS
+    practice_areas:  main=77.68%  alt=77.68%  gap=0.0  within threshold (≤10pp) — PASS
+    offices:         main=84.82%  alt=84.82%  gap=0.0  within threshold (≤10pp) — PASS
+
+  all_within_threshold: true
+  fields_in_breach: []
+  Record counts: main=112, alt=112
+  Blocked firms excluded from comparison: 0
+
+OVERALL: BOTH GATES PASS
+
+ARTIFACTS:
+  - outputs/low_fill_before.json (frozen pre-fix baseline)
+  - outputs/low_fill_after.json (post-fix baseline)
+  - outputs/low_fill_cross_path_diff.json (cross-path comparison report)
+  - outputs/run_pipeline_sample.jsonl (main path sample, 112 records)
+  - outputs/find_attorney_sample.jsonl (alt path sample, 112 records)

@@ -1,85 +1,140 @@
 {
-  "active_plan": "/home/paul/dev/personal/projects/political_tendency/.sisyphus/plans/field-quality-fillrate-all-firms.md",
-  "started_at": "2026-04-02T16:08:25.575Z",
+  "active_plan": "C:/Users/kunch/OneDrive/Desktop/Program/political_tendency/.sisyphus/plans/full-field-extraction.md",
+  "started_at": "2026-04-05T22:56:15.579Z",
   "session_ids": [
-    "ses_2b1277a8cffeqdPt448vXVCLM8",
-    "ses_2b126baddffeEAoGwCbO3HlccC",
-    "ses_2b109a8eaffea2hhrJnQKXlHHf",
-    "ses_2b0fabc3dffezGCArFwir0k5m4",
-    "ses_2b0fabc40ffeiJuqtDf44Z004x",
-    "ses_2b0fabbbeffej33lyBbgtreEEy",
-    "ses_2b0fabc44ffeTLqb78jzK7uk1I",
-    "ses_2b0f03a14ffeTCwj5Y8uNiaDCM",
-    "ses_2b0e7faf7ffeHR1d0nm1wDgMfh",
-    "ses_2b0e2dc68ffeFeVoH4Fsm0i1pu",
-    "ses_2b0de7106ffebkLVVcWNGVbpke",
-    "ses_2b0a2fd3bffePCdLjmZoX0qn0C",
-    "ses_2b09ea4dcffeg7sjfuSsATwqkz",
-    "ses_2b09ea18fffeaHmPDbeAKQI5j5",
-    "ses_2b09ea18bffe65G3yWA7XPrqjY",
-    "ses_2b09ea188ffeluB4OGeysv64Jh",
-    "ses_2b07754f2ffeLF5n9j3WbcMlCx",
-    "ses_2b077568dffeBbJH8gt0HAtwUg",
-    "ses_2b072014bffe7v64hiF3sYtdTz",
-    "ses_2b0722b2bffeNFhZOz8urhYCHq",
-    "ses_2b0725993ffePqREoNC68wui1k",
-    "ses_2a466e837ffeSxN35znNPd1LkA"
+    "ses_2a03e8507ffeytrHQ63VZqPqan",
+    "ses_2a01ff4a7ffe8dwkg5lRcEBsRm",
+    "ses_2a01cd977ffebDjYUaAKWlAwxb",
+    "ses_2a01b09ddffefDAYRjlwclFgi5",
+    "ses_2a0106821ffeQbfFjT2vao55HL",
+    "ses_2a00dbbbaffeIhaE8YY6DKbDBB",
+    "ses_2a00b60c7ffeho6lS9w4AvMGlY",
+    "ses_2a003b8f7ffeEf8xUrcA7OxKLX",
+    "ses_2a001638cffeexLuNDq8Qh9FZb",
+    "ses_29ff71eacffexb4RLxRCe4yXvF",
+    "ses_29ff00579ffeNmXTi8wTbPc3Y3",
+    "ses_29feaa9ecffev91gXjprJ1b5Va",
+    "ses_29fe75ffeffebBlWSwKwx08ACa"
   ],
-  "plan_name": "field-quality-fillrate-all-firms",
+  "plan_name": "full-field-extraction",
   "agent": "atlas",
   "task_sessions": {
     "todo:1": {
       "task_key": "todo:1",
       "task_label": "1",
-      "task_title": "Build structure-aware measurement contract and sample manifest",
-      "session_id": "ses_2b109a8eaffea2hhrJnQKXlHHf",
+      "task_title": "pytest 인프라 세팅",
+      "session_id": "ses_2a01ff4a7ffe8dwkg5lRcEBsRm",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-04-02T16:20:19.390Z"
+      "category": "quick",
+      "updated_at": "2026-04-05T23:01:40.812Z"
     },
     "todo:2": {
       "task_key": "todo:2",
       "task_label": "2",
-      "task_title": "Create synthetic fixture corpus and parser/enrichment regression harness",
-      "session_id": "ses_2b0fabc44ffeTLqb78jzK7uk1I",
+      "task_title": "기존 standalone 테스트 → pytest 변환",
+      "session_id": "ses_2a01cd977ffebDjYUaAKWlAwxb",
       "agent": "Sisyphus-Junior",
-      "category": "unspecified-high",
-      "updated_at": "2026-04-02T16:34:24.982Z"
+      "category": "quick",
+      "updated_at": "2026-04-05T23:04:34.079Z"
     },
     "todo:3": {
       "task_key": "todo:3",
       "task_label": "3",
-      "task_title": "Add parser-specific false-positive regression suite",
-      "session_id": "ses_2b0f03a14ffeTCwj5Y8uNiaDCM",
+      "task_title": "Baseline 측정 — 3개 펌 추출 및 sentinel 비율 기록",
+      "session_id": "ses_2a01b09ddffefDAYRjlwclFgi5",
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
-      "updated_at": "2026-04-02T16:43:00.404Z"
+      "updated_at": "2026-04-05T23:16:14.423Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Department 추출 테스트 작성 (TDD RED phase)",
+      "session_id": "ses_2a0106821ffeQbfFjT2vao55HL",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-05T23:18:54.239Z"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "Industries 추출 테스트 작성 (TDD RED phase)",
+      "session_id": "ses_2a00dbbbaffeIhaE8YY6DKbDBB",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-05T23:21:47.118Z"
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "Martindale robots.txt 컴플라이언스 수정 + 테스트",
+      "session_id": "ses_2a00b60c7ffeho6lS9w4AvMGlY",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-04-05T23:29:55.697Z"
     },
     "todo:7": {
       "task_key": "todo:7",
       "task_label": "7",
-      "task_title": "Tighten validator behavior for title and offices without suppressing valid data",
-      "session_id": "ses_2b0e2dc68ffeFeVoH4Fsm0i1pu",
+      "task_title": "Practice Areas → Department 매핑 테이블 생성",
+      "session_id": "ses_2a003b8f7ffeEf8xUrcA7OxKLX",
       "agent": "Sisyphus-Junior",
-      "category": "quick",
-      "updated_at": "2026-04-02T16:57:17.121Z"
+      "category": "unspecified-high",
+      "updated_at": "2026-04-05T23:32:41.492Z"
     },
     "todo:8": {
       "task_key": "todo:8",
       "task_label": "8",
-      "task_title": "Close main-path extraction gaps across JSON-LD, embedded state, and proximity fallback",
-      "session_id": "ses_2b0de7106ffebkLVVcWNGVbpke",
+      "task_title": "누락 10개 펌 probe + site_structures.json 업데이트",
+      "session_id": "ses_2a001638cffeexLuNDq8Qh9FZb",
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
-      "updated_at": "2026-04-02T17:11:01.810Z"
+      "updated_at": "2026-04-05T23:42:07.338Z"
+    },
+    "todo:9": {
+      "task_key": "todo:9",
+      "task_label": "9",
+      "task_title": "Department 추출 로직 강화 (TDD GREEN phase)",
+      "session_id": "ses_29ff71eacffexb4RLxRCe4yXvF",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-04-05T23:51:17.368Z"
     },
     "todo:10": {
       "task_key": "todo:10",
       "task_label": "10",
-      "task_title": "Run final before/after measurement gate and anti-overfitting verification",
-      "session_id": "ses_2b09ea4dcffeg7sjfuSsATwqkz",
-      "agent": "oracle",
-      "updated_at": "2026-04-02T18:09:27.970Z"
+      "task_title": "Industries 추출 로직 강화 (TDD GREEN phase)",
+      "session_id": "ses_29ff00579ffeNmXTi8wTbPc3Y3",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-04-05T23:57:19.060Z"
+    },
+    "todo:11": {
+      "task_key": "todo:11",
+      "task_label": "11",
+      "task_title": "Practice → Department 매핑 적용",
+      "session_id": "ses_29feaa9ecffev91gXjprJ1b5Va",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-06T00:01:06.219Z"
+    },
+    "todo:12": {
+      "task_key": "todo:12",
+      "task_label": "12",
+      "task_title": "Post-change 3개 펌 재추출 + Baseline 비교",
+      "session_id": "ses_29fe75ffeffebBlWSwKwx08ACa",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-06T00:11:10.823Z"
+    },
+    "todo:13": {
+      "task_key": "todo:13",
+      "task_label": "13",
+      "task_title": "200개 펌 전체 추출 실행",
+      "session_id": "ses_29fdc1b4fffejdayEuoWLMm4bV",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-04-06T00:44:19.363Z"
     }
   }
 }
