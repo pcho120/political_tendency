@@ -17,11 +17,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import csv
 import logging
 import gzip
 import json
 import os
 import re
+import signal
+import threading
 import time
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -33,6 +36,8 @@ from urllib.parse import urljoin, urlparse, parse_qs, urlencode, urlunparse
 import requests
 from openpyxl import load_workbook
 
+logger = logging.getLogger(__name__)
+
 # Phase 1-3 Observation System
 from observation_logger import ObservationLogger, FirmObservation
 from pattern_aggregator import PatternAggregator
@@ -43,6 +48,7 @@ from compliance_engine import (
     ComplianceEngine,
     CLASS_BLOCKED_BY_BOT,
     CLASS_AUTH_REQUIRED,
+    BOT_WALL_PATTERNS,
 )
 from rate_limit_manager import RateLimitManager, RateLimitBlockedError
 from field_merger import FieldMerger, MergedAttorneyProfile
@@ -55,7 +61,9 @@ from coverage_loop import (
     FirmSummaryWriter, FirmSummaryRow,
 )
 from field_enricher import FieldEnricher, EnrichmentLog
+from enrichment import infer_department_from_practices
 from external_directory_extractor import ExternalDirectoryExtractor, ExternalResult
+from validators import validate_offices, validate_practice_areas, validate_title
 
 # Configuration
 DEFAULT_SHEET_NAME = "Attorneys"
@@ -67,6 +75,7 @@ SITEMAP_PROBE_TIMEOUT = 5  # Sitemap probing
 PROFILE_FETCH_TIMEOUT = 10  # Individual profile fetch
 PLAYWRIGHT_PAGE_TIMEOUT = 20000  # Playwright page load (20s in ms)
 MAX_FIRM_TIME = 45  # TASK 5: Firm execution cap (seconds)
+MAX_ENRICHMENT_TIME_PER_FIRM = 1800  # Enrichment cap per firm (seconds)
 
 MIN_ATTORNEYS_THRESHOLD = 5
 DEFAULT_STABILIZATION = 3
@@ -74,6 +83,7 @@ DEFAULT_MAX_SCROLL_SECONDS = 120
 RATE_LIMIT_DELAY = 0.5  # seconds between requests per domain
 COVERAGE_THRESHOLD = 0.98  # 98% coverage required for SUCCESS
 MIN_PROFILE_LINKS_FOR_HTML_SITEMAP = 5  # Minimum profile links to validate HTML sitemap
+SITE_STRUCTURES_PATH = Path("site_structures.json")
 
 # TASK 4: Batch enrichment
 LARGE_FIRM_THRESHOLD = 1000  # URLs threshold for batch processing
@@ -93,6 +103,30 @@ KNOWN_SITEMAP_PATHS = [
     "/site-map/people",
     "/site-map/attorneys",
 ]
+
+DIRECTORY_PATHS = [
+    "/people",
+    "/attorneys",
+    "/professionals",
+    "/lawyers",
+    "/our-team",
+    "/team",
+    "/attorneys-staff",
+    "/legal-professionals",
+]
+
+ALPHABET_QUERY_KEYS = [
+    "letter",
+    "last_name",
+    "alpha",
+    "initial",
+    "lastname",
+    "surname",
+]
+
+PAGINATION_QUERY_KEYS = {"page", "p", "pg", "paged", "start", "offset"}
+MAX_DIRECTORY_PAGES = 25
+MAX_ALPHABET_PAGES = 80
 
 # Firm Type Classifications
 FIRM_TYPE_XML_SITEMAP = "XML_SITEMAP"
@@ -155,6 +189,106 @@ def _is_locale_url(url: str) -> bool:
         return bool(_LOCALE_URL_REJECT_RE.search(url))
     except Exception:
         return False
+
+
+# ---------------------------------------------------------------------------
+# Per-firm 403 abort tracker (thread-safe)
+# ---------------------------------------------------------------------------
+# Compiled bot-wall patterns for fast matching against response bodies
+_BOT_WALL_RE = re.compile(
+    "|".join(BOT_WALL_PATTERNS), re.IGNORECASE
+)
+
+# TASK 9 constants
+_ABORT_EARLY_WINDOW = 5       # first N profiles to check for 100% bot-403
+_ABORT_GLOBAL_RATIO = 0.80    # abort if ≥80% of ALL profiles are bot-403
+
+
+class _BotAbortTracker:
+    """Thread-safe tracker for per-firm bot-protection 403 abort logic.
+
+    Distinguishes rate-limiting 403 (Retry-After header present) from
+    bot-protection 403 (bot-wall HTML or no Retry-After).
+    """
+
+    def __init__(self, total_urls: int) -> None:
+        self._lock = threading.Lock()
+        self._total_urls = total_urls
+        self._processed = 0
+        self._bot_403_count = 0
+        self._aborted = False
+        self._abort_reason: str = ""
+
+    @property
+    def aborted(self) -> bool:
+        return self._aborted
+
+    @property
+    def abort_reason(self) -> str:
+        return self._abort_reason
+
+    @property
+    def bot_403_count(self) -> int:
+        with self._lock:
+            return self._bot_403_count
+
+    def record(self, profile: object) -> None:
+        """Record an enrichment result and check abort conditions.
+
+        Call this after every profile enrichment (success or fail).
+        """
+        if self._aborted:
+            return
+
+        is_bot_403 = self._is_bot_403(profile)
+        with self._lock:
+            self._processed += 1
+            if is_bot_403:
+                self._bot_403_count += 1
+
+            # Condition 1: first N profiles ALL bot-403 → abort
+            if (self._processed == min(_ABORT_EARLY_WINDOW, self._total_urls)
+                    and self._bot_403_count == self._processed
+                    and self._processed >= _ABORT_EARLY_WINDOW):
+                self._aborted = True
+                self._abort_reason = (
+                    f"ACCESS_DENIED_RUNTIME: first {self._processed} profiles "
+                    f"all returned bot-protection 403"
+                )
+                return
+
+            # Condition 2: ≥80% of ALL processed profiles are bot-403
+            # (only trigger after the early window to avoid false positives)
+            if (self._processed > _ABORT_EARLY_WINDOW
+                    and self._bot_403_count / self._processed >= _ABORT_GLOBAL_RATIO):
+                self._aborted = True
+                self._abort_reason = (
+                    f"ACCESS_DENIED_RUNTIME: {self._bot_403_count}/{self._processed} "
+                    f"profiles ({self._bot_403_count/self._processed*100:.0f}%) "
+                    f"returned bot-protection 403"
+                )
+
+    @staticmethod
+    def _is_bot_403(profile: object) -> bool:
+        """Return True if the profile represents a bot-protection 403 (not rate-limit)."""
+        diag = getattr(profile, "diagnostics", {})
+        if not isinstance(diag, dict):
+            return False
+
+        # Must have http_403 flag
+        if not (diag.get("http_403") or diag.get("blocked_403")):
+            return False
+
+        # Rate-limit 403 has Retry-After → NOT bot-protection
+        if diag.get("retry_after"):
+            return False
+
+        # Bot-wall body detected → definitely bot-protection
+        if diag.get("bot_protection"):
+            return True
+
+        # Plain 403 with no Retry-After → assume bot-protection
+        return True
 
 
 # ---------------------------------------------------------------------------
@@ -517,6 +651,7 @@ class AttorneyFinder:
         max_scroll_seconds: int = DEFAULT_MAX_SCROLL_SECONDS,
         sources_file: str = "",  # Multi-source discovery Excel from firm_finder_desktop.py
         output_dir: str = ".",  # Output directory for attorneys.xlsx, attorneys.jsonl, coverage_metrics.json
+        resume: bool = False,
     ) -> None:
         self.limit = limit
         self.sheet_name = sheet_name
@@ -534,11 +669,14 @@ class AttorneyFinder:
 
         # Track source failures for reporting
         self.source_failures: list[SourceFailure] = []
+        self.site_structures_by_domain = self._load_site_structures_by_domain()
 
         self.session = requests.Session()
         self.session.headers.update(
             {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
             }
         )
 
@@ -563,14 +701,150 @@ class AttorneyFinder:
         self.rate_limit_manager = RateLimitManager(default_delay=RATE_LIMIT_DELAY)
         self.field_merger = FieldMerger()
         self.coverage_engine = CoverageEngine()
+        self.resume_mode = resume
         self.all_coverage_metrics: list[CoverageMetrics] = []
+        self.summary_path = self.output_dir / "firm_level_summary.csv"
+        self.coverage_metrics_path = self.output_dir / "coverage_metrics.json"
         self.jsonl_path = self.output_dir / "attorneys.jsonl"
-        self.jsonl_file = open(self.jsonl_path, "a", encoding="utf-8")
+        self.processed_firms: set[str] = set()
+        if self.resume_mode:
+            self.processed_firms = self._load_processed_firms_from_jsonl(self.jsonl_path)
+        jsonl_mode = "a" if self.resume_mode else "w"
+        self.jsonl_file = open(self.jsonl_path, jsonl_mode, encoding="utf-8")
+        self._shutdown_requested = False
+        self._enrichment_stop_event: Any = None
+        self._enrichment_browser_refs: Any = None
+        self._enrichment_browser_refs_lock: Any = None
 
         # Coverage loop, field enrichment, firm summary
         self.expected_total_resolver = ExpectedTotalResolver()
         self.firm_summary_writer = FirmSummaryWriter()
         self.field_enricher = FieldEnricher()
+        if self.resume_mode:
+            self.firm_summary_writer.rows.extend(self._load_existing_summary_rows(self.summary_path))
+            self.all_coverage_metrics.extend(
+                self._load_existing_coverage_metrics(self.coverage_metrics_path)
+            )
+
+    @staticmethod
+    def _normalize_domain(value: str) -> str:
+        """Normalize a URL/domain for structure lookups."""
+        if not value:
+            return ""
+        candidate = value.strip()
+        if not candidate:
+            return ""
+        if "://" not in candidate:
+            candidate = f"https://{candidate}"
+        parsed = urlparse(candidate)
+        domain = (parsed.netloc or parsed.path or "").strip().lower()
+        if domain.startswith("www."):
+            domain = domain[4:]
+        return domain
+
+    def _load_site_structures_by_domain(self) -> dict[str, dict[str, Any]]:
+        """Load site_structures.json once and index by normalized domain."""
+        if not SITE_STRUCTURES_PATH.exists():
+            logger.warning("site_structures.json not found: %s", SITE_STRUCTURES_PATH)
+            return {}
+
+        try:
+            with open(SITE_STRUCTURES_PATH, "r", encoding="utf-8") as f:
+                entries = json.load(f)
+        except Exception:
+            logger.error("Failed to load site_structures.json", exc_info=True)
+            return {}
+
+        domain_map: dict[str, dict[str, Any]] = {}
+        if not isinstance(entries, list):
+            logger.warning("site_structures.json has unexpected top-level type: %s", type(entries).__name__)
+            return domain_map
+
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            normalized_domain = self._normalize_domain(str(entry.get("url") or ""))
+            if normalized_domain:
+                domain_map[normalized_domain] = entry
+
+        logger.info("Loaded %d site structure classifications", len(domain_map))
+        return domain_map
+
+    def _get_site_structure(self, base_url: str) -> dict[str, Any] | None:
+        """Return pre-classified site structure info for the firm's domain."""
+        normalized_domain = self._normalize_domain(base_url)
+        if not normalized_domain:
+            return None
+        return self.site_structures_by_domain.get(normalized_domain)
+
+    @staticmethod
+    def _is_preclassified_bot_protected(structure_info: dict[str, Any] | None) -> bool:
+        """Return True when site_structures classifies the firm as bot protected.
+
+        Prefer the explicit structure type. Some legacy probe rows set
+        ``is_bot_protected=true`` even when the final structure is a reachable type
+        like ``SITEMAP_XML``; avoid regressing normal firms on those noisy flags.
+        """
+        if not structure_info:
+            return False
+        structure_type = str(structure_info.get("structure_type") or "").upper()
+        if structure_type == "BOT_PROTECTED":
+            return True
+        if not bool(structure_info.get("is_bot_protected")):
+            return False
+        http_status = structure_info.get("http_status")
+        if isinstance(http_status, int) and http_status in {401, 403}:
+            return True
+        return structure_type in {"", "UNKNOWN"}
+
+    def _record_legally_incomplete_firm(
+        self,
+        firm_name: str,
+        reason: str,
+        note: str,
+        *,
+        source_failure: SourceFailure | None = None,
+    ) -> tuple[list[dict], DiscoveryMetrics]:
+        """Record a legally inaccessible firm consistently across outputs."""
+        if source_failure is not None:
+            self.source_failures.append(source_failure)
+
+        _cr = CoverageReport(firm=firm_name)
+        _cr.final_status = STATUS_LEGALLY_INCOMPLETE
+        _cr.failure_reason = reason
+        _cr.notes.append(note)
+        _cm = self.coverage_engine.compute(
+            firm=firm_name,
+            profiles=[],
+            legally_incomplete=True,
+            legally_incomplete_reason=reason,
+        )
+        self.all_coverage_metrics.append(_cm)
+
+        _blocked_loop = CoverageLoopResult(
+            firm=firm_name,
+            expected_total=None,
+            expected_total_source="unknown",
+            discovered_urls=0,
+            extracted_count=0,
+            coverage_ratio=None,
+            status="LEGALLY_INCOMPLETE",
+            legally_incomplete_reason=reason,
+            sources_tried=[],
+            gaps_remaining=0,
+            notes=[note],
+        )
+        _blocked_row = FirmSummaryWriter.build_row(
+            firm=firm_name,
+            loop_result=_blocked_loop,
+            attorneys=[],
+            us_attorneys=[],
+        )
+        self.firm_summary_writer.add(_blocked_row)
+
+        _lm = DiscoveryMetrics()
+        _lm.failure_notes = [note]
+        return [], _lm
 
     def log(self, msg: str) -> None:
         try:
@@ -579,6 +853,163 @@ class AttorneyFinder:
             import sys
             sys.stdout.buffer.write((msg + "\n").encode("utf-8", errors="replace"))
             sys.stdout.buffer.flush()
+
+    def _load_processed_firms_from_jsonl(self, path: Path) -> set[str]:
+        """Load already-processed firm names from an existing JSONL file."""
+        processed_firms: set[str] = set()
+        if not path.exists():
+            return processed_firms
+
+        with path.open("r", encoding="utf-8") as fh:
+            for line_number, line in enumerate(fh, start=1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    logger.warning(
+                        "[RESUME] Skipping malformed JSONL line %s in %s: %s",
+                        line_number,
+                        path,
+                        exc,
+                    )
+                    continue
+                firm = record.get("firm")
+                if isinstance(firm, str) and firm.strip():
+                    processed_firms.add(firm.strip())
+
+        logger.info("[RESUME] Loaded %s processed firms from %s", len(processed_firms), path)
+        return processed_firms
+
+    def _load_existing_summary_rows(self, path: Path) -> list[FirmSummaryRow]:
+        """Load existing firm summary rows so resume writes merged output."""
+        if not path.exists():
+            return []
+
+        rows_by_firm: dict[str, FirmSummaryRow] = {}
+
+        def _to_optional_int(value: str | None) -> int | None:
+            text = (value or "").strip()
+            if not text:
+                return None
+            return int(text)
+
+        def _to_int(value: str | None) -> int:
+            text = (value or "").strip()
+            return int(text) if text else 0
+
+        def _to_optional_ratio(value: str | None) -> float | None:
+            text = (value or "").strip()
+            if not text:
+                return None
+            if text.endswith("%"):
+                return float(text[:-1]) / 100.0
+            return float(text)
+
+        def _to_ratio(value: str | None) -> float:
+            ratio = _to_optional_ratio(value)
+            return ratio if ratio is not None else 0.0
+
+        with path.open("r", encoding="utf-8", newline="") as fh:
+            reader = csv.DictReader(fh)
+            for line_number, record in enumerate(reader, start=2):
+                firm = (record.get("Firm") or "").strip()
+                if not firm:
+                    continue
+                try:
+                    rows_by_firm[firm] = FirmSummaryRow(
+                        firm=firm,
+                        expected_total=_to_optional_int(record.get("Expected Total")),
+                        expected_total_source=(record.get("Expected Total Source") or "unknown").strip(),
+                        discovered_urls=_to_int(record.get("Discovered URLs")),
+                        extracted_attorneys=_to_int(record.get("Extracted Attorneys")),
+                        us_attorneys=_to_int(record.get("US Attorneys")),
+                        coverage_ratio=_to_optional_ratio(record.get("Coverage Ratio")),
+                        missing_fields_ratio=_to_ratio(record.get("Missing Fields Ratio")),
+                        status=(record.get("Status") or "").strip(),
+                        legally_incomplete_reason=(
+                            (record.get("Legally Incomplete Reason") or "").strip() or None
+                        ),
+                        sources_tried=(record.get("Sources Tried") or "").strip(),
+                        notes=(record.get("Notes") or "").strip(),
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "[RESUME] Skipping malformed summary row %s in %s: %s",
+                        line_number,
+                        path,
+                        exc,
+                    )
+
+        logger.info("[RESUME] Loaded %s summary rows from %s", len(rows_by_firm), path)
+        return list(rows_by_firm.values())
+
+    def _load_existing_coverage_metrics(self, path: Path) -> list[CoverageMetrics]:
+        """Load existing coverage metrics so resume writes merged output."""
+        if not path.exists():
+            return []
+
+        try:
+            with path.open("r", encoding="utf-8") as fh:
+                data = json.load(fh)
+        except Exception as exc:
+            logger.warning("[RESUME] Failed to load existing coverage metrics from %s: %s", path, exc)
+            return []
+
+        metrics_by_firm: dict[str, CoverageMetrics] = {}
+        if not isinstance(data, list):
+            logger.warning("[RESUME] coverage metrics file is not a JSON list: %s", path)
+            return []
+
+        for index, record in enumerate(data, start=1):
+            if not isinstance(record, dict):
+                logger.warning("[RESUME] Skipping non-object coverage record %s in %s", index, path)
+                continue
+            firm = record.get("firm")
+            if not isinstance(firm, str) or not firm.strip():
+                continue
+            try:
+                metrics_by_firm[firm.strip()] = CoverageMetrics(
+                    firm=firm.strip(),
+                    expected_total=record.get("expected_total"),
+                    expected_total_source=record.get("expected_total_source", "unknown"),
+                    discovered_attorney_count=record.get("discovered_attorney_count", 0),
+                    extracted_attorney_count=record.get("extracted_attorney_count", 0),
+                    missing_fields_ratio=record.get("missing_fields_ratio", 0.0),
+                    blocked_ratio=record.get("blocked_ratio", 0.0),
+                    coverage_ratio=record.get("coverage_ratio"),
+                    needs_additional_sources=record.get("needs_additional_sources", False),
+                    legally_incomplete=record.get("legally_incomplete", False),
+                    legally_incomplete_reason=record.get("legally_incomplete_reason"),
+                    notes=list(record.get("notes") or []),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "[RESUME] Skipping malformed coverage record %s in %s: %s",
+                    index,
+                    path,
+                    exc,
+                )
+
+        logger.info("[RESUME] Loaded %s coverage records from %s", len(metrics_by_firm), path)
+        return list(metrics_by_firm.values())
+
+    def _merge_summary_rows(self, rows: list[FirmSummaryRow]) -> list[FirmSummaryRow]:
+        """Merge summary rows by firm, keeping the newest row."""
+        merged: dict[str, FirmSummaryRow] = {}
+        for row in rows:
+            if row.firm:
+                merged[row.firm] = row
+        return list(merged.values())
+
+    def _merge_coverage_metrics(self, metrics: list[CoverageMetrics]) -> list[CoverageMetrics]:
+        """Merge coverage metrics by firm, keeping the newest record."""
+        merged: dict[str, CoverageMetrics] = {}
+        for metric in metrics:
+            if metric.firm:
+                merged[metric.firm] = metric
+        return list(merged.values())
 
     def _rate_limit(self, domain: str) -> None:
         """Enforce per-domain rate limiting"""
@@ -1026,6 +1457,9 @@ class AttorneyFinder:
         XML sitemaps ALWAYS override all other methods
         """
         strategies = []
+        structure_info = self._get_site_structure(profile.base_url) or {}
+        has_alphabet_nav = bool(structure_info.get("has_alphabet_nav"))
+        has_directory_hint = bool(structure_info.get("directory_path_found"))
 
         # Structural detection: BOT_PROTECTED firms with no usable sitemap
         # (e.g. Kirkland) need Playwright DOM scroll as primary strategy.
@@ -1063,6 +1497,12 @@ class AttorneyFinder:
             strategies.append("api_enumeration")
 
         # PRIORITY 4: Directory strategies (only if no sitemaps)
+        if has_alphabet_nav:
+            strategies.append("alphabet_enumeration")
+
+        if has_directory_hint or FIRM_TYPE_DIRECTORY_FILTERED in profile.detected_types or FIRM_TYPE_DIRECTORY_HTML in profile.detected_types:
+            strategies.append("directory_listing")
+
         if FIRM_TYPE_DIRECTORY_FILTERED in profile.detected_types:
             strategies.append("filter_enumeration")
 
@@ -1073,8 +1513,13 @@ class AttorneyFinder:
         if "UNKNOWN_PATTERN" in profile.detected_types or not strategies:
             strategies.append("hard_case_fallback")  # Keep same strategy name for now
 
-        self.log(f"  Selected strategies: {', '.join(strategies)}")
-        return strategies
+        deduped_strategies: list[str] = []
+        for strategy in strategies:
+            if strategy not in deduped_strategies:
+                deduped_strategies.append(strategy)
+
+        self.log(f"  Selected strategies: {', '.join(deduped_strategies)}")
+        return deduped_strategies
 
 
     def run(self, excel_path: str) -> int:
@@ -1083,197 +1528,384 @@ class AttorneyFinder:
         if not excel_path.lower().endswith(".xlsx"):
             raise ValueError("Input must be an .xlsx file")
 
-        # Load multi-source discovery data if available
-        self.load_source_maps()
+        self._shutdown_requested = False
 
-        wb = load_workbook(excel_path)
-        ws = wb.active
-        headers = [cell.value for cell in ws[1]]
-        # Explicitly look for the Firms sheet first (active sheet may be Attorneys after prior run)
-        if 'Firms' in wb.sheetnames:
-            ws = wb['Firms']
-            headers = [cell.value for cell in ws[1]]
-        elif 'Official Website' not in headers or 'Firm' not in headers:
-            for sheet in wb.worksheets:
-                sheet_headers = [cell.value for cell in sheet[1]]
-                if 'Official Website' in sheet_headers and 'Firm' in sheet_headers:
-                    ws = sheet
-                    headers = sheet_headers
-                    break
-                if 'official_website_url' in sheet_headers and 'Firm' in sheet_headers:
-                    ws = sheet
-                    headers = sheet_headers
-                    break
+        previous_sigint_handler = signal.getsignal(signal.SIGINT)
+
+        def _signal_handler(signum: int, frame: Any) -> None:
+            del signum, frame
+            if self._shutdown_requested:
+                return
+
+            self._shutdown_requested = True
+            logger.warning("SIGINT received — finishing current firm and shutting down...")
+
+            stop_event = self._enrichment_stop_event
+            if stop_event is not None:
+                try:
+                    stop_event.set()
+                except Exception:
+                    logger.debug("Failed to set enrichment stop event during shutdown", exc_info=True)
+
+            active_browsers: list[Any] = []
+            browser_refs: Any = self._enrichment_browser_refs
+            browser_refs_lock: Any = self._enrichment_browser_refs_lock
+            if browser_refs is not None:
+                try:
+                    if browser_refs_lock is not None:
+                        browser_refs_lock.acquire()
+                        try:
+                            active_browsers = list(browser_refs)
+                        finally:
+                            browser_refs_lock.release()
+                    else:
+                        active_browsers = list(browser_refs)
+                except Exception:
+                    logger.debug("Failed to snapshot active browsers during shutdown", exc_info=True)
+
+            for browser in active_browsers:
+                try:
+                    browser.close()
+                except Exception:
+                    logger.debug("Failed to close active browser during shutdown", exc_info=True)
+
+        signal.signal(signal.SIGINT, _signal_handler)
+
+        _run_exception: Exception | None = None
+        total_processed = 0
         try:
-            url_col_idx = headers.index("official_website_url") + 1
-            firm_col_idx = headers.index("Firm") + 1
-        except ValueError as e:
-            raise ValueError(
-                "File must have 'Firm' and 'Official Website' columns."
-            ) from e
+            # Load multi-source discovery data if available
+            self.load_source_maps()
 
-        if self.sheet_name in wb.sheetnames:
-            del wb[self.sheet_name]
-        out_ws = wb.create_sheet(self.sheet_name)
-        # Updated header with new fields
-        out_ws.append(
-            [
-                "Firm",
-                "Attorney Name",
-                "Title",
-                "Offices",
-                "Departments",
-                "Practice Areas",
-                "Industries",
-                "Bar Admissions",
-                "Education",
-                "Extraction Status",
-                "Missing Fields",
-                "Profile URL",
-                "Data Source"
-            ]
-        )
+            wb = load_workbook(excel_path)
+            ws = wb.active
+            headers = [cell.value for cell in ws[1]]
+            # Explicitly look for the Firms sheet first (active sheet may be Attorneys after prior run)
+            if 'Firms' in wb.sheetnames:
+                ws = wb['Firms']
+                headers = [cell.value for cell in ws[1]]
+            elif 'Official Website' not in headers or 'Firm' not in headers:
+                for sheet in wb.worksheets:
+                    sheet_headers = [cell.value for cell in sheet[1]]
+                    if 'Official Website' in sheet_headers and 'Firm' in sheet_headers:
+                        ws = sheet
+                        headers = sheet_headers
+                        break
+                    if 'official_website_url' in sheet_headers and 'Firm' in sheet_headers:
+                        ws = sheet
+                        headers = sheet_headers
+                        break
+            try:
+                url_col_idx = headers.index("official_website_url") + 1
+                firm_col_idx = headers.index("Firm") + 1
+            except ValueError as e:
+                raise ValueError(
+                    "File must have 'Firm' and 'Official Website' columns."
+                ) from e
 
-        firms = []
-        for row in ws.iter_rows(min_row=2, values_only=False):
-            firm_name = row[firm_col_idx - 1].value
-            base_url = row[url_col_idx - 1].value
-            if not firm_name or not base_url:
-                continue
+            if self.sheet_name in wb.sheetnames:
+                del wb[self.sheet_name]
+            out_ws = wb.create_sheet(self.sheet_name)
+            # Updated header with new fields
+            out_ws.append(
+                [
+                    "Firm",
+                    "Attorney Name",
+                    "Title",
+                    "Offices",
+                    "Departments",
+                    "Practice Areas",
+                    "Industries",
+                    "Bar Admissions",
+                    "Education",
+                    "Extraction Status",
+                    "Missing Fields",
+                    "Profile URL",
+                    "Data Source"
+                ]
+            )
 
-            # Debug mode filters
-            if self.debug_firm and self.debug_firm.lower() not in firm_name.lower():
-                continue
-            if self.debug_domain:
-                domain = urlparse(str(base_url)).netloc
-                if self.debug_domain.lower() not in domain.lower():
+            firms = []
+            for row in ws.iter_rows(min_row=2, values_only=False):
+                firm_name = row[firm_col_idx - 1].value
+                base_url = row[url_col_idx - 1].value
+                if not firm_name or not base_url:
                     continue
 
-            firms.append((firm_name, str(base_url)))
-            if self.max_firms > 0 and len(firms) >= self.max_firms:
-                break
+                # Debug mode filters
+                if self.debug_firm and self.debug_firm.lower() not in firm_name.lower():
+                    continue
+                if self.debug_domain:
+                    domain = urlparse(str(base_url)).netloc
+                    if self.debug_domain.lower() not in domain.lower():
+                        continue
 
-        if not firms:
-            self.log("No firms to process (check debug filters)")
-            return 0
+                firms.append((firm_name, str(base_url)))
+                if self.max_firms > 0 and len(firms) >= self.max_firms:
+                    break
 
-        total_processed = 0
+            if not firms:
+                self.log("No firms to process (check debug filters)")
+                return 0
 
-        # Process sequentially to manage Playwright browser lifecycle
-        for firm, url in firms:
+            # Process sequentially to manage Playwright browser lifecycle
+            for firm, url in firms:
+                if self._shutdown_requested:
+                    logger.info("Shutdown requested before next firm; saving partial outputs")
+                    break
+
+                if self.resume_mode and firm in self.processed_firms:
+                    logger.info(f"[RESUME] Skipping already-processed firm: {firm}")
+                    continue
+
+                try:
+                    attorneys, metrics = self.process_firm(firm, url)
+                    self.processed_firms.add(firm)
+                    for att in attorneys:
+                        # Handle new AttorneyProfile dataclass
+                        if hasattr(att, 'full_name'):  # New AttorneyProfile format
+                            # Helper: safely convert any field to comma-separated string
+                            def _to_str(v):
+                                if v is None:
+                                    return ""
+                                if isinstance(v, list):
+                                    return ", ".join(str(x) for x in v if x)
+                                return str(v)
+
+                            offices_str     = _to_str(att.offices)
+                            departments_str = _to_str(att.department)
+                            practices_str   = _to_str(att.practice_areas)
+                            industries_str  = _to_str(att.industries)
+                            bars_str        = _to_str(att.bar_admissions)
+                            missing_fields_str = _to_str(att.missing_fields)
+
+                            # Education as JSON-stringified list of dicts (Step 2f)
+                            try:
+                                education_str = json.dumps(
+                                    [e.to_dict() for e in att.education], ensure_ascii=False
+                                ) if att.education else "[]"
+                            except Exception:
+                                education_str = json.dumps(
+                                    [str(e) for e in att.education], ensure_ascii=False
+                                ) if att.education else "[]"
+
+                            # Extract data_source from diagnostics
+                            try:
+                                data_source = att.diagnostics.get('data_source', 'firm_website')
+                            except Exception:
+                                data_source = 'firm_website'
+
+                            out_ws.append([
+                                firm,
+                                att.full_name or "",
+                                att.title or "",
+                                offices_str,
+                                departments_str,
+                                practices_str,
+                                industries_str,
+                                bars_str,
+                                education_str,
+                                att.extraction_status,
+                                missing_fields_str,
+                                att.profile_url,
+                                data_source
+                            ])
+                        else:  # Legacy dict format (for backward compatibility)
+                            out_ws.append([
+                                firm,
+                                att.get("name", ""),
+                                att.get("title", ""),
+                                att.get("office", ""),  # Single office field
+                                "",  # Departments (not in legacy)
+                                att.get("practice", ""),  # Single practice field
+                                "",  # Industries (not in legacy)
+                                "",  # Bar admissions (not in legacy)
+                                "",  # Education (not in legacy)
+                                att.get("enrichment_status", "UNKNOWN"),
+                                "",  # Missing fields (not in legacy)
+                                att.get("url", ""),
+                                "firm_website"  # Data source (legacy format always from firm website)
+                            ])
+                        total_processed += 1
+                        # Stream to JSONL
+                        if hasattr(att, 'to_dict'):
+                            self.jsonl_file.write(
+                                json.dumps(att.to_dict(), ensure_ascii=False, default=str) + "\n"
+                            )
+                            self.jsonl_file.flush()
+
+                    # Save metrics and attorneys JSON
+                    self._save_metrics(firm, metrics)
+                    self._save_attorneys_json(firm, attorneys)
+
+                    self.log(f"[OK] {firm}: {len(attorneys)} attorneys")
+                    # NOTE: wb.save() moved to end of run() to avoid per-firm writes
+                    # which caused file corruption when multiple processes ran concurrently.
+                except Exception as e:
+                    self.log(f"[ERROR] {firm}: {e}")
+                    import traceback
+                    traceback.print_exc()
+
+            self.log(f"\nTotal: {total_processed} attorneys")
+            _run_exception = None
+        except Exception as exc:
+            _run_exception = exc
+            logger.error("Unhandled exception in firm loop: %s", exc, exc_info=True)
+        finally:
+            # --- Crash-safe output saving (always runs) -------------------------
             try:
-                attorneys, metrics = self.process_firm(firm, url)
-                for att in attorneys:
-                    # Handle new AttorneyProfile dataclass
-                    if hasattr(att, 'full_name'):  # New AttorneyProfile format
-                        # Helper: safely convert any field to comma-separated string
-                        def _to_str(v):
-                            if v is None:
-                                return ""
-                            if isinstance(v, list):
-                                return ", ".join(str(x) for x in v if x)
-                            return str(v)
+                base_name = os.path.splitext(os.path.basename(excel_path))[0]
+                output_xlsx = os.path.join(str(self.output_dir), f"{base_name}_attorneys.xlsx")
+                wb.save(output_xlsx)  # type: ignore[possibly-undefined]
+                self.log(f"  Attorney data saved: {output_xlsx}")
+            except Exception:
+                logger.error("Failed to save Excel workbook in finally block", exc_info=True)
 
-                        offices_str     = _to_str(att.offices)
-                        departments_str = _to_str(att.department)
-                        practices_str   = _to_str(att.practice_areas)
-                        industries_str  = _to_str(att.industries)
-                        bars_str        = _to_str(att.bar_admissions)
-                        missing_fields_str = _to_str(att.missing_fields)
+            try:
+                if self.source_failures:
+                    self._save_source_failure_report(excel_path)
+            except Exception:
+                logger.error("Failed to save source failure report in finally block", exc_info=True)
 
-                        # Education as JSON-stringified list of dicts (Step 2f)
-                        try:
-                            education_str = json.dumps(
-                                [e.to_dict() for e in att.education], ensure_ascii=False
-                            ) if att.education else "[]"
-                        except Exception:
-                            education_str = json.dumps(
-                                [str(e) for e in att.education], ensure_ascii=False
-                            ) if att.education else "[]"
+            try:
+                self.firm_summary_writer.rows = self._merge_summary_rows(self.firm_summary_writer.rows)
+                _summary_path = self.summary_path
+                self.firm_summary_writer.write(str(_summary_path))
+                self.log(f"  Firm summary saved: {_summary_path}")
+            except Exception:
+                logger.error("Failed to save firm summary CSV in finally block", exc_info=True)
 
-                        # Extract data_source from diagnostics
-                        try:
-                            data_source = att.diagnostics.get('data_source', 'firm_website')
-                        except Exception:
-                            data_source = 'firm_website'
+            try:
+                merged_coverage_metrics = self._merge_coverage_metrics(self.all_coverage_metrics)
+                self.coverage_engine.save_run_metrics(
+                    merged_coverage_metrics,
+                    output_path=self.coverage_metrics_path
+                )
+            except Exception:
+                logger.error("Failed to save coverage metrics in finally block", exc_info=True)
 
-                        out_ws.append([
-                            firm,
-                            att.full_name or "",
-                            att.title or "",
-                            offices_str,
-                            departments_str,
-                            practices_str,
-                            industries_str,
-                            bars_str,
-                            education_str,
-                            att.extraction_status,
-                            missing_fields_str,
-                            att.profile_url,
-                            data_source
-                        ])
-                    else:  # Legacy dict format (for backward compatibility)
-                        out_ws.append([
-                            firm,
-                            att.get("name", ""),
-                            att.get("title", ""),
-                            att.get("office", ""),  # Single office field
-                            "",  # Departments (not in legacy)
-                            att.get("practice", ""),  # Single practice field
-                            "",  # Industries (not in legacy)
-                            "",  # Bar admissions (not in legacy)
-                            "",  # Education (not in legacy)
-                            att.get("enrichment_status", "UNKNOWN"),
-                            "",  # Missing fields (not in legacy)
-                            att.get("url", ""),
-                            "firm_website"  # Data source (legacy format always from firm website)
-                        ])
-                    total_processed += 1
-                    # Stream to JSONL
-                    if hasattr(att, 'to_dict'):
-                        self.jsonl_file.write(
-                            json.dumps(att.to_dict(), ensure_ascii=False, default=str) + "\n"
-                        )
-                        self.jsonl_file.flush()
+            try:
+                if hasattr(self, 'jsonl_file') and self.jsonl_file:
+                    self.jsonl_file.flush()
+                    self.jsonl_file.close()
+            except Exception:
+                logger.error("Failed to flush/close JSONL file in finally block", exc_info=True)
 
-                # Save metrics and attorneys JSON
-                self._save_metrics(firm, metrics)
-                self._save_attorneys_json(firm, attorneys)
+            # --- Restore signal handler and clean up refs -----------------------
+            signal.signal(signal.SIGINT, previous_sigint_handler)
+            self._enrichment_stop_event = None
+            self._enrichment_browser_refs = None
+            self._enrichment_browser_refs_lock = None
 
-                self.log(f"[OK] {firm}: {len(attorneys)} attorneys")
-                # NOTE: wb.save() moved to end of run() to avoid per-firm writes
-                # which caused file corruption when multiple processes ran concurrently.
-            except Exception as e:
-                self.log(f"[ERROR] {firm}: {e}")
-                import traceback
-                traceback.print_exc()
-
-        self.log(f"\nTotal: {total_processed} attorneys")
-
-        # Save output workbook once at end (avoids per-firm writes that cause corruption)
-        base_name = os.path.splitext(os.path.basename(excel_path))[0]
-        output_xlsx = os.path.join(str(self.output_dir), f"{base_name}_attorneys.xlsx")
-        wb.save(output_xlsx)
-        self.log(f"  Attorney data saved: {output_xlsx}")
-
-        # Generate source failure report if any failures occurred
-        if self.source_failures:
-            self._save_source_failure_report(excel_path)
-
-        # Write firm-level summary CSV
-        _summary_path = self.output_dir / "firm_level_summary.csv"
-        self.firm_summary_writer.write(str(_summary_path))
-        self.log(f"  Firm summary saved: {_summary_path}")
-
-        # Save aggregated coverage metrics and close JSONL
-        self.coverage_engine.save_run_metrics(
-            self.all_coverage_metrics,
-            output_path=self.output_dir / "coverage_metrics.json"
-        )
-        if hasattr(self, 'jsonl_file') and self.jsonl_file:
-            self.jsonl_file.close()
+            # Re-raise if an unhandled exception occurred so callers see it
+            if _run_exception is not None:
+                raise _run_exception  # noqa: B012
 
         return total_processed
+
+    @staticmethod
+    def _rebuild_excel_from_jsonl(jsonl_path: str | Path, excel_path: str | Path) -> int:
+        """Rebuild an Excel workbook from a JSONL file for post-crash recovery.
+
+        Reads all JSONL records, groups by firm, and writes a new Excel file with
+        the same column structure as ``run()``.
+
+        Returns the number of attorney rows written.
+        """
+        from openpyxl import Workbook  # local import to keep lightweight
+
+        jsonl_path = Path(jsonl_path)
+        excel_path = Path(excel_path)
+
+        if not jsonl_path.exists():
+            logger.error("_rebuild_excel_from_jsonl: JSONL file not found: %s", jsonl_path)
+            return 0
+
+        headers = [
+            "Firm",
+            "Attorney Name",
+            "Title",
+            "Offices",
+            "Departments",
+            "Practice Areas",
+            "Industries",
+            "Bar Admissions",
+            "Education",
+            "Extraction Status",
+            "Missing Fields",
+            "Profile URL",
+            "Data Source",
+        ]
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Attorneys"  # type: ignore[union-attr]
+        ws.append(headers)  # type: ignore[union-attr]
+
+        def _list_to_str(val: Any) -> str:
+            if val is None:
+                return ""
+            if isinstance(val, list):
+                return ", ".join(str(x) for x in val if x)
+            return str(val)
+
+        row_count = 0
+        try:
+            with open(jsonl_path, "r", encoding="utf-8") as fh:
+                for line_number, line in enumerate(fh, 1):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError:
+                        logger.warning(
+                            "_rebuild_excel_from_jsonl: Skipping malformed line %d",
+                            line_number,
+                        )
+                        continue
+
+                    firm = record.get("firm", "")
+                    education_raw = record.get("education", [])
+                    try:
+                        education_str = json.dumps(education_raw, ensure_ascii=False)
+                    except (TypeError, ValueError):
+                        education_str = str(education_raw)
+
+                    ws.append([  # type: ignore[union-attr]
+                        firm,
+                        record.get("full_name", ""),
+                        record.get("title", ""),
+                        _list_to_str(record.get("offices")),
+                        _list_to_str(record.get("department")),
+                        _list_to_str(record.get("practice_areas")),
+                        _list_to_str(record.get("industries")),
+                        _list_to_str(record.get("bar_admissions")),
+                        education_str,
+                        record.get("extraction_status", ""),
+                        _list_to_str(record.get("missing_fields")),
+                        record.get("profile_url", ""),
+                        record.get("data_source", "firm_website"),
+                    ])
+                    row_count += 1
+        except Exception:
+            logger.error(
+                "_rebuild_excel_from_jsonl: Error reading JSONL file", exc_info=True
+            )
+
+        try:
+            wb.save(str(excel_path))
+            logger.info(
+                "_rebuild_excel_from_jsonl: Wrote %d rows to %s", row_count, excel_path
+            )
+        except Exception:
+            logger.error(
+                "_rebuild_excel_from_jsonl: Failed to save Excel file %s",
+                excel_path,
+                exc_info=True,
+            )
+
+        return row_count
 
     def _save_metrics(self, firm_name: str, metrics: DiscoveryMetrics) -> None:
         """Save discovery metrics to JSON"""
@@ -1403,8 +2035,45 @@ class AttorneyFinder:
         start = time.time()
         firm_start_time = start  # alias for firm-level timeout tracking
         firm_timeout_exceeded = False
+        self.current_firm = firm_name
         # Reset per-firm flags
         self._spa_enrichment_required = False
+
+        structure_info = self._get_site_structure(base_url)
+        structure_type = str((structure_info or {}).get("structure_type") or "").upper()
+        is_bot_protected = bool((structure_info or {}).get("is_bot_protected"))
+        if self._is_preclassified_bot_protected(structure_info):
+            normalized_domain = self._normalize_domain(base_url)
+            http_status = (structure_info or {}).get("http_status")
+            if not isinstance(http_status, int):
+                http_status = None
+            self.log(
+                "  [SKIP] BOT_PROTECTED_PRECLASSIFIED "
+                f"for {normalized_domain or base_url} — skipping before any HTTP requests"
+            )
+            return self._record_legally_incomplete_firm(
+                firm_name,
+                "BOT_PROTECTED_PRECLASSIFIED",
+                (
+                    "Preclassified as bot protected in site_structures.json: "
+                    f"domain={normalized_domain or 'unknown'}, "
+                    f"structure_type={structure_type or 'unknown'}, "
+                    f"is_bot_protected={is_bot_protected}"
+                ),
+                source_failure=SourceFailure(
+                    firm=firm_name,
+                    source_url=base_url,
+                    source_type="site_structures",
+                    failure_type="BOT_PROTECTED_PRECLASSIFIED",
+                    http_status=http_status,
+                    error_message=(
+                        "Preclassified BOT_PROTECTED in site_structures.json; "
+                        f"domain={normalized_domain or 'unknown'}; "
+                        f"structure_type={structure_type or 'unknown'}; "
+                        "detection_method=preclassified"
+                    ),
+                ),
+            )
 
         # Compliance gate: check robots.txt + bot-wall before any crawl
         compliance_result = self.compliance_engine.check(
@@ -1414,42 +2083,12 @@ class AttorneyFinder:
         )
         self.rate_limit_manager.apply_compliance(compliance_result)
         if compliance_result.accessibility in (CLASS_BLOCKED_BY_BOT, CLASS_AUTH_REQUIRED):
-            _cr = CoverageReport(firm=firm_name)
-            _cr.final_status = STATUS_LEGALLY_INCOMPLETE
-            _cr.failure_reason = compliance_result.accessibility
-            _cr.notes.append(f"Legally inaccessible: {compliance_result.accessibility}")
-            _cm = self.coverage_engine.compute(
-                firm=firm_name,
-                profiles=[],
-                legally_incomplete=True,
-                legally_incomplete_reason=compliance_result.accessibility,
-            )
-            self.all_coverage_metrics.append(_cm)
             self.log(f"  [COMPLIANCE BLOCKED] {compliance_result.accessibility} - skipping firm")
-            # FirmSummaryWriter: record legally-blocked firm
-            _blocked_loop = CoverageLoopResult(
-                firm=firm_name,
-                expected_total=None,
-                expected_total_source="unknown",
-                discovered_urls=0,
-                extracted_count=0,
-                coverage_ratio=None,
-                status="LEGALLY_INCOMPLETE",
-                legally_incomplete_reason=compliance_result.accessibility,
-                sources_tried=[],
-                gaps_remaining=0,
-                notes=[f"Legally inaccessible: {compliance_result.accessibility}"],
+            return self._record_legally_incomplete_firm(
+                firm_name,
+                compliance_result.accessibility,
+                f"Legally inaccessible: {compliance_result.accessibility}",
             )
-            _blocked_row = FirmSummaryWriter.build_row(
-                firm=firm_name,
-                loop_result=_blocked_loop,
-                attorneys=[],
-                us_attorneys=[],
-            )
-            self.firm_summary_writer.add(_blocked_row)
-            _lm = DiscoveryMetrics()
-            _lm.failure_notes = _cr.notes
-            return [], _lm
 
         # Reset firm-level enrichment mode per firm
         self.enrichment_mode = "REQUESTS"
@@ -1645,14 +2284,29 @@ class AttorneyFinder:
         attorneys = self._enrich_profile_urls(urls_to_enrich, base_url, firm_name)
 
         # Phase 5.5: Determine Discovery Status and External Directory Fallback
-        discovery_status, failure_reason = self._determine_discovery_status(coverage_report, attorneys)
-        if discovery_status == DISCOVERY_BLOCKED and self.enrichment_mode != "PLAYWRIGHT_ONLY":
-            self.log("  All profiles blocked under requests; retrying with Playwright batch mode")
-            self.enrichment_mode = "PLAYWRIGHT_ONLY"
-            attorneys = self._enrich_profile_urls(urls_to_enrich, base_url, firm_name)
+        # TASK 9: If bot-protection abort triggered, override status immediately
+        #         and skip Playwright retry (bot wall won't yield different results)
+        if getattr(self, '_last_enrichment_aborted', False):
+            discovery_status = DISCOVERY_BLOCKED
+            failure_reason = self._last_enrichment_abort_reason
+            self.log(f"  [ABORT] Overriding discovery_status → {discovery_status} ({failure_reason})")
+        else:
             discovery_status, failure_reason = self._determine_discovery_status(coverage_report, attorneys)
+            if discovery_status == DISCOVERY_BLOCKED and self.enrichment_mode != "PLAYWRIGHT_ONLY":
+                self.log("  All profiles blocked under requests; retrying with Playwright batch mode")
+                self.enrichment_mode = "PLAYWRIGHT_ONLY"
+                attorneys = self._enrich_profile_urls(urls_to_enrich, base_url, firm_name)
+                discovery_status, failure_reason = self._determine_discovery_status(coverage_report, attorneys)
         coverage_report.discovery_status = discovery_status
         coverage_report.failure_reason = failure_reason
+
+        # TASK 9: Propagate abort reason into loop_result for summary CSV
+        if getattr(self, '_last_enrichment_aborted', False) and loop_result is not None:
+            loop_result.notes.append(f"[ABORT] {self._last_enrichment_abort_reason}")
+            # If status was SUCCESS before abort, downgrade it
+            if loop_result.status not in ("LEGALLY_INCOMPLETE",):
+                loop_result.status = "BLOCKED"
+                loop_result.legally_incomplete_reason = self._last_enrichment_abort_reason
 
         # Save updated coverage report with discovery status
         self._save_coverage_report(coverage_report)
@@ -1817,7 +2471,14 @@ class AttorneyFinder:
 
         # Phase 5: Determine status and log
         coverage_report.final_status = self._determine_final_status(coverage_report)
-        discovery_status, failure_reason = self._determine_discovery_status(coverage_report, attorneys)
+        # TASK 9: If bot-protection abort triggered, override status
+        if getattr(self, '_last_enrichment_aborted', False):
+            discovery_status = DISCOVERY_BLOCKED
+            failure_reason = self._last_enrichment_abort_reason
+            coverage_report.final_status = STATUS_LEGALLY_INCOMPLETE
+            self.log(f"  [ABORT] Overriding discovery_status → {discovery_status} ({failure_reason})")
+        else:
+            discovery_status, failure_reason = self._determine_discovery_status(coverage_report, attorneys)
         coverage_report.discovery_status = discovery_status
         coverage_report.failure_reason = failure_reason
 
@@ -2366,7 +3027,7 @@ class AttorneyFinder:
 
                     # Log source failure using global SourceFailure dataclass
                     self.source_failures.append(SourceFailure(
-                        firm=firm_name if hasattr(self, 'current_firm') else "unknown",
+                        firm=getattr(self, 'current_firm', "unknown"),
                         source_url=base_url + "/sitemap.xml",
                         source_type="xml_sitemap",
                         failure_type="validation_failed",
@@ -2387,6 +3048,20 @@ class AttorneyFinder:
 
         except Exception as e:
             self.log(f"  XML Sitemap error: {e}")
+
+        if urls:
+            return urls, None
+
+        self.log("  XML Sitemap returned 0 URLs — trying HTML directory fallbacks")
+        fallback_urls, expected_total = self._strategy_directory_listing(base_url)
+        if fallback_urls:
+            self.log(f"  XML Sitemap fallback via directory listing recovered {len(fallback_urls)} URLs")
+            return fallback_urls, expected_total
+
+        fallback_urls, expected_total = self._strategy_alphabet_enumeration(base_url)
+        if fallback_urls:
+            self.log(f"  XML Sitemap fallback via alphabet enumeration recovered {len(fallback_urls)} URLs")
+            return fallback_urls, expected_total
 
         return urls, None  # Sitemaps don't provide expected totals
 
@@ -2654,19 +3329,302 @@ class AttorneyFinder:
         self.log("  HARD_CASE detected - no standard discovery method available")
         return set(), None
 
+    def _get_directory_seed_urls(self, base_url: str) -> list[str]:
+        """Build likely attorney directory URLs from site-structure hints and defaults."""
+        seeds: list[str] = []
+        structure_info = self._get_site_structure(base_url) or {}
+        hinted_path = str(structure_info.get("directory_path_found") or "").strip()
+        if hinted_path:
+            seeds.append(urljoin(base_url.rstrip("/") + "/", hinted_path.lstrip("/")))
+
+        for path in DIRECTORY_PATHS:
+            seeds.append(urljoin(base_url.rstrip("/") + "/", path.lstrip("/")))
+
+        deduped: list[str] = []
+        for seed in seeds:
+            normalized = seed.rstrip("/")
+            if normalized and normalized not in deduped:
+                deduped.append(normalized)
+        return deduped
+
+    def _fetch_html_page(self, url: str) -> tuple[str | None, str | None]:
+        """Fetch one HTML page with robots and rate-limit checks."""
+        if not self.compliance_engine.is_allowed(url):
+            self.log(f"  [ROBOTS] Skipping disallowed URL: {url}")
+            return None, None
+
+        domain = urlparse(url).netloc
+        try:
+            self.rate_limit_manager.wait(domain)
+        except RateLimitBlockedError:
+            self.log(f"  [RATE_LIMIT] Blocked domain while fetching {url}")
+            return None, None
+
+        try:
+            resp = self.session.get(url, timeout=REQUEST_TIMEOUT, allow_redirects=True)
+        except requests.RequestException as exc:
+            self.log(f"  [REQUEST] Failed {url}: {type(exc).__name__}")
+            return None, None
+
+        if resp.status_code != 200:
+            return None, None
+        content_type = (resp.headers.get("content-type") or "").lower()
+        if "html" not in content_type and "xml" in content_type:
+            return None, None
+        return resp.url, resp.text
+
+    def _normalize_profile_url(self, href: str, base_url: str, expected_domain: str) -> str | None:
+        """Normalize and validate a candidate attorney profile URL."""
+        full_url = urljoin(base_url, href)
+        parsed = urlparse(full_url)
+        if parsed.scheme not in {"http", "https"}:
+            return None
+        if expected_domain not in parsed.netloc:
+            return None
+        normalized = parsed._replace(fragment="")
+        normalized_url = normalized.geturl().rstrip("/")
+        if not normalized_url:
+            return None
+        if self._is_attorney_profile_url(normalized_url) or self._is_profile_like_url(normalized_url, expected_domain):
+            return normalized_url
+        return None
+
+    def _extract_profile_urls_from_html(self, html: str, page_url: str, base_url: str) -> set[str]:
+        """Extract attorney-profile URLs from one HTML page."""
+        try:
+            from bs4 import BeautifulSoup
+        except ImportError:
+            self.log("  BeautifulSoup not available for HTML directory parsing")
+            return set()
+
+        soup = BeautifulSoup(html, "html.parser")
+        domain = urlparse(base_url).netloc
+        urls: set[str] = set()
+        for anchor in soup.find_all("a", href=True):
+            normalized = self._normalize_profile_url(str(anchor.get("href") or ""), page_url, domain)
+            if normalized:
+                urls.add(normalized)
+        return urls
+
+    def _extract_expected_total_from_html(self, html: str) -> int | None:
+        """Best-effort expected-total extraction from directory page text."""
+        try:
+            from bs4 import BeautifulSoup
+        except ImportError:
+            return None
+
+        soup = BeautifulSoup(html, "html.parser")
+        page_text = soup.get_text(" ", strip=True)
+        return self.expected_total_resolver.resolve(page_text=page_text).value
+
+    def _extract_profile_urls_from_api_payload(self, payload: Any, base_url: str) -> set[str]:
+        """Extract attorney profile URLs from known directory API payloads."""
+        domain = urlparse(base_url).netloc
+        urls: set[str] = set()
+        if not isinstance(payload, dict):
+            return urls
+
+        def _record_candidates(records: Any) -> None:
+            if not isinstance(records, list):
+                return
+            for item in records:
+                if not isinstance(item, dict):
+                    continue
+                candidate_url = item.get("PersonURL") or item.get("url") or item.get("profileUrl")
+                if isinstance(candidate_url, str):
+                    normalized = self._normalize_profile_url(candidate_url, base_url, domain)
+                    if normalized:
+                        urls.add(normalized)
+
+        _record_candidates(payload.get("SearchGroups"))
+        _record_candidates(payload.get("SearchResults"))
+        return urls
+
+    def _fetch_json(self, url: str) -> dict[str, Any] | None:
+        """Fetch JSON payload with rate limiting and standard AJAX headers."""
+        if not self.compliance_engine.is_allowed(url):
+            self.log(f"  [ROBOTS] Skipping disallowed API URL: {url}")
+            return None
+
+        domain = urlparse(url).netloc
+        try:
+            self.rate_limit_manager.wait(domain)
+        except RateLimitBlockedError:
+            self.log(f"  [RATE_LIMIT] Blocked domain while fetching API {url}")
+            return None
+
+        headers = {
+            "Accept": "application/json,text/plain,*/*",
+            "X-Requested-With": "XMLHttpRequest",
+        }
+        try:
+            resp = self.session.get(url, timeout=REQUEST_TIMEOUT, headers=headers)
+        except requests.RequestException as exc:
+            self.log(f"  [REQUEST] Failed API {url}: {type(exc).__name__}")
+            return None
+
+        if resp.status_code != 200:
+            return None
+
+        try:
+            data = resp.json()
+        except ValueError:
+            return None
+        return data if isinstance(data, dict) else None
+
+    def _strategy_directory_api(self, base_url: str) -> tuple[set[str], int | None]:
+        """Strategy: discover profiles from a site-specific HTML directory API."""
+        api_candidates = [
+            "/api/custom/biolisting/execute?",
+            "/api/custom/biosearchnew/execute?",
+        ]
+        urls: set[str] = set()
+        expected_total: int | None = None
+
+        for path in api_candidates:
+            api_url = urljoin(base_url.rstrip("/") + "/", path.lstrip("/"))
+            payload = self._fetch_json(api_url)
+            if not payload:
+                continue
+
+            api_urls = self._extract_profile_urls_from_api_payload(payload, base_url)
+            if not api_urls:
+                continue
+
+            urls.update(api_urls)
+            total_records = payload.get("TotalRecords")
+            if isinstance(total_records, int) and total_records > 0:
+                expected_total = total_records
+            elif expected_total is None:
+                expected_total = self._extract_total_from_json(payload)
+
+            self.log(f"  Directory API: {len(api_urls)} profile URLs from {api_url}")
+            break
+
+        return urls, expected_total
+
+    def _discover_next_pages_from_html(self, html: str, page_url: str, base_url: str) -> list[str]:
+        """Find pagination links for another directory page."""
+        try:
+            from bs4 import BeautifulSoup
+        except ImportError:
+            return []
+
+        soup = BeautifulSoup(html, "html.parser")
+        domain = urlparse(base_url).netloc
+        candidates: list[str] = []
+
+        def _add_candidate(href: str | None) -> None:
+            if not href:
+                return
+            absolute = urljoin(page_url, href)
+            parsed = urlparse(absolute)
+            if domain not in parsed.netloc:
+                return
+            if not self.compliance_engine.is_allowed(absolute):
+                return
+
+            query = parse_qs(parsed.query)
+            path_lower = parsed.path.lower()
+            text = absolute.lower()
+            has_pagination_signal = any(key in query for key in PAGINATION_QUERY_KEYS)
+            has_pagination_signal = has_pagination_signal or bool(re.search(r"/page/\d+/?$", path_lower))
+            has_pagination_signal = has_pagination_signal or "page=" in text or "p=" in text
+            if not has_pagination_signal:
+                return
+
+            normalized = parsed._replace(fragment="").geturl()
+            if normalized not in candidates:
+                candidates.append(normalized)
+
+        for anchor in soup.find_all("a", href=True):
+            rel_values = [str(v).lower() for v in (anchor.get("rel") or [])]
+            anchor_text = anchor.get_text(" ", strip=True).lower()
+            href = str(anchor.get("href") or "")
+            if "next" in rel_values or anchor_text in {"next", "next >", ">", "older"}:
+                _add_candidate(href)
+                continue
+            _add_candidate(href)
+
+        return candidates
+
+    def _crawl_directory_pages(
+        self,
+        seed_urls: list[str],
+        base_url: str,
+        *,
+        page_limit: int,
+        log_label: str,
+    ) -> tuple[set[str], int | None]:
+        """Crawl HTML directory pages and collect attorney profile URLs."""
+        urls: set[str] = set()
+        visited: set[str] = set()
+        queue: list[str] = []
+        expected_total: int | None = None
+
+        for seed in seed_urls:
+            if seed and seed not in queue and self.compliance_engine.is_allowed(seed):
+                queue.append(seed)
+
+        while queue and len(visited) < page_limit:
+            current_url = queue.pop(0)
+            if current_url in visited:
+                continue
+            visited.add(current_url)
+
+            resolved_url, html = self._fetch_html_page(current_url)
+            if not resolved_url or not html:
+                continue
+
+            page_expected_total = self._extract_expected_total_from_html(html)
+            if page_expected_total and (expected_total is None or page_expected_total > expected_total):
+                expected_total = page_expected_total
+
+            page_urls = self._extract_profile_urls_from_html(html, resolved_url, base_url)
+            urls.update(page_urls)
+
+            for next_url in self._discover_next_pages_from_html(html, resolved_url, base_url):
+                if next_url not in visited and next_url not in queue:
+                    queue.append(next_url)
+
+        self.log(f"  {log_label}: crawled {len(visited)} pages, found {len(urls)} profile URLs")
+        return urls, expected_total
+
     def _strategy_directory_listing(self, base_url: str) -> tuple[set[str], int | None]:
         """Strategy: Discover attorney profiles via directory listing pages.
-        Stub — delegates to dom_exhaustion as a best-effort fallback.
         """
-        self.log("  Directory Listing: delegating to DOM exhaustion")
-        return self._strategy_dom_exhaustion(base_url)
+        api_urls, api_expected_total = self._strategy_directory_api(base_url)
+        if api_urls:
+            return api_urls, api_expected_total
+
+        seed_urls = self._get_directory_seed_urls(base_url)
+        urls, expected_total = self._crawl_directory_pages(
+            seed_urls,
+            base_url,
+            page_limit=MAX_DIRECTORY_PAGES,
+            log_label="Directory Listing",
+        )
+        return urls, expected_total
 
     def _strategy_alphabet_enumeration(self, base_url: str) -> tuple[set[str], int | None]:
         """Strategy: Enumerate attorney profiles by alphabet (A-Z) nav links.
-        Stub — delegates to dom_exhaustion as a best-effort fallback.
         """
-        self.log("  Alphabet Enumeration: delegating to DOM exhaustion")
-        return self._strategy_dom_exhaustion(base_url)
+        seed_urls: list[str] = []
+        for base_directory_url in self._get_directory_seed_urls(base_url):
+            for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+                seed_urls.append(f"{base_directory_url}?letter={letter}")
+                seed_urls.append(f"{base_directory_url}?last_name={letter}")
+                seed_urls.append(f"{base_directory_url}?alpha={letter}")
+                seed_urls.append(f"{base_directory_url}?initial={letter}")
+                seed_urls.append(urljoin(base_directory_url.rstrip("/") + "/", letter.lower()))
+
+        urls, expected_total = self._crawl_directory_pages(
+            seed_urls,
+            base_url,
+            page_limit=MAX_ALPHABET_PAGES,
+            log_label="Alphabet Enumeration",
+        )
+        return urls, expected_total
 
     def _strategy_xml_sitemap_navigation(self, base_url: str) -> tuple[set[str], int | None]:
         """Strategy: Navigate XML sitemap index to discover attorney profile URLs.
@@ -3913,6 +4871,7 @@ class AttorneyFinder:
                 "/people/",
                 "/professional",
                 "/bio/",
+                "/bios/",
                 "/profile/",
                 "/team/",
                 "/our-people/",
@@ -3960,6 +4919,14 @@ class AttorneyFinder:
         """
         from multi_mode_extractor import MultiModeExtractor
 
+        # TASK 9: Reset per-firm abort state
+        self._last_enrichment_aborted = False
+        self._last_enrichment_abort_reason = ""
+        self._last_enrichment_bot_403_count = 0
+
+        # TASK 9: Per-firm bot-protection 403 abort tracker
+        abort_tracker = _BotAbortTracker(total_urls=len(urls))
+
         def _run_batch(batch_urls: list[str], extractor: MultiModeExtractor, force_playwright: bool) -> list:
             results = []
             with ThreadPoolExecutor(max_workers=self.workers if not force_playwright else min(self.workers, 4)) as executor:
@@ -3974,8 +4941,14 @@ class AttorneyFinder:
                     for url in batch_urls
                 }
                 for future in as_completed(futures):
+                    # TASK 9: skip remaining if abort triggered
+                    if abort_tracker.aborted:
+                        future.cancel()
+                        continue
                     try:
-                        results.append(future.result())
+                        profile = future.result()
+                        results.append(profile)
+                        abort_tracker.record(profile)
                     except Exception as e:
                         from attorney_extractor import AttorneyProfile
                         from profile_quality_gate import ReasonCode
@@ -3986,6 +4959,9 @@ class AttorneyFinder:
                         profile.diagnostics["full_name_reason"] = ReasonCode.EXCEPTION
                         profile.missing_fields = ["full_name", "title", "offices", "department", "practice_areas", "industries", "bar_admissions", "education"]
                         results.append(profile)
+                        abort_tracker.record(profile)
+            if abort_tracker.aborted:
+                self.log(f"  [ABORT] {abort_tracker.abort_reason}")
             return results
 
         def _run_batch_shared_browser(
@@ -4005,6 +4981,16 @@ class AttorneyFinder:
 
             results: list = []
             results_lock = threading.Lock()
+            browser_refs: list[Any] = []
+            browser_refs_lock = threading.Lock()
+            stop_event = threading.Event()
+            self._enrichment_stop_event = stop_event
+            self._enrichment_browser_refs = browser_refs
+            self._enrichment_browser_refs_lock = browser_refs_lock
+
+            def _append_result(profile: Any) -> None:
+                with results_lock:
+                    results.append(profile)
 
             # Distribute URLs across workers (round-robin into n_workers sub-batches)
             sub_batches: list = [[] for _ in range(n_workers)]
@@ -4017,14 +5003,17 @@ class AttorneyFinder:
                 from playwright.sync_api import sync_playwright
                 from attorney_extractor import AttorneyProfile
                 from profile_quality_gate import ReasonCode
-                local_results: list = []
                 try:
                     with sync_playwright() as p:
                         browser = p.chromium.launch(headless=True)
+                        with browser_refs_lock:
+                            browser_refs.append(browser)
                         ctx = browser.new_context()
                         page = ctx.new_page()
                         try:
                             for url in sub_batch:
+                                if stop_event.is_set() or abort_tracker.aborted:
+                                    break
                                 try:
                                     profile = extractor.extract_profile_with_page(
                                         firm_name,
@@ -4032,7 +5021,8 @@ class AttorneyFinder:
                                         page,
                                         lambda d: self.rate_limit_manager.wait(d),
                                     )
-                                    local_results.append(profile)
+                                    _append_result(profile)
+                                    abort_tracker.record(profile)
                                 except Exception as e:
                                     profile = AttorneyProfile(firm=firm_name, profile_url=url)
                                     profile.extraction_status = "FAILED"
@@ -4041,7 +5031,8 @@ class AttorneyFinder:
                                     profile.missing_fields = ["full_name", "title", "offices",
                                                                 "department", "practice_areas",
                                                         "industries", "bar_admissions", "education"]
-                                    local_results.append(profile)
+                                    _append_result(profile)
+                                    abort_tracker.record(profile)
                         finally:
                             try: page.close()
                             except Exception: pass
@@ -4049,9 +5040,16 @@ class AttorneyFinder:
                             except Exception: pass
                             try: browser.close()
                             except Exception: pass
+                            with browser_refs_lock:
+                                try:
+                                    browser_refs.remove(browser)
+                                except ValueError:
+                                    pass
                 except Exception as outer_e:
                     # Browser failed to launch — mark all as FAILED
                     for url in sub_batch:
+                        if stop_event.is_set() or abort_tracker.aborted:
+                            break
                         profile = AttorneyProfile(firm=firm_name, profile_url=url)
                         profile.extraction_status = "FAILED"
                         profile.diagnostics["exception"] = str(type(outer_e).__name__)
@@ -4059,21 +5057,53 @@ class AttorneyFinder:
                         profile.missing_fields = ["full_name", "title", "offices", "department",
                                                     "practice_areas", "industries",
                                                     "bar_admissions", "education"]
-                        local_results.append(profile)
-                with results_lock:
-                    results.extend(local_results)
+                        _append_result(profile)
 
-            threads = [
-                threading.Thread(target=_worker, args=(sub_batches[i],), daemon=True)
-                for i in range(n_workers)
-                if sub_batches[i]
-            ]
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
+            try:
+                threads = [
+                    threading.Thread(target=_worker, args=(sub_batches[i],), daemon=True)
+                    for i in range(n_workers)
+                    if sub_batches[i]
+                ]
+                for t in threads:
+                    t.start()
 
-            return results
+                timed_out = False
+                deadline = time.monotonic() + MAX_ENRICHMENT_TIME_PER_FIRM
+                for t in threads:
+                    remaining = max(0.0, deadline - time.monotonic())
+                    t.join(timeout=min(MAX_ENRICHMENT_TIME_PER_FIRM, remaining))
+                    if t.is_alive():
+                        timed_out = True
+                        stop_event.set()
+                        with browser_refs_lock:
+                            active_browsers = list(browser_refs)
+                        for browser in active_browsers:
+                            try:
+                                browser.close()
+                            except Exception:
+                                pass
+                        break
+
+                if timed_out:
+                    for t in threads:
+                        if t.is_alive():
+                            t.join(timeout=5)
+                    partial_count = len(results)
+                    logger.warning(
+                        f"Firm {firm_name} enrichment timed out after {MAX_ENRICHMENT_TIME_PER_FIRM}s, "
+                        f"saving {partial_count} partial results"
+                    )
+
+                # TASK 9: Log abort triggered during shared browser enrichment
+                if abort_tracker.aborted:
+                    self.log(f"  [ABORT] {abort_tracker.abort_reason}")
+
+                return results
+            finally:
+                self._enrichment_stop_event = None
+                self._enrichment_browser_refs = None
+                self._enrichment_browser_refs_lock = None
 
 
         extractor_requests = MultiModeExtractor(
@@ -4102,18 +5132,34 @@ class AttorneyFinder:
             self.log("  Enrichment mode: REQUESTS")
             attorneys = _run_batch(urls, extractor_requests, False)
 
-            # If >50% blocked in requests stage, switch firm to PLAYWRIGHT_ONLY
-            blocked_count = 0
-            for att in attorneys:
-                diag = getattr(att, "diagnostics", {})
-                if diag.get("http_403") or diag.get("bot_protection") or diag.get("blocked_403"):
-                    blocked_count += 1
-            if attorneys:
-                blocked_ratio = blocked_count / len(attorneys)
-                if blocked_ratio > 0.5:
-                    self.enrichment_mode = "PLAYWRIGHT_ONLY"
-                    self.log(f"  Switching enrichment mode to PLAYWRIGHT_ONLY (blocked ratio {blocked_ratio:.2f})")
-                    attorneys = _run_batch_shared_browser(urls, extractor_playwright, n_workers=min(self.workers, 8))
+            # TASK 9: If abort triggered, skip Playwright escalation entirely
+            if not abort_tracker.aborted:
+                # If >50% blocked in requests stage, switch firm to PLAYWRIGHT_ONLY
+                blocked_count = 0
+                for att in attorneys:
+                    diag = getattr(att, "diagnostics", {})
+                    if diag.get("http_403") or diag.get("bot_protection") or diag.get("blocked_403"):
+                        blocked_count += 1
+                if attorneys:
+                    blocked_ratio = blocked_count / len(attorneys)
+                    if blocked_ratio > 0.5:
+                        self.enrichment_mode = "PLAYWRIGHT_ONLY"
+                        self.log(f"  Switching enrichment mode to PLAYWRIGHT_ONLY (blocked ratio {blocked_ratio:.2f})")
+                        attorneys = _run_batch_shared_browser(urls, extractor_playwright, n_workers=min(self.workers, 8))
+
+        if self._shutdown_requested:
+            self.log("  Shutdown requested during enrichment; returning partial results")
+            return attorneys
+
+        # TASK 9: If abort triggered, skip all remaining enrichment stages
+        if abort_tracker.aborted:
+            self.log(f"  [ABORT] Firm enrichment aborted: {abort_tracker.abort_reason}")
+            self.log(f"  [ABORT] Returning {len(attorneys)} partial results (skipping Playwright fallback)")
+            # Store abort state on instance so callers can detect it
+            self._last_enrichment_aborted = True
+            self._last_enrichment_abort_reason = abort_tracker.abort_reason
+            self._last_enrichment_bot_403_count = abort_tracker.bot_403_count
+            return attorneys
 
         # Stage 2: Playwright fallback for failed/partial results (if not forced already)
         if self.enrichment_mode != "PLAYWRIGHT_ONLY":
@@ -4167,6 +5213,34 @@ class AttorneyFinder:
                     )
                 except Exception as _fe_err:
                     att.diagnostics['field_enricher_error'] = str(_fe_err)
+
+        # Post-processing validation + department inference fallback
+        for att in attorneys:
+            if att.practice_areas:
+                cleaned_practice_areas, practice_reason = validate_practice_areas(att.practice_areas)
+                att.practice_areas = cleaned_practice_areas
+                if practice_reason:
+                    att.diagnostics["practice_areas_validation_reason"] = practice_reason
+
+            if att.offices:
+                cleaned_offices, offices_reason = validate_offices(att.offices)
+                att.offices = cleaned_offices
+                if offices_reason:
+                    att.diagnostics["offices_validation_reason"] = offices_reason
+
+            if att.title:
+                cleaned_title, title_reason = validate_title(att.title, firm_name=firm_name)
+                att.title = cleaned_title or ""
+                if title_reason:
+                    att.diagnostics["title_validation_reason"] = title_reason
+
+            if not att.department and att.practice_areas:
+                inferred = infer_department_from_practices(
+                    att.practice_areas, att.department or [],
+                )
+                if inferred:
+                    att.department = inferred
+                    att.diagnostics["department_inferred"] = True
 
         return attorneys
 
@@ -4430,7 +5504,7 @@ class AttorneyFinder:
         # Must contain a recognized attorney segment AS A FULL PATH COMPONENT
         # (not as a substring inside a slug like 'lawyers-for-a-sustainable-economy')
         profile_segments = {"lawyers", "lawyer", "attorney", "attorneys", "people", "professionals",
-                            "bio", "profile", "our-team", "team", "person"}
+                            "bio", "bios", "profile", "our-team", "team", "person"}
         has_profile_segment = bool(path_segments_set & profile_segments)
         if not has_profile_segment:
             return False
@@ -4943,6 +6017,11 @@ def _parse_args() -> argparse.Namespace:
         help="Multi-source discovery Excel from firm_finder_desktop.py (enables multi-source aggregation)",
     )
     parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from existing JSONL — skip already-processed firms",
+    )
+    parser.add_argument(
         "--output-dir",
         default=".",
         help="Directory for output files (attorneys.jsonl, coverage_metrics.json)",
@@ -4974,6 +6053,7 @@ def main() -> int:
         max_scroll_seconds=args.max_scroll_seconds,
         sources_file=args.sources_file,
         output_dir=args.output_dir,
+        resume=args.resume,
     )
     start = time.time()
     total = finder.run(excel_path)

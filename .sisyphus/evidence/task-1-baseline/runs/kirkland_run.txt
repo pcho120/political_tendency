@@ -1,0 +1,806 @@
+﻿python : --- Logging error ---
+At line:1 char:1
++ python find_attorney.py "AmLaw200_2025 Rank_gross revenue_with_websit ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (--- Logging error ---:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 38: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5399, in main
+    finder = AttorneyFinder(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 564, in __init__
+    self.discovery_engine = DiscoveryRulesEngine("firm_observations.jsonl", "rule_confidence.json")
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\discovery_rules.py", line 76, in __init__
+    self._load_patterns()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\discovery_rules.py", line 80, in _load_patterns
+    self.patterns = self.aggregator.load_confidence_file()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\pattern_aggregator.py", line 296, in 
+load_confidence_file
+    logger.warning(f"Confidence file not found: {self.confidence_output}")
+Message: 'Confidence file not found: rule_confidence.json'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 35: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5399, in main
+    finder = AttorneyFinder(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 564, in __init__
+    self.discovery_engine = DiscoveryRulesEngine("firm_observations.jsonl", "rule_confidence.json")
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\discovery_rules.py", line 76, in __init__
+    self._load_patterns()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\discovery_rules.py", line 83, in _load_patterns
+    logger.warning("No historical patterns found - will use default confidence")
+Message: 'No historical patterns found - will use default confidence'
+Arguments: ()
+No sources file specified or file not found - using single-source mode
+
+Processing: Kirkland...
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 34: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1777, in process_firm
+    compliance_result = self.compliance_engine.check(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\compliance_engine.py", line 258, in check
+    logger.info(f"[compliance] checking {firm} ({base_url})")
+Message: '[compliance] checking Kirkland (https://www.kirkland.com)'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 34: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1777, in process_firm
+    compliance_result = self.compliance_engine.check(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\compliance_engine.py", line 349, in check
+    logger.info(
+Message: '[compliance] Kirkland: PARTIALLY_PUBLIC (robots=OK, homepage=200, bot_wall=False)'
+Arguments: ()
+
+=== Phase 1-3 Discovery: Kirkland ===
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 32: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1833, in process_firm
+    profile = self.detect_firm_type(firm_name, base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 900, in detect_firm_type
+    recommendation = self.discovery_engine.get_discovery_recommendation(firm_name, base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\discovery_rules.py", line 99, in 
+get_discovery_recommendation
+    logger.info(f"Generating discovery recommendation for {firm}")
+Message: 'Generating discovery recommendation for Kirkland'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 35: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1833, in process_firm
+    profile = self.detect_firm_type(firm_name, base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 900, in detect_firm_type
+    recommendation = self.discovery_engine.get_discovery_recommendation(firm_name, base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\discovery_rules.py", line 102, in 
+get_discovery_recommendation
+    observation = self._get_or_create_observation(firm, base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\discovery_rules.py", line 122, in 
+_get_or_create_observation
+    existing = self.observation_logger.get_observations_for_firm(firm)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\observation_logger.py", line 551, in 
+get_observations_for_firm
+    all_obs = self.load_all_observations()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\observation_logger.py", line 543, in 
+load_all_observations
+    logger.info(f"Loaded {len(observations)} observations from {self.log_file}")
+Message: 'Loaded 146 observations from firm_observations.jsonl'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 32: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1833, in process_firm
+    profile = self.detect_firm_type(firm_name, base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 900, in detect_firm_type
+    recommendation = self.discovery_engine.get_discovery_recommendation(firm_name, base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\discovery_rules.py", line 102, in 
+get_discovery_recommendation
+    observation = self._get_or_create_observation(firm, base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\discovery_rules.py", line 125, in 
+_get_or_create_observation
+    logger.info(f"Using existing observation for {firm} ({len(existing)} total)")
+Message: 'Using existing observation for Kirkland (1 total)'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 32: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1833, in process_firm
+    profile = self.detect_firm_type(firm_name, base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 900, in detect_firm_type
+    recommendation = self.discovery_engine.get_discovery_recommendation(firm_name, base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\discovery_rules.py", line 116, in 
+get_discovery_recommendation
+    logger.info(f"Recommendation for {firm}: {len(strategies)} strategies, classified as {classification}")
+Message: 'Recommendation for Kirkland: 3 strategies, classified as SPA_HEAVY'
+  Classification: SPA_HEAVY
+Arguments: ()
+  Detected types: DIRECTORY_HTML, XML_SITEMAP
+  Strategies (3):
+    1. xml_sitemap_as_list (confidence: 0.70, priority: 1)
+    2. directory_listing (confidence: 0.50, priority: 2)
+    3. search_based (confidence: 0.30, priority: 4)
+  Profile saved: debug_reports\Kirkland_profile.json
+  Selected strategies: xml_sitemap
+  Selected strategies: xml_sitemap
+  [CoverageLoop] Expected total unknown ??will run all strategies until timeout or stabilization (N=2 consecutive zero-yield)
+
+  [CoverageLoop] Running strategy: xml_sitemap (0 URLs so far)
+  XML Sitemap: 500 profile URLs found
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 119, in validate_source
+    logger.info(f"Validating source: {source_url} ({source_type})")
+Message: 'Validating source: https://www.kirkland.com/sitemap.xml (xml_sitemap)'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 120, in validate_source
+    logger.info(f"  Candidate URLs: {len(candidate_urls)}")
+Message: '  Candidate URLs: 500'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 144, in validate_source
+    logger.info(f"  Sampling up to {sample_count} valid profiles from pool of {pool_size}...")
+Message: '  Sampling up to 3 valid profiles from pool of 9...'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 150, in validate_source
+    sample = self._sample_profile(url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 229, in _sample_profile
+    logger.info(f"Sample HTML from {url}:")
+Message: 'Sample HTML from https://www.kirkland.com/lawyers/a/abi-nassif-marie-joe:'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 150, in validate_source
+    sample = self._sample_profile(url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 230, in _sample_profile
+    logger.info(f"  {html_preview}...")
+Message: '  \r\n\r\n\r\n<!DOCTYPE html>\r\n\r\n<html lang="en">\r\n<head>\r\n    \r\n\r\n\r\n    <!-- OneTrust Cookies 
+Consent Notice start -->\r\n    <script type="text/javascript" 
+src="https://cdn.cookielaw.org/consent/d5c32bad-af36-48f5-b36d-4541e98e4232/OtAutoBlock.js" 
+data-document-language="true"></script>\r\n    <script src="https://cdn.cookielaw.org/scripttemplates/otSDKStub.js" 
+type="text/javascript" charset="UTF-8" data-domain-script="d5c32bad-af36-48f5-b36d-4541e98e4232"></script>\r\n    
+<script type="text/javascript">\r\n ...'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 150, in validate_source
+    sample = self._sample_profile(url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 270, in _sample_profile
+    logger.info(f"  Extracted: name={bool(sample.name)}, title={bool(sample.title)}, office={bool(sample.office)}")
+Message: '  Extracted: name=True, title=True, office=True'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 150, in validate_source
+    sample = self._sample_profile(url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 229, in _sample_profile
+    logger.info(f"Sample HTML from {url}:")
+Message: 'Sample HTML from https://www.kirkland.com/lawyers/b/bendheim-gilad:'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 150, in validate_source
+    sample = self._sample_profile(url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 230, in _sample_profile
+    logger.info(f"  {html_preview}...")
+Message: '  \r\n\r\n\r\n<!DOCTYPE html>\r\n\r\n<html lang="en">\r\n<head>\r\n    \r\n\r\n\r\n    <!-- OneTrust Cookies 
+Consent Notice start -->\r\n    <script type="text/javascript" 
+src="https://cdn.cookielaw.org/consent/d5c32bad-af36-48f5-b36d-4541e98e4232/OtAutoBlock.js" 
+data-document-language="true"></script>\r\n    <script src="https://cdn.cookielaw.org/scripttemplates/otSDKStub.js" 
+type="text/javascript" charset="UTF-8" data-domain-script="d5c32bad-af36-48f5-b36d-4541e98e4232"></script>\r\n    
+<script type="text/javascript">\r\n ...'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 150, in validate_source
+    sample = self._sample_profile(url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 270, in _sample_profile
+    logger.info(f"  Extracted: name={bool(sample.name)}, title={bool(sample.title)}, office={bool(sample.office)}")
+Message: '  Extracted: name=True, title=True, office=True'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 150, in validate_source
+    sample = self._sample_profile(url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 229, in _sample_profile
+    logger.info(f"Sample HTML from {url}:")
+Message: 'Sample HTML from https://www.kirkland.com/lawyers/a/adair-jonathan-n:'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 150, in validate_source
+    sample = self._sample_profile(url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 230, in _sample_profile
+    logger.info(f"  {html_preview}...")
+Message: '  \r\n\r\n\r\n<!DOCTYPE html>\r\n\r\n<html lang="en">\r\n<head>\r\n    \r\n\r\n\r\n    <!-- OneTrust Cookies 
+Consent Notice start -->\r\n    <script type="text/javascript" 
+src="https://cdn.cookielaw.org/consent/d5c32bad-af36-48f5-b36d-4541e98e4232/OtAutoBlock.js" 
+data-document-language="true"></script>\r\n    <script src="https://cdn.cookielaw.org/scripttemplates/otSDKStub.js" 
+type="text/javascript" charset="UTF-8" data-domain-script="d5c32bad-af36-48f5-b36d-4541e98e4232"></script>\r\n    
+<script type="text/javascript">\r\n ...'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 150, in validate_source
+    sample = self._sample_profile(url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 270, in _sample_profile
+    logger.info(f"  Extracted: name={bool(sample.name)}, title={bool(sample.title)}, office={bool(sample.office)}")
+Message: '  Extracted: name=True, title=True, office=True'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 194, in validate_source
+    logger.info(f"  Field validation (from {effective_sample_count} usable samples, {len(failed_samples)} skipped as 
+stale):")
+Message: '  Field validation (from 3 usable samples, 0 skipped as stale):'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 195, in validate_source
+    logger.info(f"    name: {field_counts['name']}/{effective_sample_count} (required: {name_required})")
+Message: '    name: 3/3 (required: 3)'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 196, in validate_source
+    logger.info(f"    title: {field_counts['title']}/{effective_sample_count} (required: {field_threshold})")
+Message: '    title: 3/3 (required: 1)'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 197, in validate_source
+    logger.info(f"    office (US): {field_counts['office']}/{effective_sample_count} (required: {field_threshold})")
+Message: '    office (US): 2/3 (required: 1)'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 198, in validate_source
+    logger.info(f"    practice_areas: {field_counts['practice_areas']}/{effective_sample_count} (required: 
+{field_threshold})")
+Message: '    practice_areas: 3/3 (required: 1)'
+  Sitemap validation PASSED
+  Accepting 500 URLs from validated source
+  [CoverageLoop] xml_sitemap: +500 new URLs (total: 500)
+  [CoverageLoop] Limit applied: 10 URLs
+  Coverage report saved: debug_reports\Kirkland_coverage.json
+
+--- Enriching 10 profile URLs ---
+  [ENRICHMENT] Force PLAYWRIGHT_ONLY for JS-SPA firm: Kirkland
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Python314\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\u2014' in position 33: illegal multibyte sequence
+Call stack:
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5421, in <module>
+    raise SystemExit(main())
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 5414, in main
+    total = finder.run(excel_path)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1397, in run
+    attorneys, metrics = self.process_firm(firm, url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1906, in process_firm
+    loop_result = cov_loop.run()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\coverage_loop.py", line 348, in run
+    new_urls = self.strategy_fns[strategy]()
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 1880, in _fn
+    s_urls, s_exp = self._execute_strategy(strat, base_url, profile)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2687, in _execute_strategy
+    return self._strategy_xml_sitemap(base_url)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\find_attorney.py", line 2721, in 
+_strategy_xml_sitemap
+    validation_result = validate_source(
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 508, in validate_source
+    return validator.validate_source(source_url, source_type, candidate_urls, sample_size)
+  File "C:\Users\kunch\OneDrive\Desktop\Program\political_tendency\source_validator.py", line 214, in validate_source
+    logger.info(f"  Validation result: {'PASS' if result.is_valid else 'FAIL'}")
+Message: '  Validation result: PASS'
+Arguments: ()
+  Enrichment mode: PLAYWRIGHT_ONLY
+  Enrichment: 7 SUCCESS, 3 PARTIAL, 0 FAILED
+  Top missing field reasons:
+    not_found_in_raw_html: 6
+  Coverage report saved: debug_reports\Kirkland_coverage.json
+  [US Filter] 10 attorneys, all US
+  US attorneys: 10/10
+
+[DONE] 10 attorneys (50.1s)
+  Status: SUCCESS
+  Discovery: SUCCESS
+  Metrics saved: debug_reports\Kirkland_metrics.json
+  Attorney profiles saved: debug_reports\Kirkland_attorneys.json
+[OK] Kirkland: 10 attorneys
+
+Total: 10 attorneys
+  Attorney data saved: .sisyphus\evidence\task-1-baseline\runs\kirkland\AmLaw200_2025 Rank_gross revenue_with_websites_attorneys.xlsx
+  Firm summary saved: .sisyphus\evidence\task-1-baseline\runs\kirkland\firm_level_summary.csv
+
+Total runtime: 54.5s

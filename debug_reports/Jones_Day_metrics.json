@@ -9,7 +9,7 @@
   "discovered_by_filters": 0,
   "discovered_by_api": 0,
   "failure_notes": [
-    "No attorneys discovered by any strategy"
+    "Preclassified as bot protected in site_structures.json: domain=jonesday.com, structure_type=BOT_PROTECTED, is_bot_protected=False"
   ],
   "coverage_ratio": 0.0
 }

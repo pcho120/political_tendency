@@ -1,8 +1,8 @@
 {
-  "total_candidates": 3711,
-  "sampled_count": 200,
-  "positive_samples": 0,
-  "filtered_count": 3711,
+  "total_candidates": 3703,
+  "sampled_count": 50,
+  "positive_samples": 2,
+  "filtered_count": 3703,
   "rejected_count": 0,
   "rejection_reasons": {},
   "inferred_pattern": {
@@ -13,6 +13,6 @@
     "sample_urls": []
   },
   "diagnostics": {
-    "warning": "Only 0 positive samples, using basic filtering"
+    "warning": "Only 2 positive samples, using basic filtering"
   }
 }

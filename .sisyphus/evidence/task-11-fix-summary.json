@@ -1,0 +1,14 @@
+{
+  "changes": [
+    "Imported validate_practice_areas, validate_offices, and validate_title into find_attorney.py.",
+    "Applied practice area, office, and title validation in the post-enrichment attorney loop before department inference and persistence.",
+    "Recorded validation reason codes in attorney diagnostics when validators returned a non-null reason."
+  ],
+  "kirkland_test": {
+    "records": 10,
+    "nav_pollution": 0,
+    "office_fill": "60%",
+    "title_fill": "100%"
+  },
+  "jones_day_test": "skipped_instantly"
+}

@@ -1,140 +1,95 @@
 {
-  "active_plan": "C:/Users/kunch/OneDrive/Desktop/Program/political_tendency/.sisyphus/plans/full-field-extraction.md",
-  "started_at": "2026-04-05T22:56:15.579Z",
+  "active_plan": "C:\\Users\\kunch\\OneDrive\\Desktop\\Program\\political_tendency\\.sisyphus\\plans\\field-quality-v2.md",
+  "started_at": "2026-04-10T21:06:54.417Z",
   "session_ids": [
     "ses_2a03e8507ffeytrHQ63VZqPqan",
-    "ses_2a01ff4a7ffe8dwkg5lRcEBsRm",
-    "ses_2a01cd977ffebDjYUaAKWlAwxb",
-    "ses_2a01b09ddffefDAYRjlwclFgi5",
-    "ses_2a0106821ffeQbfFjT2vao55HL",
-    "ses_2a00dbbbaffeIhaE8YY6DKbDBB",
-    "ses_2a00b60c7ffeho6lS9w4AvMGlY",
-    "ses_2a003b8f7ffeEf8xUrcA7OxKLX",
-    "ses_2a001638cffeexLuNDq8Qh9FZb",
-    "ses_29ff71eacffexb4RLxRCe4yXvF",
-    "ses_29ff00579ffeNmXTi8wTbPc3Y3",
-    "ses_29feaa9ecffev91gXjprJ1b5Va",
-    "ses_29fe75ffeffebBlWSwKwx08ACa"
+    "ses_286c54da7ffeHaZeJZTuf2xRG9",
+    "ses_286bc63a2ffeRCU7nGp0dOUjQZ",
+    "ses_286ae4c11ffe8A8on2JSFYTnxK",
+    "ses_286a9eb2effeyCNsmS1LsvIeGR",
+    "ses_286a20ec6ffeuosC40qHjb2qhJ",
+    "ses_286a1d9a4ffeqpHPUW7g15QDsG",
+    "ses_2869c79cdffeslGmxqPkMcLWBc",
+    "ses_2868ee5ebffeMyZ5UAt76SspcG",
+    "ses_2868e8af4ffeWU6K1hMk34MrQd",
+    "ses_2868e146fffepdplWPHdIxso9n",
+    "ses_284d56e78ffeRakaLWZMWRzjUD",
+    "ses_27baacef5ffeFWYwJ89m1xZGJJ"
   ],
-  "plan_name": "full-field-extraction",
+  "plan_name": "field-quality-v2",
   "agent": "atlas",
   "task_sessions": {
     "todo:1": {
       "task_key": "todo:1",
       "task_label": "1",
-      "task_title": "pytest 인프라 세팅",
-      "session_id": "ses_2a01ff4a7ffe8dwkg5lRcEBsRm",
+      "task_title": "Baseline 캡처 — 개선 전 현재 상태 기록 예상 소요시간: 10분",
+      "session_id": "ses_286c54da7ffeHaZeJZTuf2xRG9",
       "agent": "Sisyphus-Junior",
       "category": "quick",
-      "updated_at": "2026-04-05T23:01:40.812Z"
+      "updated_at": "2026-04-10T21:16:37.719Z"
     },
     "todo:2": {
       "task_key": "todo:2",
       "task_label": "2",
-      "task_title": "기존 standalone 테스트 → pytest 변환",
-      "session_id": "ses_2a01cd977ffebDjYUaAKWlAwxb",
+      "task_title": "61개 Sitemap-Failed Firm 근본 원인 진단 예상 소요시간: 20분",
+      "session_id": "ses_286bc63a2ffeRCU7nGp0dOUjQZ",
       "agent": "Sisyphus-Junior",
-      "category": "quick",
-      "updated_at": "2026-04-05T23:04:34.079Z"
+      "category": "deep",
+      "updated_at": "2026-04-10T21:33:15.529Z"
     },
     "todo:3": {
       "task_key": "todo:3",
       "task_label": "3",
-      "task_title": "Baseline 측정 — 3개 펌 추출 및 sentinel 비율 기록",
-      "session_id": "ses_2a01b09ddffefDAYRjlwclFgi5",
+      "task_title": "Practice Areas 네비게이션 오염 필터링 예상 소요시간: 15분",
+      "session_id": "ses_286ae4c11ffe8A8on2JSFYTnxK",
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
-      "updated_at": "2026-04-05T23:16:14.423Z"
+      "updated_at": "2026-04-10T21:38:07.271Z"
     },
     "todo:4": {
       "task_key": "todo:4",
       "task_label": "4",
-      "task_title": "Department 추출 테스트 작성 (TDD RED phase)",
-      "session_id": "ses_2a0106821ffeQbfFjT2vao55HL",
+      "task_title": "Office Validation 완화 + US 도시 목록 확장 예상 소요시간: 20분",
+      "session_id": "ses_286a9eb2effeyCNsmS1LsvIeGR",
       "agent": "Sisyphus-Junior",
-      "category": "quick",
-      "updated_at": "2026-04-05T23:18:54.239Z"
+      "category": "unspecified-high",
+      "updated_at": "2026-04-10T21:44:53.202Z"
     },
     "todo:5": {
       "task_key": "todo:5",
       "task_label": "5",
-      "task_title": "Industries 추출 테스트 작성 (TDD RED phase)",
-      "session_id": "ses_2a00dbbbaffeIhaE8YY6DKbDBB",
+      "task_title": "Title Validation 완화 예상 소요시간: 10분",
+      "session_id": "ses_286a20ec6ffeuosC40qHjb2qhJ",
       "agent": "Sisyphus-Junior",
       "category": "quick",
-      "updated_at": "2026-04-05T23:21:47.118Z"
+      "updated_at": "2026-04-10T21:51:55.277Z"
     },
     "todo:6": {
       "task_key": "todo:6",
       "task_label": "6",
-      "task_title": "Martindale robots.txt 컴플라이언스 수정 + 테스트",
-      "session_id": "ses_2a00b60c7ffeho6lS9w4AvMGlY",
+      "task_title": "Office/Title HTML 추출 패턴 확장 예상 소요시간: 25분",
+      "session_id": "ses_2869c79cdffeslGmxqPkMcLWBc",
       "agent": "Sisyphus-Junior",
       "category": "deep",
-      "updated_at": "2026-04-05T23:29:55.697Z"
-    },
-    "todo:7": {
-      "task_key": "todo:7",
-      "task_label": "7",
-      "task_title": "Practice Areas → Department 매핑 테이블 생성",
-      "session_id": "ses_2a003b8f7ffeEf8xUrcA7OxKLX",
-      "agent": "Sisyphus-Junior",
-      "category": "unspecified-high",
-      "updated_at": "2026-04-05T23:32:41.492Z"
+      "updated_at": "2026-04-10T22:07:55.491Z"
     },
     "todo:8": {
       "task_key": "todo:8",
       "task_label": "8",
-      "task_title": "누락 10개 펌 probe + site_structures.json 업데이트",
-      "session_id": "ses_2a001638cffeexLuNDq8Qh9FZb",
-      "agent": "Sisyphus-Junior",
-      "category": "unspecified-high",
-      "updated_at": "2026-04-05T23:42:07.338Z"
-    },
-    "todo:9": {
-      "task_key": "todo:9",
-      "task_label": "9",
-      "task_title": "Department 추출 로직 강화 (TDD GREEN phase)",
-      "session_id": "ses_29ff71eacffexb4RLxRCe4yXvF",
+      "task_title": "BOT_PROTECTED 조기 Skip + Failure Report 확장 예상 소요시간: 25분",
+      "session_id": "ses_2868ee5ebffeMyZ5UAt76SspcG",
       "agent": "Sisyphus-Junior",
       "category": "deep",
-      "updated_at": "2026-04-05T23:51:17.368Z"
-    },
-    "todo:10": {
-      "task_key": "todo:10",
-      "task_label": "10",
-      "task_title": "Industries 추출 로직 강화 (TDD GREEN phase)",
-      "session_id": "ses_29ff00579ffeNmXTi8wTbPc3Y3",
-      "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-04-05T23:57:19.060Z"
+      "updated_at": "2026-04-10T22:19:48.104Z"
     },
     "todo:11": {
       "task_key": "todo:11",
       "task_label": "11",
-      "task_title": "Practice → Department 매핑 적용",
-      "session_id": "ses_29feaa9ecffev91gXjprJ1b5Va",
-      "agent": "Sisyphus-Junior",
-      "category": "unspecified-high",
-      "updated_at": "2026-04-06T00:01:06.219Z"
-    },
-    "todo:12": {
-      "task_key": "todo:12",
-      "task_label": "12",
-      "task_title": "Post-change 3개 펌 재추출 + Baseline 비교",
-      "session_id": "ses_29fe75ffeffebBlWSwKwx08ACa",
-      "agent": "Sisyphus-Junior",
-      "category": "unspecified-high",
-      "updated_at": "2026-04-06T00:11:10.823Z"
-    },
-    "todo:13": {
-      "task_key": "todo:13",
-      "task_label": "13",
-      "task_title": "200개 펌 전체 추출 실행",
-      "session_id": "ses_29fdc1b4fffejdayEuoWLMm4bV",
+      "task_title": "200개 Firm 전체 재실행 + 결과 검증 예상 소요시간: 20-30시간",
+      "session_id": "ses_27baacef5ffeFWYwJ89m1xZGJJ",
       "agent": "Sisyphus-Junior",
       "category": "deep",
-      "updated_at": "2026-04-06T00:44:19.363Z"
+      "updated_at": "2026-04-13T00:59:26.678Z"
     }
   }
 }

@@ -1,0 +1,4 @@
+Scenario: default write mode overwrites existing JSONL
+PASS
+jsonl firms after run: ['Latham']
+record count: 1

@@ -1,0 +1,5 @@
+﻿Task-2 JSONL Integrity
+Signal handler registered in run() with signal.signal(signal.SIGINT, _signal_handler)
+self._shutdown_requested checked at top of firm loop
+Output saving (Excel, JSONL flush/close, summary CSV, coverage JSON) in try/finally
+PASS

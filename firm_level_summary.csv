@@ -1,2 +1,2 @@
 Firm,Expected Total,Expected Total Source,Discovered URLs,Extracted Attorneys,US Attorneys,Coverage Ratio,Missing Fields Ratio,Status,Legally Incomplete Reason,Sources Tried,Notes
-Davis Polk,,unknown,10,10,10,,13.8%,PARTIAL,,xml_sitemap,
+Jones Day,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BOT_PROTECTED_PRECLASSIFIED,,"Preclassified as bot protected in site_structures.json: domain=jonesday.com, structure_type=BOT_PROTECTED, is_bot_protected=False"

@@ -275,6 +275,11 @@ class MultiModeExtractor:
                 profile.diagnostics[f"http_{resp.status_code}"] = True
                 profile.missing_fields = self._all_field_names()
                 
+                # TASK 9: Record Retry-After header for rate-limit vs bot-protection distinction
+                retry_after = resp.headers.get("Retry-After")
+                if retry_after:
+                    profile.diagnostics["retry_after"] = retry_after
+
                 # Add reason codes
                 for field in profile.missing_fields:
                     if resp.status_code == 403:

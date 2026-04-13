@@ -90,7 +90,17 @@ _US_STATE_ABBR: set[str] = {
     "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
     "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
     "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC",
+    "PR",  # Puerto Rico
 }
+
+# Words that appear as the "city" part in garbage "City, ST" patterns (UI/nav text)
+_GARBAGE_CITY_WORDS: frozenset[str] = frozenset({
+    "click", "click here", "view", "view more", "read", "read more",
+    "more", "here", "back", "next", "previous", "submit", "contact",
+    "see", "go", "learn", "explore", "visit", "search", "close",
+    "login", "sign in", "home", "menu", "print", "share", "subscribe",
+    "apply", "download", "select", "show", "toggle", "filter",
+})
 
 # Major US cities commonly used as law firm office names (no state suffix needed)
 _US_MAJOR_LAW_CITIES: frozenset[str] = frozenset({
@@ -99,27 +109,39 @@ _US_MAJOR_LAW_CITIES: frozenset[str] = frozenset({
     "Albany", "Buffalo", "Newark", "Baltimore", "Washington", "Washington D.C.",
     "Washington DC", "Wilmington", "Stamford", "White Plains", "Princeton",
     "Bridgeport", "New Haven", "Morristown", "Parsippany", "Short Hills",
-    "Florham Park", "Roseland", "Edison", "Harrisburg",
+    "Florham Park", "Roseland", "Edison", "Harrisburg", "Rochester", "Syracuse",
+    "Scranton", "Allentown", "Dover", "Annapolis", "Rockville", "Bethesda",
+    "Greenwich", "Warwick", "Burlington", "Montpelier",
     # Southeast
     "Atlanta", "Miami", "Tampa", "Orlando", "Jacksonville", "Charlotte",
     "Raleigh", "Richmond", "Nashville", "Memphis", "Louisville", "Birmingham",
-    "New Orleans", "Jacksonville", "Fort Lauderdale", "West Palm Beach",
+    "New Orleans", "Fort Lauderdale", "West Palm Beach",
     "Boca Raton", "Tallahassee", "Lexington", "Greenville", "Chattanooga",
-    "Virginia Beach", "Tysons", "Tysons Corner", "McLean", "Reston",
+    "Virginia Beach", "Tysons", "Tysons Corner", "McLean", "Reston", "Fairfax",
+    "Arlington", "Norfolk", "Roanoke", "Durham", "Greensboro", "Winston-Salem",
+    "Columbia", "Charleston", "Savannah", "Augusta", "Knoxville",
+    "Little Rock", "Fort Smith", "Jackson", "Biloxi",
+    "Baton Rouge", "Shreveport",
     # Midwest
     "Chicago", "Detroit", "Cleveland", "Columbus", "Cincinnati", "Indianapolis",
     "Milwaukee", "Minneapolis", "Saint Paul", "St. Paul", "Kansas City",
-    "St. Louis", "Omaha", "Des Moines", "Madison",
+    "St. Louis", "Omaha", "Des Moines", "Madison", "Dayton", "Toledo",
+    "Fort Wayne", "South Bend", "Green Bay", "Cedar Rapids", "Lincoln",
+    "Fargo", "Bismarck", "Sioux Falls", "Rapid City",
     # Southwest / Mountain
     "Dallas", "Houston", "Austin", "San Antonio", "Denver", "Phoenix",
     "Albuquerque", "Salt Lake City", "Las Vegas", "Tucson", "Fort Worth",
-    "Baton Rouge", "Boise", "Colorado Springs",
+    "Baton Rouge", "Boise", "Colorado Springs", "Scottsdale",
+    "Oklahoma City", "Tulsa", "Santa Fe", "Provo", "Ogden",
+    "Billings", "Missoula", "Great Falls", "Cheyenne", "Casper",
+    "Twin Falls",
     # West Coast
     "Los Angeles", "San Francisco", "San Diego", "Seattle", "Portland",
     "Sacramento", "San Jose", "Palo Alto", "Silicon Valley", "Menlo Park",
     "Oakland", "Irvine", "Century City", "Bay Area", "Orange County",
-    # Other notable
-    "Anchorage", "Honolulu",
+    "Pasadena", "Long Beach", "Salem", "Eugene",
+    # Pacific / territories
+    "Anchorage", "Juneau", "Honolulu", "Hilo", "San Juan",
     # Abbreviations / alt forms used by firms
     "NYC", "D.C.", "DC", "LA",
 })
@@ -154,10 +176,17 @@ _FULL_TO_ABBR: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 _JUNK_PHRASES: frozenset[str] = frozenset({
+    # CTA / cookie / UI junk
     "view all", "read more", "learn more", "see more", "click here",
     "cookie", "consent", "privacy policy", "checkbox",
     "always active", "settings", "manage", "accept", "allow",
     "here.", "skip to main", "skip navigation", "toggle menu",
+    # Nav / UI items that cannot be legitimate practice areas
+    "home", "search", "menu", "back to menu", "main menu", "close",
+    "login", "sign in", "sign up", "subscribe", "submit",
+    "contact us", "about us", "careers", "news", "events",
+    "site map", "back", "next", "previous", "print", "share",
+    "email this page", "offices", "people", "professionals",
 })
 
 _BIO_VERB_PATTERN = re.compile(
@@ -199,7 +228,7 @@ _TITLE_ALIAS_MAP: dict[str, str] = {
 }
 
 _TITLE_PLACEHOLDER_RE = re.compile(r"\{\{.*?\}\}|\[\[.*?\]\]", re.IGNORECASE)
-_CAMELCASE_NAME_RE = re.compile(r"^[A-Z][a-z]+(?:[A-Z][a-z]+)+$")
+_JS_IDENTIFIER_RE = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
 
 
 def _looks_like_office_label(text: str) -> bool:
@@ -287,10 +316,10 @@ def validate_title(raw: str | None, firm_name: str = "") -> tuple[str | None, st
     """Validate attorney title / role.
 
     Rules:
-    - 2–120 characters
+    - 2–200 characters
     - No email / phone contamination
-     - May be a free-form title (e.g., "Senior Litigation Partner")
-     - Rejects titles that are the firm name (or composed entirely of firm name tokens)
+      - May be a free-form title (e.g., "Senior Litigation Partner")
+      - Rejects titles that are the firm name (or composed entirely of firm name tokens)
 
     Args:
         raw: Raw title string
@@ -308,7 +337,7 @@ def validate_title(raw: str | None, firm_name: str = "") -> tuple[str | None, st
     if len(title) < 2:
         return None, ValidationReason.TOO_SHORT
 
-    if len(title) > 120:
+    if len(title) > 200:
         return None, ValidationReason.TOO_LONG
 
     if re.search(r"@|http|www\.", title, re.IGNORECASE):
@@ -320,35 +349,42 @@ def validate_title(raw: str | None, firm_name: str = "") -> tuple[str | None, st
     if _TITLE_PLACEHOLDER_RE.search(title):
         return None, ValidationReason.CONTAMINATED
 
-    if _CAMELCASE_NAME_RE.match(title):
+    if _looks_like_javascript_identifier(title):
         return None, ValidationReason.CONTAMINATED
 
     # Firm-name contamination filter (conservative token matching)
     if firm_name:
-        norm_firm = firm_name.lower().strip()
+        norm_firm = re.sub(r"\s+", " ", firm_name.lower().strip())
         norm_title = title.lower().strip()
+        title_tokens = [token for token in re.split(r"\s+", norm_title) if token]
+        firm_tokens = [token for token in re.split(r"\s+", norm_firm) if token]
 
         # 1) Exact match
         if norm_firm == norm_title:
             return None, ValidationReason.CONTAMINATED
 
-        firm_token_list = norm_firm.split()
-        firm_tokens = set(firm_token_list)
-        title_tokens = norm_title.split()
+        firm_token_set = set(firm_tokens)
 
         # 1b) Single-token firm: title starts with the firm token word (e.g. firm="weil", title="Weil, Gotshal...")
-        if len(firm_token_list) == 1:
-            firm_word = firm_token_list[0]
+        if len(firm_tokens) == 1:
+            firm_word = firm_tokens[0]
             if title_tokens and title_tokens[0].rstrip(",.&") == firm_word:
                 return None, ValidationReason.CONTAMINATED
 
-        # 2) firm has ≥2 tokens and title is composed entirely of firm tokens
-        if len(firm_tokens) >= 2 and len(title_tokens) <= len(firm_tokens):
-            if all(t in firm_tokens for t in title_tokens):
+        # 2) Reject when the title is mostly just the firm name.
+        # Token-based ratio keeps "Partner at Crowell & Moring LLP" while
+        # still rejecting pure firm-name titles.
+        if title_tokens and firm_tokens:
+            matched = 0
+            for token in title_tokens:
+                stripped = token.strip(",.&()[]{}")
+                if stripped and stripped in firm_token_set:
+                    matched += 1
+            if matched / len(title_tokens) > 0.5:
                 return None, ValidationReason.CONTAMINATED
 
         # 3) title starts with first 2 firm tokens (e.g. "Troutman Pepper Locke" starts with "Troutman Pepper")
-        if len(firm_token_list) >= 2 and norm_title.startswith(" ".join(firm_token_list[:2])):
+        if len(firm_tokens) >= 2 and norm_title.startswith(" ".join(firm_tokens[:2])):
             return None, ValidationReason.CONTAMINATED
 
     normalized = _normalize_title(title)
@@ -366,6 +402,14 @@ def _normalize_title(title: str) -> str:
         return " ".join(part[:1].upper() + part[1:].lower() if part else part for part in cleaned.split(" "))
 
     return cleaned
+
+
+def _looks_like_javascript_identifier(title: str) -> bool:
+    """Return True for JavaScript-style camelCase/PascalCase identifiers."""
+    compact = title.strip()
+    if " " in compact or not _JS_IDENTIFIER_RE.match(compact):
+        return False
+    return bool(re.search(r"[a-z][A-Z]", compact))
 
 
 def validate_offices(raw: list[str]) -> tuple[list[str], str | None]:
@@ -406,7 +450,7 @@ def validate_offices(raw: list[str]) -> tuple[list[str], str | None]:
         if city_state_match:
             city = city_state_match.group("city").strip(" ,")
             state_code = city_state_match.group("state").upper()
-            if city in _US_MAJOR_LAW_CITIES or city.lower() in {c.lower() for c in _US_MAJOR_LAW_CITIES}:
+            if state_code in _US_STATE_ABBR and len(city) >= 3 and city.lower() not in _GARBAGE_CITY_WORDS:
                 normalized = f"{city}, {state_code}"
                 if normalized not in seen:
                     seen.add(normalized)
@@ -415,16 +459,16 @@ def validate_offices(raw: list[str]) -> tuple[list[str], str | None]:
             if "," not in compact:
                 continue
 
-        # US state code check: "City, ST"
+        # US state code check: "City, ST" — accept any city with valid state code
         if ", " in text:
             parts = text.split(", ")
             state_code = parts[-1].strip().upper()
             if state_code in _US_STATE_ABBR:
                 city = ", ".join(parts[:-1]).strip()
-                if city and (city in _US_MAJOR_LAW_CITIES or city.lower() in {c.lower() for c in _US_MAJOR_LAW_CITIES}):
-                    normalized = f"{city}, {state_code}"
-                else:
+                # Reject garbage city names (UI/nav text) and too-short names
+                if not city or len(city) < 3 or city.lower() in _GARBAGE_CITY_WORDS:
                     continue
+                normalized = f"{city}, {state_code}"
                 if normalized not in seen:
                     seen.add(normalized)
                     cleaned.append(normalized)
@@ -445,11 +489,8 @@ def validate_offices(raw: list[str]) -> tuple[list[str], str | None]:
                     cleaned.append(text)
                 break
         else:
+            # Unknown / international — flag but do NOT add to results
             saw_international = True
-            normalized = re.sub(r"\s+", " ", text).strip()
-            if normalized and normalized not in seen:
-                seen.add(normalized)
-                cleaned.append(normalized)
 
     if not cleaned:
         if saw_contamination:
@@ -533,10 +574,14 @@ def validate_practice_areas(raw: list[str]) -> tuple[list[str], str | None]:
     for practice in raw:
         practice = practice.strip()
 
-        if not practice or len(practice) < 2 or len(practice) > 150:
+        if not practice or len(practice) <= 2 or len(practice) > 150:
             continue
 
-        if any(junk in practice.lower() for junk in _JUNK_PHRASES):
+        # Pure numeric strings (e.g. "123") are not practice areas
+        if practice.strip().isdigit():
+            continue
+
+        if practice.lower().strip() in _JUNK_PHRASES:
             continue
 
         if practice.isupper() and len(practice.split()) <= 3:
@@ -549,7 +594,8 @@ def validate_practice_areas(raw: list[str]) -> tuple[list[str], str | None]:
         if _looks_like_office_label(practice):
             continue
 
-        if "http" in practice.lower() or "@" in practice:
+        # URL-like strings
+        if "http" in practice.lower() or "@" in practice or "www." in practice.lower():
             continue
 
         if len(practice) >= 50:

@@ -119,6 +119,61 @@
       "patterns": ["immigration", "visa", "i-9"],
       "department": "Immigration",
       "priority": 1
+    },
+    {
+      "patterns": ["appellate"],
+      "department": "Litigation",
+      "priority": 2
+    },
+    {
+      "patterns": ["product liability"],
+      "department": "Litigation",
+      "priority": 1
+    },
+    {
+      "patterns": ["mass tort"],
+      "department": "Litigation",
+      "priority": 1
+    },
+    {
+      "patterns": ["financial services regulation"],
+      "department": "Regulatory",
+      "priority": 1
+    },
+    {
+      "patterns": ["communications"],
+      "department": "Regulatory",
+      "priority": 2
+    },
+    {
+      "patterns": ["telecom"],
+      "department": "Regulatory",
+      "priority": 1
+    },
+    {
+      "patterns": ["aviation"],
+      "department": "Regulatory",
+      "priority": 1
+    },
+    {
+      "patterns": ["transportation"],
+      "department": "Regulatory",
+      "priority": 1
+    },
+    {
+      "patterns": ["construction"],
+      "department": "Real Estate",
+      "priority": 2
+    },
+    {
+      "patterns": ["cannabis"],
+      "department": "Regulatory",
+      "priority": 1
+    },
+    {
+      "patterns": ["trade secrets"],
+      "department": "IP",
+      "priority": 1
     }
   ]
 }

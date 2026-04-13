@@ -9,7 +9,7 @@
   "discovered_by_filters": 0,
   "discovered_by_api": 0,
   "failure_notes": [
-    "Legally inaccessible: BLOCKED_BY_BOT"
+    "Preclassified as bot protected in site_structures.json: domain=ropesgray.com, structure_type=BOT_PROTECTED, is_bot_protected=True"
   ],
   "coverage_ratio": 0.0
 }

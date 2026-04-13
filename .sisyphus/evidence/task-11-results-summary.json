@@ -1,0 +1,27 @@
+{
+  "total_records": 58200,
+  "total_firms_with_data": 67,
+  "fill_rates": {
+    "title": 0.8508,
+    "office": 0.3254,
+    "department": 0.8096,
+    "practice_areas": 0.917
+  },
+  "nav_pollution": 54934,
+  "goals": {
+    "title_goal_90pct": false,
+    "office_goal_60pct": false,
+    "dept_goal_85pct": false,
+    "firms_goal_140": false,
+    "nav_pollution_0": false
+  },
+  "vs_baseline": {
+    "title_pre_v2": 0.809,
+    "title_now": 0.8508,
+    "office_pre_v2": 0.299,
+    "office_now": 0.3254,
+    "dept_pre_v2": 0.786,
+    "dept_now": 0.8096
+  },
+  "note": "validators.py was wired into find_attorney.py AFTER this run completed. Re-run needed for nav_pollution=0 and improved fill rates. Code changes are in place for next run."
+}
