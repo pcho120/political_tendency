@@ -14,3 +14,7 @@
 - `find_attorney.py` had a validator integration gap: `validate_practice_areas()`, `validate_offices()`, and `validate_title()` already existed but were never called in the post-enrichment attorney loop before JSONL persistence.
 - `validate_offices()` signature on current HEAD is `validate_offices(raw: list[str])` (no `firm_name` parameter), despite older task notes claiming a `firm_name` arg. The wiring must call the actual signature to avoid runtime `TypeError`.
 - PowerShell `*>` redirection produced UTF-16 QA captures for `task-11-kirkland-retest.txt` and `task-11-jones-day-retest.txt`; downstream verification had to decode bytes with replacement-safe handling instead of plain UTF-8 text reads.
+
+## [2026-04-13] Task: T12-junk-phrases-hotfix
+- `python3.12` is not available in this Linux environment (`command not found`), so the requested verification commands could not run as written.
+- Working tree also contains pre-existing unrelated modifications in `.sisyphus/boulder.json` and `.sisyphus/plans/field-quality-v2-rerun.md`; they were left untouched.

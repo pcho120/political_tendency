@@ -184,7 +184,7 @@ _JUNK_PHRASES: frozenset[str] = frozenset({
     # Nav / UI items that cannot be legitimate practice areas
     "home", "search", "menu", "back to menu", "main menu", "close",
     "login", "sign in", "sign up", "subscribe", "submit",
-    "contact us", "about us", "careers", "news", "events",
+    "contact", "about", "contact us", "about us", "careers", "news", "events",
     "site map", "back", "next", "previous", "print", "share",
     "email this page", "offices", "people", "professionals",
 })

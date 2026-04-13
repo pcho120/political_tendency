@@ -83,6 +83,9 @@
 - **Small firm safety**: Firms with < 5 total URLs cannot trigger early window abort (condition requires self._processed >= _ABORT_EARLY_WINDOW).
 - **Unit tests**: 6 tests covering early window, rate-limit exclusion, mixed results, global ratio, normal firm, and small firm — all PASS.
 
+## [2026-04-13] Task: T12-junk-phrases-hotfix
+- Added standalone `about` and `contact` to `_JUNK_PHRASES` so `validate_practice_areas()` drops nav-only noise without affecting valid practices like `Insurance Coverage` or `Environmental Law`.
+
 ## [2026-04-10] Task: T10-directory-fallbacks
 - Implemented real `directory_listing` / `alphabet_enumeration` request-based crawlers in `find_attorney.py` with `compliance_engine.is_allowed()` gates and `rate_limit_manager.wait()` before each outbound request.
 - Added XML fallback chaining inside `_strategy_xml_sitemap()`: when sitemap yields 0 URLs, it now tries `directory_listing` then `alphabet_enumeration` before giving up.
