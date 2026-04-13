@@ -14,6 +14,7 @@ Escalation flow:
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 from dataclasses import dataclass, field
@@ -25,6 +26,8 @@ import requests
 
 from attorney_extractor import AttorneyExtractor, AttorneyProfile, EducationRecord
 from profile_quality_gate import ReasonCode, FieldValidator, save_debug_artifacts
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -151,25 +154,19 @@ class MultiModeExtractor:
         The caller owns the page lifecycle — this method navigates the page,
         reads the HTML, and returns the parsed profile.  It does NOT close
         the page so the caller can reuse it for the next URL.
+
+        NOTE: JSON response interception is intentionally disabled in this
+        shared-page path.  Attaching page.on("response", ...) across reused
+        navigations leaks listeners and can stall indefinitely when
+        response.json() blocks on SPA-heavy sites (e.g. Kirkland).  HTML
+        parsing is sufficient here; Mode 3 API interception uses its own
+        dedicated browser instance instead.
         """
         start = time.time()
         domain = urlparse(profile_url).netloc
+        logger.debug("[shared_page] starting profile: %s", profile_url)
         if rate_limit_fn:
             rate_limit_fn(domain)
-
-        captured_json: list[dict] = []
-
-        def _handle_json(response: Any) -> None:
-            try:
-                if response.ok and "json" in response.headers.get("content-type", "").lower():
-                    try:
-                        captured_json.append({"url": response.url, "data": response.json()})
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-
-        page.on("response", _handle_json)
 
         try:
             try:
@@ -207,36 +204,24 @@ class MultiModeExtractor:
 
             html = page.content()
         except Exception as e:
+            elapsed_ms = int((time.time() - start) * 1000)
+            logger.warning(
+                "[shared_page] navigation exception for %s after %dms: %s",
+                profile_url, elapsed_ms, type(e).__name__,
+            )
             profile = AttorneyProfile(firm=firm_name, profile_url=profile_url)
             profile.extraction_status = "FAILED"
             profile.diagnostics["shared_page_exception"] = str(type(e).__name__)
-            # Remove the response listener before returning
-            try:
-                page.remove_listener("response", _handle_json)
-            except Exception:
-                pass
             return profile
 
-        # Remove listener before HTML parse (keeps page clean for next URL)
-        try:
-            page.remove_listener("response", _handle_json)
-        except Exception:
-            pass
-
-        # Try JSON API data first
-        if captured_json:
-            _jp = AttorneyProfile(firm=firm_name, profile_url=profile_url)
-            _jp = self._extract_from_json_payloads(_jp, captured_json)
-            _jp.calculate_status()
-            if _jp.extraction_status == "SUCCESS":
-                _jp = self._validate_and_add_reasons(_jp, mode="MODE2_JSON")
-                return _jp
+        elapsed_ms = int((time.time() - start) * 1000)
 
         # Bot-protection check
         bot_indicators = ["cloudflare-challenge", "__cf_chl_", "cf-challenge-running",
                           "attention required", "checking your browser", "captcha"]
         html_lower = html.lower()
         if any(ind in html_lower for ind in bot_indicators):
+            logger.info("[shared_page] bot-protection detected for %s (%dms)", profile_url, elapsed_ms)
             profile = AttorneyProfile(firm=firm_name, profile_url=profile_url)
             profile.extraction_status = "FAILED"
             profile.diagnostics["bot_protection"] = True
@@ -247,9 +232,13 @@ class MultiModeExtractor:
         profile = AttorneyProfile(firm=firm_name, profile_url=profile_url)
         profile = self.extractor.extract_profile(firm_name, profile_url, html)
         profile.diagnostics["html_size"] = len(html)
-        profile.diagnostics["duration_ms"] = int((time.time() - start) * 1000)
+        profile.diagnostics["duration_ms"] = elapsed_ms
         profile.diagnostics["data_source"] = "firm_website"
         profile = self._validate_and_add_reasons(profile, mode="MODE2_SHARED_PAGE")
+        logger.info(
+            "[shared_page] done: %s | status=%s | %dms",
+            profile_url, profile.extraction_status, elapsed_ms,
+        )
         return profile
 
     def _try_mode1_requests(
