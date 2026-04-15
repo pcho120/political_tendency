@@ -18,3 +18,7 @@
 ## [2026-04-13] Task: T12-junk-phrases-hotfix
 - `python3.12` is not available in this Linux environment (`command not found`), so the requested verification commands could not run as written.
 - Working tree also contains pre-existing unrelated modifications in `.sisyphus/boulder.json` and `.sisyphus/plans/field-quality-v2-rerun.md`; they were left untouched.
+
+## [2026-04-13] Task: Documentation-rerun-handoff
+- The workspace lacks rerun artifacts (outputs/run_rerun* logs, outputs/attorneys*.jsonl). T3 remains a manual, long-running requirement in this environment.
+- Linux verification and execution must use 'python3' (Python 3.13.7) as 'python3.12' is not installed.

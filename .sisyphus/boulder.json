@@ -1,5 +1,7 @@
 {
-  "active_plan": "C:\\Users\\kunch\\OneDrive\\Desktop\\Program\\political_tendency\\.sisyphus\\plans\\field-quality-v2.md",
+  "active_plan": null,
+  "completed_plan": "field-quality-v2",
+  "completed_at": "2026-04-15",
   "started_at": "2026-04-10T21:06:54.417Z",
   "session_ids": [
     "ses_2a03e8507ffeytrHQ63VZqPqan",
@@ -14,7 +16,11 @@
     "ses_2868e8af4ffeWU6K1hMk34MrQd",
     "ses_2868e146fffepdplWPHdIxso9n",
     "ses_284d56e78ffeRakaLWZMWRzjUD",
-    "ses_27baacef5ffeFWYwJ89m1xZGJJ"
+    "ses_27baacef5ffeFWYwJ89m1xZGJJ",
+    "ses_2794fd9a7ffeowAxNEYBHtXvi3",
+    "ses_279343164ffeIzQPTYis3dSbX4",
+    "ses_27934315bffeflP9sbs2OJLm8p",
+    "ses_2793430b6ffeUyJg25qE2NmdpX"
   ],
   "plan_name": "field-quality-v2",
   "agent": "atlas",
@@ -86,10 +92,15 @@
       "task_key": "todo:11",
       "task_label": "11",
       "task_title": "200개 Firm 전체 재실행 + 결과 검증 예상 소요시간: 20-30시간",
-      "session_id": "ses_27baacef5ffeFWYwJ89m1xZGJJ",
+      "session_id": "ses_2792c61d8ffeeYDENeFcG4FKTT",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-04-13T00:59:26.678Z"
+      "category": "quick",
+      "updated_at": "2026-04-13T12:32:13.110Z"
     }
+  },
+  "session_origins": {
+    "ses_279343164ffeIzQPTYis3dSbX4": "appended",
+    "ses_27934315bffeflP9sbs2OJLm8p": "appended",
+    "ses_2793430b6ffeUyJg25qE2NmdpX": "appended"
   }
 }

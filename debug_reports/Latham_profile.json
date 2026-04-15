@@ -2,8 +2,8 @@
   "firm": "Latham",
   "base_url": "https://www.lw.com",
   "detected_types": [
-    "DIRECTORY_HTML",
-    "XML_SITEMAP"
+    "XML_SITEMAP",
+    "DIRECTORY_HTML"
   ],
   "signals": [
     "Classification: SPA_HEAVY",

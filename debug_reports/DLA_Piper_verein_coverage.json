@@ -1,18 +1,15 @@
 {
   "firm": "DLA Piper (verein)",
   "expected_total": null,
-  "discovered_urls": 5000,
+  "discovered_urls": 0,
   "coverage_ratio": null,
-  "strategies_attempted": [
-    "xml_sitemap"
-  ],
-  "final_status": "SUCCESS",
-  "discovery_status": "SUCCESS",
-  "failure_reason": null,
+  "strategies_attempted": [],
+  "final_status": "PARTIAL",
+  "discovery_status": "DISCOVERY_INCOMPLETE",
+  "failure_reason": "extraction_error",
   "notes": [
-    "Discovered 5000 attorneys (no expected total available)"
+    "No attorneys discovered by any strategy",
+    "Firm timeout exceeded (45s) - partial results"
   ],
-  "url_sources": {
-    "xml_sitemap": 5000
-  }
+  "url_sources": {}
 }

@@ -92,3 +92,11 @@
 - Expanded profile URL heuristics to accept Morgan Lewis-style `/bios/<slug>` profile URLs; this unlocked `https://www.morganlewis.com/sitemaps/people` and restored sitemap discovery coverage.
 - Morgan Lewis currently reaches 500 discovered profile URLs on current HEAD, but enrichment of sampled profiles still hits runtime bot-protection 403s; QA still passes because 5 partial profiles are preserved and surfaced rather than dropped.
 - Kirkland regression check stayed green: sitemap discovery + Playwright-only enrichment still returned 5 attorneys under `--limit 5`.
+
+## [2026-04-13] Task: shared-page-stall-fix (Kirkland/SPA rerun stall)
+- **Root cause**: `extract_profile_with_page()` attached `page.on("response", _handle_json)` on a reused Playwright page and called `response.json()` in the handler. On SPA-heavy sites (Kirkland), this call can block indefinitely, causing the shared-page enrichment path to stall with 4 browser workers alive but no progress.
+- **Secondary bug**: cleanup used `page.remove_listener("response", ...)` which does not exist in Playwright Python (correct API is `page.off(...)`). This caused listeners to accumulate across reused page navigations, compounding the stall.
+- **Fix**: Removed the entire `page.on("response", ...)` / `response.json()` / `captured_json` block from `extract_profile_with_page()`. The shared-page path now does HTML parsing only. Mode 3 API interception is unaffected (uses its own dedicated browser instance).
+- **Progress logging**: Added `logger.debug/info/warning` calls at profile start, bot-protection detection, navigation exception, and completion (with `status=` and `elapsed_ms`). This makes a long rerun visibly progressing in logs.
+- **Verification**: `--debug-firm "Kirkland" --limit 3` completed 3 SUCCESS profiles in 7.1 s with `[shared_page] done: ... | status=SUCCESS | ~600ms` log lines visible per profile.
+- **Playwright API note**: Use `page.off("event", handler)` to remove a listener in Playwright Python, NOT `page.remove_listener(...)`. The latter silently fails (AttributeError swallowed by bare except).
