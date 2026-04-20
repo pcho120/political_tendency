@@ -1,5 +1,0 @@
-﻿Task-3 Malformed Handling QA
-Input: 3 lines (1 valid, 1 malformed '{truncated json', 1 valid)
-Output: 2 lines
-Warning printed for malformed line 2
-PASS

@@ -1,3 +1,0 @@
-﻿Result: ['New York, NY', 'Washington, DC', 'Chicago, IL', 'Los Angeles, CA', 'San Francisco, CA', 'Houston, TX']
-Reason: None
-PASS -- all major cities still accepted

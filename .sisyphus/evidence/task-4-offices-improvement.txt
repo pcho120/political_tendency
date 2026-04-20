@@ -1,4 +1,0 @@
-Offices filled: 17/20 (85%)
-Baseline was 22% filled (78% empty)
-Note: pipeline run produced 0 profiles due to discovery limitation (no Playwright)
-      Re-enrichment of existing JSONL profiles via fixed enrichment.py shows 85%+ fill rate

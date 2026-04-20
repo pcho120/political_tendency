@@ -1,5 +1,0 @@
-python_executable=C:\Python314\python.exe
-python_version=3.14.0
-command=python tests/test_validators.py
-result=PASS
-notes=Short department/practice tokens preserved; office validation accepted unambiguous city/state forms; contamination checks remained green.

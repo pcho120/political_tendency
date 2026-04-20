@@ -1,3 +1,0 @@
-﻿Result: []
-Reason: validation_rejected
-PASS -- garbage and international rejected

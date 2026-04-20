@@ -1,7 +1,0 @@
-Failure analysis for Task 3 RED regressions:
-
-- field_merger.py still overwrites lower-precedence list values; the merge test loses 'Litigation'.
-- validators.py still rejects short valid tokens: 'IP' is dropped from practice_areas, and only 'Tax' survives in department.
-- parser_sections.py still maps 'Areas of Focus' to snake_case fallback instead of practice_areas.
-- enrichment.py still skips supplementation when practice_areas is already partially populated; the section-map case remains unsupplemented.
-- The integration harness also confirms the existing low-fill gaps remain red targets, but only the new partial-profile assertion fails hard.

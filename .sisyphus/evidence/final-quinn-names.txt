@@ -1,2 +1,0 @@
-Quinn: 2/2 named
-PASS (partial — Playwright not installed, JS rendering unavailable)

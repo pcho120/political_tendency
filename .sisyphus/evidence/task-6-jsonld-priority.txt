@@ -1,2 +1,0 @@
-Title: Partner (JSON-LD), Offices: ['Chicago, IL']
-PASS - JSON-LD priority maintained

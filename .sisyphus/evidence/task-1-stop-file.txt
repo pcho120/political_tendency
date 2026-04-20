@@ -1,6 +1,0 @@
-STOP file trigger test — Exit: 0, STOP deleted (PASS)
-11:21:18 [INFO] pipeline — Loaded 1 firms from cache/firm_domain_cache.json
-11:21:18 [INFO] pipeline — ── Firm 1/1: skadden ──
-11:21:18 [INFO] amlaw.skadden — SITEMAP_XML strategy | firm_url=https://www.skadden.com | derived_prefix=/professionals | sample_count=5
-11:21:23 [INFO] amlaw.skadden — Sitemap discovery complete | base_url=https://www.skadden.com | path_prefix=/professionals | total_found=1992
-11:21:23 [INFO] amlaw.skadden — SITEMAP_XML discovery complete | total=1992 | sample=['https://www.skadden.com/professionals/a/abbas-khaled-b', 'https://www.skadden.com/professionals/a/abboud-karen', 'https://www.skadden.com/professionals/a/abdelbaki-sarah-z']

@@ -1,2 +1,0 @@
-grep -n "/search/" external_directory_extractor.py
-No matches found

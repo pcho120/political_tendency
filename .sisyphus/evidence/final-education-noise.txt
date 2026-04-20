@@ -1,4 +1,0 @@
-Headers: ['Firm', 'Attorney Name', 'Title', 'Offices', 'Departments', 'Practice Areas', 'Industries', 'Bar Admissions', 'Education', 'Extraction Status', 'Missing Fields', 'Profile URL', 'Data Source']
-Total rows: 2
-Noisy education rows: 0
-PASS

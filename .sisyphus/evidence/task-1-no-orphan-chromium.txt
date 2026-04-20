@@ -1,3 +1,0 @@
-Command: Get-Process | Where-Object { $_.ProcessName -match "chromium" }
-Result: PASS
-Summary: No matching chromium processes were returned after the Kirkland smoke test.

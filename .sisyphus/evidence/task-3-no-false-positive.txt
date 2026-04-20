@@ -1,2 +1,0 @@
-﻿Result: ['Insurance Coverage', 'Energy', 'Environmental Law', 'Healthcare', 'People Analytics']
-PASS -- no false positives

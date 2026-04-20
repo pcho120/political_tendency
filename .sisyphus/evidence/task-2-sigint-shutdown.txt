@@ -1,3 +1,0 @@
-﻿Task-2 Regression QA
-61 passed, 0 failed
-PASS

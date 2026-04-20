@@ -1,4 +1,0 @@
-report_exists=1
-contains_F3=1
-pre_overall_has_FAIL_or_REJECT=0
-binary_contamination_check=PASS

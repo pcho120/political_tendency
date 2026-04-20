@@ -1,5 +1,0 @@
-11:22:14 [WARNING] pipeline — STOP file found at startup — deleting it and continuing.
-11:22:14 [INFO] pipeline — Loaded 1 firms from cache/firm_domain_cache.json
-11:22:14 [INFO] pipeline — ── Firm 1/1: skadden ──
-11:22:14 [INFO] pipeline — [skadden] Structure type: SITEMAP_XML
-STOP deleted (PASS)

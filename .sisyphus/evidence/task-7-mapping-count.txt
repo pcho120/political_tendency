@@ -1,2 +1,0 @@
-﻿Total mappings: 35
-PASS

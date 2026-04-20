@@ -1,7 +1,0 @@
-Gate check against outputs/low_fill_before.json and outputs/low_fill_after.json:
-- department: fill +0.0357, contamination +0.0000
-- practice_areas: fill +0.0357, contamination -0.0089
-- offices: fill +0.0268, contamination +0.0000
-- improved_fields=3
-- contamination_breach=no
-- result=PASS

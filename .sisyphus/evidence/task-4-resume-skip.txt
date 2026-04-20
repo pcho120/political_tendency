@@ -1,8 +1,0 @@
-Scenario: resume skips processed firms
-PASS
-process_firm calls: ['Latham']
-jsonl firms: ['Kirkland', 'Latham']
-summary firms: ['Kirkland', 'Latham']
-coverage firms: ['Kirkland', 'Latham']
-log snippet:
-INFO:find_attorney:[RESUME] Skipping already-processed firm: Kirkland

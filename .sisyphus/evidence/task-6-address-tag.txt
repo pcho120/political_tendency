@@ -1,2 +1,0 @@
-Offices: ['New York, NY']
-PASS
