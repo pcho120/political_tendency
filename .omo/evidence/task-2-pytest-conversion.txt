@@ -1,0 +1,11 @@
+pytest -v result: 40 passed, 0 failed
+Converted files:
+- tests/test_validators.py
+- tests/test_parser_sections.py
+- tests/test_enrichment_integration.py
+- tests/test_field_merger.py
+
+Notes:
+- Preserved main() and __main__ guards
+- Added pytest imports and pytest-discoverable test_ functions
+- No skips/xfails were needed

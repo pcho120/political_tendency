@@ -1,0 +1,58 @@
+
+=================================================================
+  FINAL VERIFICATION REPORT — title-office-dept-fix
+  Date: 2026-03-25
+=================================================================
+
+F1 Regression:     PASS
+  - Kirkland:       title 10/10 ✓, offices 6/10 (70% — matches baseline 70%)
+  - Skadden:        SKIP — discovery=0 (site structural change, not related to our fixes)
+  - Paul Hastings:  title 10/10 ✓, offices 5/10 (all 5 empty are NEW profiles not in baseline)
+  - Cooley:         title 5/5 ✓, offices 4/5 ✓ (class=locations parsing unaffected)
+  - Title contamination: 0 across all regression firms
+  VERDICT: PASS — no regression from T1-T7 changes on established firms
+
+F2 Improvements:   PARTIAL
+  - Cahill:              title 7/7 ✓, offices 0/7, contamination=0 ✓  → PASS
+  - Troutman:            title 8/8 ✓, offices 8/8 ✓, contamination=0 → PASS
+  - Sullivan & Cromwell: title 8/8 ✓ (was 0/20), offices 7/8 ✓       → PASS
+  - Weil:                offices individual city ✓ (was 10-city list)  → PASS (offices)
+  - Weil:                title contamination 5/5 = "Weil, Gotshal..."  → FAIL (title)
+  - Saul Ewing:          title 5/5 ✓, offices 5/5 ✓                   → PASS
+  VERDICT: PARTIAL — Weil title contamination unresolved (og:title path not covered by T2 guard)
+
+F3 Contamination:  FAIL
+  - Knobbe Martens:  5/5 titles = "Knobbe Martens"
+  - ArentFox Schiff: 3/3 titles = "ArentFox Schiff"
+  - Weil:            5/5 titles = "Weil, Gotshal & Manges LLP"
+  - Susman Godfrey:  0/5 contamination (CLEAN)
+  - Total contaminated in sampled records: 13/18 (72%)
+  ROOT CAUSE: validate_title() firm_name filtering was intentionally disabled in T3
+    (parameter exists but filter logic says "reserved for future use; currently not applied")
+  VERDICT: FAIL — firm-name contamination persists for Weil, Knobbe, ArentFox
+
+=================================================================
+  OVERALL: NEEDS FIXES
+=================================================================
+
+SPECIFIC ISSUES REQUIRING ATTENTION:
+
+[CRITICAL] 1. validate_title() firm_name filter not active (validators.py:231-265)
+   - The filter was designed to reject og:title "Name | Firm Name" patterns
+   - Task 3 added the parameter signature but explicitly disabled the filter logic
+   - Affected firms: Weil, Knobbe Martens, ArentFox Schiff (and others from T3 evidence: 127 total)
+   - Fix: Implement the actual token-overlap check that was described in the plan
+   - Constraint: The plan said "Newly rejected: 0" — this can be reconciled by applying the filter
+     ONLY at enrichment time (to new scrapes), not to the old baseline JSONL used for regression testing
+   - Reference: learnings.md lines 195-244 for the full story
+
+[MINOR] 2. Weil og:title path still contaminating titles (enrichment.py:1153-1175)
+   - Task 2's og:title keyword guard ("must contain partner/associate/etc.") should catch "Weil, Gotshal & Manges LLP"
+   - BUT: the og:title for Weil is likely "Name | Weil, Gotshal & Manges LLP" → guard SHOULD reject parts[1]
+   - Diagnosis needed: check if Weil title is coming from og:title (Stage 4) or another stage
+   - If guard is working, title may be arriving via section_map["title"] from a non-og:title source
+
+[MINOR] 3. Cahill offices 0/7 (no extractor, not scoped by this plan)
+   - Cahill office field was never targeted in Tasks 5-6 (plan only specified title for Cahill)
+   - Acceptable per plan scope — but noted for future work
+

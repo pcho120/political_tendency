@@ -1,0 +1,77 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.0, pytest-9.0.2, pluggy-1.6.0 -- C:\Python314\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\kunch\OneDrive\Desktop\Program\political_tendency
+configfile: pyproject.toml
+plugins: anyio-4.12.1, mock-3.15.1
+collecting ... collected 61 items
+
+tests/test_department_extraction.py::test_extract_department_from_json_ld PASSED [  1%]
+tests/test_department_extraction.py::test_extract_department_from_css_class PASSED [  3%]
+tests/test_department_extraction.py::test_extract_department_from_heading PASSED [  4%]
+tests/test_department_extraction.py::test_department_contamination_filter PASSED [  6%]
+tests/test_department_extraction.py::test_department_empty_returns_sentinel PASSED [  8%]
+tests/test_enrichment_integration.py::test_run_sitemap_xml_fixture PASSED [  9%]
+tests/test_enrichment_integration.py::test_run_html_directory_flat_fixture PASSED [ 11%]
+tests/test_enrichment_integration.py::test_run_html_alpha_paginated_fixture PASSED [ 13%]
+tests/test_enrichment_integration.py::test_run_spa_other_fixture PASSED  [ 14%]
+tests/test_enrichment_integration.py::test_latham_spa_other PASSED       [ 16%]
+tests/test_enrichment_integration.py::test_adversarial_nav_pollution_fixture PASSED [ 18%]
+tests/test_enrichment_integration.py::test_contaminated_practice_dump_fixture PASSED [ 19%]
+tests/test_enrichment_integration.py::test_department_concat_blob_fixture PASSED [ 21%]
+tests/test_enrichment_integration.py::test_surname_state_office_fixture PASSED [ 22%]
+tests/test_enrichment_integration.py::test_spa_small_content_fixture PASSED [ 24%]
+tests/test_enrichment_integration.py::test_partial_profile_supplementation_case PASSED [ 26%]
+tests/test_field_merger.py::test_list_merge_preserves_lower_precedence_practice_areas PASSED [ 27%]
+tests/test_industries_extraction.py::test_extract_industries_from_heading PASSED [ 29%]
+tests/test_industries_extraction.py::test_extract_industries_from_json_ld PASSED [ 31%]
+tests/test_industries_extraction.py::test_extract_industries_from_sidebar PASSED [ 32%]
+tests/test_industries_extraction.py::test_industries_vs_practice_areas PASSED [ 34%]
+tests/test_industries_extraction.py::test_industries_empty_returns_sentinel PASSED [ 36%]
+tests/test_martindale_extractor.py::test_martindale_url_no_search_path PASSED [ 37%]
+tests/test_martindale_extractor.py::test_martindale_profile_mapping PASSED [ 39%]
+tests/test_martindale_extractor.py::test_martindale_rate_limit PASSED    [ 40%]
+tests/test_martindale_extractor.py::test_martindale_firm_name_filtering PASSED [ 42%]
+tests/test_parser_sections.py::test_normalize_positive_cases[canonical practice areas] PASSED [ 44%]
+tests/test_parser_sections.py::test_normalize_positive_cases[canonical admissions] PASSED [ 45%]
+tests/test_parser_sections.py::test_normalize_positive_cases[canonical industries] PASSED [ 47%]
+tests/test_parser_sections.py::test_normalize_risky_positive_cases[service synonym] PASSED [ 49%]
+tests/test_parser_sections.py::test_normalize_risky_positive_cases[group synonym] PASSED [ 50%]
+tests/test_parser_sections.py::test_normalize_risky_positive_cases[section synonym] PASSED [ 52%]
+tests/test_parser_sections.py::test_normalize_risky_adversarial_cases[service false-positive guard] PASSED [ 54%]
+tests/test_parser_sections.py::test_normalize_risky_adversarial_cases[group false-positive guard] PASSED [ 55%]
+tests/test_parser_sections.py::test_normalize_risky_adversarial_cases[section false-positive guard] PASSED [ 57%]
+tests/test_parser_sections.py::test_normalize_new_cases[practice group synonym] PASSED [ 59%]
+tests/test_parser_sections.py::test_normalize_new_cases[working group guard] PASSED [ 60%]
+tests/test_parser_sections.py::test_normalize_new_cases[practice department synonym] PASSED [ 62%]
+tests/test_parser_sections.py::test_normalize_new_cases[focus heading synonym] PASSED [ 63%]
+tests/test_parser_sections.py::test_parse_boundary_cases[boundary: offices does not bleed into bar_admissions] PASSED [ 65%]
+tests/test_parser_sections.py::test_parse_boundary_cases[boundary: practice_areas does not bleed into biography] PASSED [ 67%]
+tests/test_parser_sections.py::test_parse_boundary_cases[latham: h3 sub-sections under h2 Qualifications map correctly] PASSED [ 68%]
+tests/test_parser_sections.py::test_parse_nested_heading_boundary PASSED [ 70%]
+tests/test_practice_department_map.py::test_map_loads_valid_json PASSED  [ 72%]
+tests/test_practice_department_map.py::test_map_coverage PASSED          [ 73%]
+tests/test_practice_department_map.py::test_litigation_mapping PASSED    [ 75%]
+tests/test_practice_department_map.py::test_corporate_mapping PASSED     [ 77%]
+tests/test_practice_department_map.py::test_department_inferred_from_practice_areas PASSED [ 78%]
+tests/test_practice_department_map.py::test_direct_department_not_overridden PASSED [ 80%]
+tests/test_practice_department_map.py::test_no_practice_area_no_inference PASSED [ 81%]
+tests/test_validators.py::test_validate_title[valid_title_acceptance] PASSED [ 83%]
+tests/test_validators.py::test_validate_title[title_alias_normalization] PASSED [ 85%]
+tests/test_validators.py::test_validate_title[title_sr_alias_normalization] PASSED [ 86%]
+tests/test_validators.py::test_validate_title[firm_name_contamination_rejection] PASSED [ 88%]
+tests/test_validators.py::test_validate_title[email_contamination_rejection] PASSED [ 90%]
+tests/test_validators.py::test_validate_title[empty_input_rejection] PASSED [ 91%]
+tests/test_validators.py::test_validate_offices[us_office_acceptance] PASSED [ 93%]
+tests/test_validators.py::test_validate_offices[non_us_office_acceptance_with_policy_signal] PASSED [ 95%]
+tests/test_validators.py::test_validate_offices[office_contamination_rejection] PASSED [ 96%]
+tests/test_validators.py::test_validate_practice_areas[short_valid_practice_tokens_are_preserved] PASSED [ 98%]
+tests/test_validators.py::test_validate_department[short_valid_department_tokens_are_preserved] PASSED [100%]
+
+============================== warnings summary ===============================
+..\..\..\..\AppData\Roaming\Python\Python314\site-packages\mf2py\backcompat.py:50: 11 warnings
+  C:\Users\kunch\AppData\Roaming\Python\Python314\site-packages\mf2py\backcompat.py:50: DeprecationWarning: codecs.open() is deprecated. Use open() instead.
+    with codecs.open(file_path, "r", "utf-8") as f:
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 61 passed, 11 warnings in 0.79s =======================

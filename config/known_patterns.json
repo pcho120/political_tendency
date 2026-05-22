@@ -1,0 +1,42 @@
+{
+  "sitemap_paths": [
+    "/sitemap.xml",
+    "/sitemap_index.xml",
+    "/sitemap/lawyers.xml",
+    "/sitemap/professionals.xml",
+    "/sitemap/people.xml",
+    "/sitemap/attorneys.xml",
+    "/sitemaps/people.xml",
+    "/sitemaps/professionals.xml"
+  ],
+  "directory_paths": [
+    "/people",
+    "/professionals",
+    "/attorneys",
+    "/lawyers",
+    "/our-people",
+    "/our-team",
+    "/team",
+    "/find-a-professional",
+    "/find-a-lawyer",
+    "/attorney-search",
+    "/lawyer-search"
+  ],
+  "alphabet_patterns": [
+    "/professionals/a",
+    "/professionals/b",
+    "/lawyers/a",
+    "/attorneys/a",
+    "/people/a"
+  ],
+  "profile_keywords": [
+    "/lawyer",
+    "/attorney",
+    "/people/",
+    "/professional",
+    "/bio/",
+    "/profile/",
+    "/team/",
+    "/our-people/"
+  ]
+}

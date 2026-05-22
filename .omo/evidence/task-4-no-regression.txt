@@ -1,0 +1,25 @@
+Task 4: No-Regression Verification
+Generated: 2026-03-25T10:26:04
+
+================================================================
+
+Baseline Firm: Kirkland & Ellis (5 profiles)
+
+Results:
+1. Anthony Abate | title=Associate
+2. James P. Abate | title=Associate
+3. Rajab S. Abbassi | title=Partner
+4. Gabrielle Abbe | title=Associate
+5. Peter Abbott | title=Partner
+
+Titles captured: 5 / 5 ✓
+Contaminated: 0 / 5 ✓
+Regression: NO ✓
+
+Summary:
+- Firm-specific CSS selectors (Susman, Cahill, Sullivan) do not affect Kirkland
+- All Kirkland titles remain valid and correctly extracted
+- og:title keyword guard successfully rejects firm names
+- Proximity search fallback still working for non-selector firms
+
+Task 4 Acceptance Criteria: PASS ✓

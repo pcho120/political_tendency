@@ -1,0 +1,50 @@
+{
+  "firms": [
+    {
+      "name": "Kirkland",
+      "structure_type": "SITEMAP_XML",
+      "attorney_count": 10,
+      "department_sentinel_rate": 0.0,
+      "industries_sentinel_rate": 1.0,
+      "education_sentinel_rate": 0.0,
+      "title_empty_rate": 0.0,
+      "office_empty_rate": 0.3,
+      "practice_areas_empty_rate": 0.0,
+      "bar_admissions_empty_rate": 0.3
+    },
+    {
+      "name": "Davis Polk",
+      "structure_type": "HTML_DIRECTORY_FLAT",
+      "attorney_count": 10,
+      "department_sentinel_rate": 0.9,
+      "industries_sentinel_rate": 1.0,
+      "education_sentinel_rate": 0.0,
+      "title_empty_rate": 0.0,
+      "office_empty_rate": 0.1,
+      "practice_areas_empty_rate": 0.0,
+      "bar_admissions_empty_rate": 0.0
+    },
+    {
+      "name": "Jones Day",
+      "structure_type": "BOT_PROTECTED",
+      "attorney_count": 0,
+      "department_sentinel_rate": 1.0,
+      "industries_sentinel_rate": 1.0,
+      "education_sentinel_rate": 1.0,
+      "title_empty_rate": 1.0,
+      "office_empty_rate": 1.0,
+      "practice_areas_empty_rate": 1.0,
+      "bar_admissions_empty_rate": 1.0
+    }
+  ],
+  "summary": {
+    "avg_department_sentinel_rate": 0.45,
+    "avg_industries_sentinel_rate": 1.0,
+    "avg_education_sentinel_rate": 0.0,
+    "avg_title_empty_rate": 0.0,
+    "avg_office_empty_rate": 0.2,
+    "avg_practice_areas_empty_rate": 0.0,
+    "avg_bar_admissions_empty_rate": 0.15,
+    "note": "Averages computed over firms with data (excluding BOT_PROTECTED with 0 attorneys)"
+  }
+}

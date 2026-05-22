@@ -1,0 +1,7 @@
+LSP diagnostics unavailable in this environment:
+Error: LSP server 'basedpyright' is configured but NOT INSTALLED.
+
+Command not found: basedpyright-langserver
+
+To install:
+  pip install basedpyright

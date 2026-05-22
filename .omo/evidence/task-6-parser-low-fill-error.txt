@@ -1,0 +1,21 @@
+﻿PASS | adversarial guard | raw='Client Services Team' expected='client_services_team' actual='client_services_team'
+PASS | adversarial guard | raw='Working Group' expected='working_group' actual='working_group'
+PASS | adversarial guard | raw='Section 1: Contact' expected='section_1_contact' actual='section_1_contact'
+
+== Integration nav-pollution fixture ==
+PASS | practice_areas does not contain nav item 'Contact Us'
+PASS | practice_areas does not contain nav item 'Careers'
+PASS | practice_areas does not contain nav item 'News'
+PASS | practice_areas does not contain nav item 'Events'
+PASS | practice_areas does not contain nav item 'Diversity'
+PASS | practice_areas does not contain nav item 'FAQ'
+PASS | practice_areas does not contain nav item 'Resources'
+PASS | practice_areas does not contain nav item 'Privacy Policy'
+PASS | practice_areas does not contain nav item 'Terms of Use'
+PASS | department does not contain nav item 'Leadership'
+PASS | department does not contain nav item 'Partners'
+PASS | department does not contain nav item 'Associates'
+PASS | department does not contain nav item 'Of Counsel'
+
+Adversarial guard failures: 0
+Exit code: 0

@@ -1,0 +1,45 @@
+{
+  "captured_at": "2026-04-10T17:15:23",
+  "overall": {
+    "total_records": 14143,
+    "title_fill_rate": 0.912253,
+    "offices_fill_rate": 0.741003,
+    "department_fill_rate": 0.590469,
+    "practice_areas_fill_rate": 0.599378
+  },
+  "per_firm": {
+    "Kirkland": {
+      "records": 10,
+      "title_fill": 1.0,
+      "offices_fill": 0.7,
+      "department_fill": 1.0,
+      "practice_areas_fill": 1.0
+    },
+    "Latham": {
+      "records": 10,
+      "title_fill": 0.9,
+      "offices_fill": 0.7,
+      "department_fill": 1.0,
+      "practice_areas_fill": 1.0
+    },
+    "Simpson Thacher": {
+      "records": 10,
+      "title_fill": 0.0,
+      "offices_fill": 0.0,
+      "department_fill": 1.0,
+      "practice_areas_fill": 1.0
+    },
+    "Fenwick": {
+      "records": 10,
+      "title_fill": 1.0,
+      "offices_fill": 0.0,
+      "department_fill": 1.0,
+      "practice_areas_fill": 1.0
+    },
+    "Jones Day": {
+      "status": "SKIPPED",
+      "skipped": true,
+      "note": "Jones Day present but not marked BOT_PROTECTED"
+    }
+  }
+}

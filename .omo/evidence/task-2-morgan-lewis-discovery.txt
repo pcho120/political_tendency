@@ -1,0 +1,70 @@
+﻿17:28:58 [WARNING] pattern_aggregator ??Confidence file not found: rule_confidence.json
+17:28:58 [WARNING] discovery_rules ??No historical patterns found - will use default confidence
+No sources file specified or file not found - using single-source mode
+
+Processing: Morgan Lewis...
+17:29:01 [INFO] compliance_engine ??[compliance] checking Morgan Lewis (https://www.morganlewis.com)
+17:29:03 [INFO] compliance_engine ??[compliance] Morgan Lewis: PARTIALLY_PUBLIC (robots=OK, homepage=200, bot_wall=False)
+
+=== Phase 1-3 Discovery: Morgan Lewis ===
+17:29:03 [INFO] discovery_rules ??Generating discovery recommendation for Morgan Lewis
+17:29:03 [INFO] observation_logger ??Loaded 146 observations from firm_observations.jsonl
+17:29:03 [INFO] discovery_rules ??Using existing observation for Morgan Lewis (1 total)
+17:29:03 [INFO] discovery_rules ??Recommendation for Morgan Lewis: 2 strategies, classified as SPA_HEAVY
+  Classification: SPA_HEAVY
+  Detected types: XML_SITEMAP, DIRECTORY_HTML
+  Strategies (2):
+    1. directory_listing (confidence: 0.50, priority: 2)
+    2. xml_sitemap_navigation (confidence: 0.35, priority: 2)
+  Profile saved: debug_reports\Morgan_Lewis_profile.json
+  Selected strategies: xml_sitemap
+  Selected strategies: xml_sitemap
+  [CoverageLoop] Expected total unknown ??will run all strategies until timeout or stabilization (N=2 consecutive zero-yield)
+
+  [CoverageLoop] Running strategy: xml_sitemap (0 URLs so far)
+  XML Sitemap: 0 profile URLs found
+  [CoverageLoop] xml_sitemap: +0 new URLs (total: 0)
+  [CoverageLoop] No new URLs from xml_sitemap (1/3 consecutive zero-yield)
+  Coverage report saved: debug_reports\Morgan_Lewis_coverage.json
+
+--- Enriching 0 profile URLs ---
+  Enrichment mode: REQUESTS
+  Enrichment: 0 SUCCESS, 0 PARTIAL, 0 FAILED
+  Coverage report saved: debug_reports\Morgan_Lewis_coverage.json
+
+--- Discovery Status: DISCOVERY_INCOMPLETE (extraction_error) ---
+--- Activating External Directory Fallback ---
+17:29:20 [INFO] external_directory_extractor ??  [ExternalDir/justia] +0 attorneys
+17:29:36 [INFO] external_directory_extractor ??  [ExternalDir/martindale] +0 attorneys
+17:30:00 [INFO] external_directory_extractor ??  [ExternalDir/calbar] +50 attorneys
+17:30:08 [INFO] external_directory_extractor ??  [ExternalDir/txbar] +0 attorneys
+  External directory extracted 11 attorneys
+  [EXT_DIR_REJECT] Last Name ??failed hard gate
+  [EXT_DIR_REJECT] First Name ??failed hard gate
+  [EXT_DIR_REJECT] Middle Name ??failed hard gate
+  [EXT_DIR_REJECT] Firm Name ??failed hard gate
+  [EXT_DIR_REJECT] City ??failed hard gate
+  [EXT_DIR_REJECT] State ??failed hard gate
+  [EXT_DIR_REJECT] District ??failed hard gate
+  [EXT_DIR_REJECT] County ??failed hard gate
+  [EXT_DIR_REJECT] Cert. Legal Specialty ??failed hard gate
+  [EXT_DIR_REJECT] Languages Spoken ??failed hard gate
+  [EXT_DIR_REJECT] Self-Reported Practice Areas ??failed hard gate
+  Merged external data for 0 existing profiles
+  Added 0 new profiles from external directory
+  Merged 11 external directory profiles
+  [US Filter] 0 attorneys, all US
+  US attorneys: 0/0
+
+[DONE] 0 attorneys (66.9s)
+  Status: UNKNOWN_PATTERN
+  Discovery: DISCOVERY_INCOMPLETE (extraction_error)
+  Metrics saved: debug_reports\Morgan_Lewis_metrics.json
+  Attorney profiles saved: debug_reports\Morgan_Lewis_attorneys.json
+[OK] Morgan Lewis: 0 attorneys
+
+Total: 0 attorneys
+  Attorney data saved: .sisyphus\tmp_task2_diagnosis\morgan-lewis\AmLaw200_2025 Rank_gross revenue_with_websites_attorneys.xlsx
+  Firm summary saved: .sisyphus\tmp_task2_diagnosis\morgan-lewis\firm_level_summary.csv
+
+Total runtime: 70.5s

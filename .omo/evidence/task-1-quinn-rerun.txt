@@ -1,0 +1,69 @@
+15:27:15 [INFO] pipeline — Loaded 1 firms from cache/firm_domain_cache.json
+15:27:15 [INFO] pipeline — ── Firm 1/1: quinn emanuel ──
+15:27:15 [INFO] pipeline — [quinn emanuel] Structure type: SPA_OTHER
+15:27:15 [INFO] pipeline — [quinn emanuel] Discovery starting → https://www.quinnemanuel.com
+15:27:15 [INFO] amlaw.quinn_emanuel — Discovery started | strategy=detecting | url=https://www.quinnemanuel.com
+15:27:15 [INFO] amlaw.quinn_emanuel — HTML alphabet navigation detected | dir_url=https://www.quinnemanuel.com/attorneys?letter=A
+15:27:16 [INFO] amlaw.quinn_emanuel — Letter=A | total_results=0 extracted=151 pages=1
+15:27:20 [INFO] amlaw.quinn_emanuel — Letter=B | total_results=0 extracted=0 pages=1
+15:27:21 [INFO] amlaw.quinn_emanuel — Letter=C | total_results=0 extracted=0 pages=1
+15:27:21 [INFO] amlaw.quinn_emanuel — Letter=D | total_results=0 extracted=0 pages=1
+15:27:22 [INFO] amlaw.quinn_emanuel — Letter=E | total_results=0 extracted=0 pages=1
+15:27:23 [INFO] amlaw.quinn_emanuel — Letter=F | total_results=0 extracted=0 pages=1
+15:27:24 [INFO] amlaw.quinn_emanuel — Letter=G | total_results=0 extracted=0 pages=1
+15:27:25 [INFO] amlaw.quinn_emanuel — Letter=H | total_results=0 extracted=0 pages=1
+15:27:25 [INFO] amlaw.quinn_emanuel — Letter=I | total_results=0 extracted=0 pages=1
+15:27:26 [INFO] amlaw.quinn_emanuel — Letter=J | total_results=0 extracted=0 pages=1
+15:27:27 [INFO] amlaw.quinn_emanuel — Letter=K | total_results=0 extracted=0 pages=1
+15:27:28 [INFO] amlaw.quinn_emanuel — Letter=L | total_results=0 extracted=0 pages=1
+15:27:29 [INFO] amlaw.quinn_emanuel — Letter=M | total_results=0 extracted=0 pages=1
+15:27:29 [INFO] amlaw.quinn_emanuel — Letter=N | total_results=0 extracted=0 pages=1
+15:27:30 [INFO] amlaw.quinn_emanuel — Letter=O | total_results=0 extracted=0 pages=1
+15:27:31 [INFO] amlaw.quinn_emanuel — Letter=P | total_results=0 extracted=0 pages=1
+15:27:32 [INFO] amlaw.quinn_emanuel — Letter=Q | total_results=0 extracted=0 pages=1
+15:27:33 [INFO] amlaw.quinn_emanuel — Letter=R | total_results=0 extracted=0 pages=1
+15:27:34 [INFO] amlaw.quinn_emanuel — Letter=S | total_results=0 extracted=0 pages=1
+15:27:34 [INFO] amlaw.quinn_emanuel — Letter=T | total_results=0 extracted=0 pages=1
+15:27:35 [INFO] amlaw.quinn_emanuel — Letter=U | total_results=0 extracted=0 pages=1
+15:27:36 [INFO] amlaw.quinn_emanuel — Letter=V | total_results=0 extracted=0 pages=1
+15:27:37 [INFO] amlaw.quinn_emanuel — Letter=W | total_results=0 extracted=0 pages=1
+15:27:38 [INFO] amlaw.quinn_emanuel — Letter=X | total_results=0 extracted=0 pages=1
+15:27:38 [INFO] amlaw.quinn_emanuel — Letter=Y | total_results=0 extracted=0 pages=1
+15:27:39 [INFO] amlaw.quinn_emanuel — Letter=Z | total_results=0 extracted=0 pages=1
+15:27:40 [INFO] amlaw.quinn_emanuel — Discovery mode: requests | firm=www.quinnemanuel.com
+15:27:40 [INFO] amlaw.quinn_emanuel — Discovery complete | unique_profiles=151 elapsed=24.4s errors=0
+15:27:40 [INFO] amlaw.quinn_emanuel — Discovery letter coverage | count_a=0 | count_b=0 | sample_a=[] | sample_b=[]
+15:27:40 [WARNING] amlaw.quinn_emanuel — Letter A or B missing from final dataset | count_a=0 | count_b=0
+15:27:40 [INFO] pipeline — [quinn emanuel] Discovered 151 profile URLs
+15:27:40 [INFO] pipeline — [quinn emanuel] Limiting to 5 profiles (--max-profiles)
+15:27:40 [WARNING] amlaw.quinn_emanuel — Profile PARTIAL | mode=requests | render=requests | missing=['full_name', 'department'] | https://www.quinnemanuel.com/practice-areas/satellite-and-aerospace-litigation/
+15:27:40 [WARNING] amlaw.quinn_emanuel — Profile PARTIAL | mode=requests | render=requests | missing=['full_name', 'department'] | https://www.quinnemanuel.com/practice-areas/satellite-and-aerospace-litigation/
+15:27:41 [WARNING] amlaw.quinn_emanuel — Profile PARTIAL | mode=requests | render=requests | missing=['full_name', 'department'] | https://www.quinnemanuel.com/practice-ar…-enforcement-defense-practice/
+15:27:41 [WARNING] amlaw.quinn_emanuel — Profile PARTIAL | mode=requests | render=requests | missing=['full_name', 'department'] | https://www.quinnemanuel.com/practice-ar…-enforcement-defense-practice/
+15:27:41 [WARNING] amlaw.quinn_emanuel — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department', 'practice_areas'] | https://www.quinnemanuelchs.com/attorneys/abraham-habib-emmanuel/
+15:27:41 [WARNING] amlaw.quinn_emanuel — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department', 'practice_areas'] | https://www.quinnemanuelchs.com/attorneys/abraham-habib-emmanuel/
+15:27:42 [WARNING] amlaw.quinn_emanuel — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department', 'practice_areas'] | https://www.quinnemanuelchs.com/attorneys/akdag-duygu-julia/
+15:27:42 [WARNING] amlaw.quinn_emanuel — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department', 'practice_areas'] | https://www.quinnemanuelchs.com/attorneys/akdag-duygu-julia/
+15:27:43 [WARNING] amlaw.quinn_emanuel — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department', 'practice_areas'] | https://www.quinnemanuelchs.com/attorneys/abensohn-adam-m/
+15:27:43 [WARNING] amlaw.quinn_emanuel — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department', 'practice_areas'] | https://www.quinnemanuelchs.com/attorneys/abensohn-adam-m/
+15:27:43 [INFO] amlaw.quinn_emanuel — Wrote discovery summary → debug_reports/quinn_emanuel/quinn_emanuel_discovery.json
+15:27:43 [INFO] pipeline — [quinn emanuel] Done | enriched=5 failed=0 elapsed=25.7s
+15:27:43 [INFO] pipeline —   [US Filter] 5 attorneys, all US
+15:27:43 [INFO] pipeline — US filter: 5 → 5 profiles (removed 0 non-US)
+15:27:43 [INFO] pipeline — Excel saved → outputs/attorneys_2026-03-24T19-27-15.xlsx (5 rows)
+15:27:43 [INFO] pipeline — JSONL saved → outputs/attorneys_2026-03-24T19-27-15.jsonl (5 records)
+
+=================================================================
+  PIPELINE COMPLETE
+  Firms processed : 1
+  URLs discovered : 151
+  Profiles enriched: 5
+  Failed profiles : 0
+  Errors          : 0
+  Total elapsed   : 28.6s
+=================================================================
+
+Firm                                  Disc  Enriched  Failed  Errors    Time
+---------------------------------------------------------------------------
+quinn emanuel                          151         5       0       0   25.7s
+

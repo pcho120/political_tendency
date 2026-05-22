@@ -1,0 +1,12 @@
+Sullivan & Cromwell offices QA (task-5-5B)
+===========================================
+JSONL source: outputs/attorneys_2026-03-25T17-03-59.jsonl
+
+Nolan C. Abboud: offices=['New York']
+Abdullahi Abdi: offices=['New York']
+Thadeus S.S. Abramowich: offices=['New York']
+Rachael C. Abrams: offices=['New York']
+Henri J. Adams: offices=['Los Angeles']
+
+QA: 5/5 offices populated via bio-loc extractor
+PASS (≥4/5 threshold met)

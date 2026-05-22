@@ -1,0 +1,3 @@
+Practice Areas noisy: 1, Bar Admissions noisy: 0
+Practice Areas filled: 2/5 (should be > 0)
+PASS

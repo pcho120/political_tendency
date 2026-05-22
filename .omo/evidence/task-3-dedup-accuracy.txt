@@ -1,0 +1,5 @@
+﻿Task-3 Dedup Accuracy QA
+Input: 3 lines (2 same URL John Doe, 1 Jane Smith)
+Output: 2 lines
+John Doe title preserved: 'Partner' (more complete record kept)
+PASS

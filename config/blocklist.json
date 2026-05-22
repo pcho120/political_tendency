@@ -1,0 +1,39 @@
+{
+  "bad_domains": [
+    "cm-prod",
+    "staging",
+    "dev",
+    "akamaized",
+    "cloudfront",
+    "azureedge",
+    "amazonaws",
+    "blob.core.windows",
+    "cdn-"
+  ],
+  "blocked_sites": [
+    "wikipedia.org",
+    "linkedin.com",
+    "facebook.com",
+    "instagram.com",
+    "twitter.com",
+    "law.com",
+    "vault.com",
+    "chambers.com",
+    "bloomberg.com",
+    "crunchbase.com",
+    "martindale.com",
+    "superlawyers.com"
+  ],
+  "junk_url_patterns": [
+    "terms",
+    "privacy",
+    "advertising",
+    "disclaimer",
+    "cookie",
+    "/search",
+    "login",
+    "subscribe",
+    "career",
+    "alumni"
+  ]
+}

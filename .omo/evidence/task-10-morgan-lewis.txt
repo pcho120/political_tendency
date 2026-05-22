@@ -1,0 +1,148 @@
+﻿18:31:12 [INFO] __main__ ??Loaded 198 site structure classifications
+18:31:12 [WARNING] pattern_aggregator ??Confidence file not found: rule_confidence.json
+18:31:12 [WARNING] discovery_rules ??No historical patterns found - will use default confidence
+No sources file specified or file not found - using single-source mode
+
+Processing: Morgan Lewis...
+18:31:13 [INFO] compliance_engine ??[compliance] checking Morgan Lewis (https://www.morganlewis.com)
+18:31:14 [INFO] compliance_engine ??[compliance] Morgan Lewis: PARTIALLY_PUBLIC (robots=OK, homepage=200, bot_wall=False)
+
+=== Phase 1-3 Discovery: Morgan Lewis ===
+18:31:14 [INFO] discovery_rules ??Generating discovery recommendation for Morgan Lewis
+18:31:14 [INFO] observation_logger ??Loaded 146 observations from firm_observations.jsonl
+18:31:14 [INFO] discovery_rules ??Using existing observation for Morgan Lewis (1 total)
+18:31:14 [INFO] discovery_rules ??Recommendation for Morgan Lewis: 2 strategies, classified as SPA_HEAVY
+  Classification: SPA_HEAVY
+  Detected types: XML_SITEMAP, DIRECTORY_HTML
+  Strategies (2):
+    1. directory_listing (confidence: 0.50, priority: 2)
+    2. xml_sitemap_navigation (confidence: 0.35, priority: 2)
+  Profile saved: debug_reports\Morgan_Lewis_profile.json
+  Selected strategies: xml_sitemap
+  Selected strategies: xml_sitemap
+  [CoverageLoop] Expected total unknown ??will run all strategies until timeout or stabilization (N=2 consecutive zero-yield)
+
+  [CoverageLoop] Running strategy: xml_sitemap (0 URLs so far)
+  XML Sitemap: 500 profile URLs found
+18:31:24 [INFO] source_validator ??Validating source: https://www.morganlewis.com/sitemap.xml (xml_sitemap)
+18:31:24 [INFO] source_validator ??  Candidate URLs: 500
+18:31:24 [INFO] source_validator ??  Sampling up to 3 valid profiles from pool of 9...
+18:31:24 [INFO] source_validator ??Sample HTML from https://www.morganlewis.com/bios/christineychen:
+18:31:24 [INFO] source_validator ??  
+
+
+
+
+
+<!doctype html>
+
+<html lang="en">
+
+<head>
+
+        <!-- OneTrust Cookies Consent Notice start for www.morganlewis.com -->
+
+    <link rel="preload" href="https://cdn.cookielaw.org/scripttemplates/otSDKStub.js" as="script" />
+
+    <link rel="preload" href="https://cdn.cookielaw.org/consent/66ecdc34-1d8c-4ecf-ad50-b6977162b51e/OtAutoBlock.js" as="script" />
+
+    <script src="https://cdn.cookielaw.org/scripttemplates/otSDKStub.js" type="text/javascript" charset="UTF-8" data-domain-script="66ec...
+18:31:24 [INFO] source_validator ??  Extracted: name=True, title=True, office=True
+18:31:24 [INFO] source_validator ??Sample HTML from https://www.morganlewis.com/bios/brittanyjohnson:
+18:31:24 [INFO] source_validator ??  
+
+
+
+
+
+<!doctype html>
+
+<html lang="en">
+
+<head>
+
+        <!-- OneTrust Cookies Consent Notice start for www.morganlewis.com -->
+
+    <link rel="preload" href="https://cdn.cookielaw.org/scripttemplates/otSDKStub.js" as="script" />
+
+    <link rel="preload" href="https://cdn.cookielaw.org/consent/66ecdc34-1d8c-4ecf-ad50-b6977162b51e/OtAutoBlock.js" as="script" />
+
+    <script src="https://cdn.cookielaw.org/scripttemplates/otSDKStub.js" type="text/javascript" charset="UTF-8" data-domain-script="66ec...
+18:31:24 [INFO] source_validator ??  Extracted: name=True, title=True, office=True
+18:31:24 [INFO] source_validator ??Sample HTML from https://www.morganlewis.com/bios/brookeclark:
+18:31:24 [INFO] source_validator ??  
+
+
+
+
+
+<!doctype html>
+
+<html lang="en">
+
+<head>
+
+        <!-- OneTrust Cookies Consent Notice start for www.morganlewis.com -->
+
+    <link rel="preload" href="https://cdn.cookielaw.org/scripttemplates/otSDKStub.js" as="script" />
+
+    <link rel="preload" href="https://cdn.cookielaw.org/consent/66ecdc34-1d8c-4ecf-ad50-b6977162b51e/OtAutoBlock.js" as="script" />
+
+    <script src="https://cdn.cookielaw.org/scripttemplates/otSDKStub.js" type="text/javascript" charset="UTF-8" data-domain-script="66ec...
+18:31:24 [INFO] source_validator ??  Extracted: name=True, title=True, office=True
+18:31:24 [INFO] source_validator ??  Field validation (from 3 usable samples, 0 skipped as stale):
+18:31:24 [INFO] source_validator ??    name: 3/3 (required: 3)
+18:31:24 [INFO] source_validator ??    title: 3/3 (required: 1)
+18:31:24 [INFO] source_validator ??    office (US): 1/3 (required: 1)
+18:31:24 [INFO] source_validator ??    practice_areas: 0/3 (required: 1)
+18:31:24 [INFO] source_validator ??  Validation result: PASS
+  Sitemap validation PASSED
+  Accepting 500 URLs from validated source
+  [CoverageLoop] xml_sitemap: +500 new URLs (total: 500)
+  [CoverageLoop] Limit applied: 5 URLs
+  Coverage report saved: debug_reports\Morgan_Lewis_coverage.json
+
+--- Enriching 5 profile URLs ---
+  Enrichment mode: REQUESTS
+  [ABORT] ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403
+  [ABORT] Firm enrichment aborted: ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403
+  [ABORT] Returning 5 partial results (skipping Playwright fallback)
+  [ABORT] Overriding discovery_status ??BLOCKED (ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403)
+  Coverage report saved: debug_reports\Morgan_Lewis_coverage.json
+
+--- Discovery Status: BLOCKED (ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403) ---
+--- Activating External Directory Fallback ---
+18:31:29 [INFO] external_directory_extractor ??  [ExternalDir/justia] +0 attorneys
+18:31:43 [INFO] external_directory_extractor ??  [ExternalDir/martindale] +0 attorneys
+18:31:54 [INFO] external_directory_extractor ??  [ExternalDir/calbar] +50 attorneys
+18:32:00 [INFO] external_directory_extractor ??  [ExternalDir/txbar] +0 attorneys
+  External directory extracted 11 attorneys
+  [EXT_DIR_REJECT] Last Name ??failed hard gate
+  [EXT_DIR_REJECT] First Name ??failed hard gate
+  [EXT_DIR_REJECT] Middle Name ??failed hard gate
+  [EXT_DIR_REJECT] Firm Name ??failed hard gate
+  [EXT_DIR_REJECT] City ??failed hard gate
+  [EXT_DIR_REJECT] State ??failed hard gate
+  [EXT_DIR_REJECT] District ??failed hard gate
+  [EXT_DIR_REJECT] County ??failed hard gate
+  [EXT_DIR_REJECT] Cert. Legal Specialty ??failed hard gate
+  [EXT_DIR_REJECT] Languages Spoken ??failed hard gate
+  [EXT_DIR_REJECT] Self-Reported Practice Areas ??failed hard gate
+  Merged external data for 0 existing profiles
+  Added 0 new profiles from external directory
+  Merged 11 external directory profiles
+  [US Filter] 5 attorneys, all US
+  US attorneys: 5/5
+
+[DONE] 5 attorneys (46.9s)
+  Status: SUCCESS
+  Discovery: BLOCKED (ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403)
+  Metrics saved: debug_reports\Morgan_Lewis_metrics.json
+  Attorney profiles saved: debug_reports\Morgan_Lewis_attorneys.json
+[OK] Morgan Lewis: 5 attorneys
+
+Total: 5 attorneys
+  Attorney data saved: .\AmLaw200_2025 Rank_gross revenue_with_websites_attorneys.xlsx
+  Firm summary saved: firm_level_summary.csv
+
+Total runtime: 48.2s

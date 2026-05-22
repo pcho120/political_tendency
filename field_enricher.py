@@ -1,0 +1,1325 @@
+#!/usr/bin/env python3
+"""field_enricher.py - Per-Field Source Provenance + JSON-LD Enrichment
+
+Enriches AttorneyProfile objects with:
+1. JSON-LD structured data (via extruct or regex fallback)
+2. Embedded JSON state objects (React/Next.js __NEXT_DATA__, window.__APP_STATE__ etc.)
+3. Microdata (schema.org Person via extruct)
+4. Per-field source provenance: tracks which source contributed each field
+5. Confidence scoring per source type
+
+Architecture:
+  - FieldEnricher.enrich(profile, html, profile_url, source_type) → None
+    Fills in missing fields from html, records provenance.
+  - FieldProvenanceRecord tracks source per field.
+  - Enrichment is non-destructive: existing non-empty values are never overwritten.
+    Exception: list fields (offices, practice_areas, etc.) are MERGED (no duplicates added).
+
+Legal constraints honoured:
+  - Only enriches from HTML already fetched by the caller (no additional HTTP)
+  - No authentication, no CAPTCHA, no robots.txt violations
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import re
+from dataclasses import dataclass, field
+from typing import Any, overload
+
+from attorney_extractor import AttorneyProfile, EducationRecord
+from parser_sections import parse_sections
+
+try:
+    import extruct
+    EXTRUCT_AVAILABLE = True
+except ImportError:
+    extruct = None  # type: ignore[assignment]
+    EXTRUCT_AVAILABLE = False
+
+try:
+    from bs4 import BeautifulSoup
+    BS4_AVAILABLE = True
+except ImportError:
+    BeautifulSoup = None  # type: ignore[assignment,misc]
+    BS4_AVAILABLE = False
+
+log = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Source confidence levels (higher = more authoritative)
+# ---------------------------------------------------------------------------
+
+SOURCE_CONFIDENCE: dict[str, float] = {
+    "official_profile_html":        1.0,
+    "official_json_ld":             0.95,
+    "official_microdata":           0.90,
+    "official_embedded_json":       0.85,
+    "official_directory_listing":   0.75,
+    "official_pdf_brochure":        0.70,
+    "external_json_ld":             0.65,
+    "external_directory":           0.55,
+    "state_bar_registry":           0.70,
+    "unknown":                      0.30,
+}
+
+
+# ---------------------------------------------------------------------------
+# Provenance record
+# ---------------------------------------------------------------------------
+
+@dataclass
+class FieldProvenanceRecord:
+    """Provenance for one field of one attorney profile."""
+    field_name: str
+    source_type: str     # key from SOURCE_CONFIDENCE
+    source_url: str
+    confidence: float
+    extracted_value: Any  # the actual value stored
+
+
+@dataclass
+class EnrichmentLog:
+    """Accumulated enrichment log for one attorney profile."""
+    profile_url: str
+    records: list[FieldProvenanceRecord] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    def add(self, field_name: str, source_type: str, source_url: str, value: Any) -> None:
+        confidence = SOURCE_CONFIDENCE.get(source_type, 0.3)
+        self.records.append(FieldProvenanceRecord(
+            field_name=field_name,
+            source_type=source_type,
+            source_url=source_url,
+            confidence=confidence,
+            extracted_value=value,
+        ))
+
+    def to_dict(self) -> dict:
+        return {
+            "profile_url": self.profile_url,
+            "field_sources": {
+                r.field_name: {"source_type": r.source_type, "source_url": r.source_url,
+                                "confidence": r.confidence}
+                for r in self.records
+            },
+            "warnings": self.warnings,
+        }
+
+
+# ---------------------------------------------------------------------------
+# Main enricher
+# ---------------------------------------------------------------------------
+
+class FieldEnricher:
+    """
+    Enriches an AttorneyProfile from HTML of the profile page.
+
+    Usage:
+        enricher = FieldEnricher()
+        log = enricher.enrich(profile, html, profile_url="https://...", source_type="official_profile_html")
+        # log.to_dict() stored in profile.diagnostics['enrichment_log']
+    """
+
+    @overload
+    def enrich(
+        self,
+        profile: AttorneyProfile,
+        html: str,
+        *,
+        profile_url: str | None = None,
+        source_type: str = "official_profile_html",
+        firm_name: str | None = None,
+    ) -> EnrichmentLog: ...
+
+    @overload
+    def enrich(
+        self,
+        profile: str,
+        html: dict[str, Any],
+        *,
+        profile_url: str | None = None,
+        source_type: str = "official_profile_html",
+        firm_name: str | None = None,
+    ) -> dict[str, Any]: ...
+
+    def enrich(
+        self,
+        profile: AttorneyProfile | dict[str, Any] | str,
+        html: str | dict[str, Any],
+        *,
+        profile_url: str | None = None,
+        source_type: str = "official_profile_html",
+        firm_name: str | None = None,
+    ) -> EnrichmentLog | dict[str, Any]:
+        """
+        Enrich profile from HTML. Non-destructive — existing values are kept.
+        List fields are merged (unique entries added).
+
+        Returns EnrichmentLog with per-field provenance.
+        """
+        legacy_profile_dict: dict[str, Any] | None = None
+        if isinstance(profile, str) and isinstance(html, dict):
+            legacy_profile_dict = html
+            html = profile
+            profile_url = profile_url or str(legacy_profile_dict.get('profile_url', '') or '')
+            profile = _profile_from_mapping(
+                legacy_profile_dict,
+                firm_name=firm_name or str(legacy_profile_dict.get('firm', '') or ''),
+                profile_url=profile_url,
+            )
+
+        if not isinstance(profile, AttorneyProfile) or not isinstance(html, str):
+            raise TypeError("enrich() expects (AttorneyProfile, html) or (html, profile_dict)")
+
+        html = html[:500_000]  # cap at 500KB
+        profile_url = profile_url or profile.profile_url
+        elog = EnrichmentLog(profile_url=profile_url)
+
+        # 1. JSON-LD (highest confidence structured data)
+        json_ld = _extract_json_ld(html, profile_url)
+        if json_ld:
+            ld_source = f"official_json_ld" if "official" in source_type else "external_json_ld"
+            self._apply_json_ld(profile, json_ld, source_url=profile_url,
+                                source_type=ld_source, elog=elog)
+
+        # 2. Microdata (schema.org via extruct)
+        if EXTRUCT_AVAILABLE:
+            microdata_person = _extract_microdata_person(html, profile_url)
+            if microdata_person:
+                self._apply_microdata(profile, microdata_person, source_url=profile_url,
+                                      source_type=source_type, elog=elog)
+
+        # 3. Embedded JSON state (React/Next.js)
+        embedded_data = _extract_embedded_json(html)
+        if embedded_data:
+            self._apply_embedded_json(profile, embedded_data, source_url=profile_url,
+                                      source_type=source_type, elog=elog)
+
+        # 4. HTML heuristic extraction (last resort for remaining missing fields)
+        if getattr(profile, '_has_missing_fields', lambda: False)():
+            self._apply_html_heuristics(profile, html, source_url=profile_url,
+                                        source_type=source_type, elog=elog)
+
+        # Store enrichment log in diagnostics
+        profile.diagnostics['enrichment_log'] = elog.to_dict()
+        profile.diagnostics['field_sources'] = elog.to_dict().get('field_sources', {})
+
+        # Recalculate missing fields after enrichment
+        profile.calculate_status()
+
+        if legacy_profile_dict is not None:
+            return _sync_profile_to_mapping(profile, legacy_profile_dict)
+
+        return elog
+
+    # ------------------------------------------------------------------
+    # JSON-LD applicator
+    # ------------------------------------------------------------------
+
+    def _apply_json_ld(
+        self,
+        profile: AttorneyProfile,
+        ld: dict,
+        source_url: str,
+        source_type: str,
+        elog: EnrichmentLog,
+    ) -> None:
+        """Apply JSON-LD Person data to profile, tracking provenance."""
+
+        # full_name
+        if not profile.full_name:
+            name = ld.get('name', '') or ''
+            if name:
+                profile.full_name = name.strip()
+                elog.add('full_name', source_type, source_url, name)
+
+        # title
+        if not profile.title:
+            title = ld.get('jobTitle', '') or ld.get('title', '') or ''
+            if title:
+                profile.title = title.strip()
+                elog.add('title', source_type, source_url, title)
+
+        # offices (from address / workLocation)
+        added_offices = self._extract_offices_from_ld(ld)
+        new_offices = [o for o in added_offices if o not in profile.offices]
+        if new_offices:
+            profile.offices.extend(new_offices)
+            elog.add('offices', source_type, source_url, new_offices)
+
+        # practice_areas (from knowsAbout, hasCredential, makesOffer)
+        added_pa = self._extract_practice_areas_from_ld(ld)
+        new_pa = [p for p in added_pa if p not in profile.practice_areas]
+        if new_pa:
+            profile.practice_areas.extend(new_pa)
+            elog.add('practice_areas', source_type, source_url, new_pa)
+
+        # education (from alumniOf)
+        added_edu = self._extract_education_from_ld(ld)
+        for edu in added_edu:
+            if not any(e.school == edu.school for e in profile.education):
+                profile.education.append(edu)
+                elog.add('education', source_type, source_url,
+                         {'degree': edu.degree, 'school': edu.school, 'year': edu.year})
+
+        # department (from department) — additive union/dedup for target list field
+        dept = ld.get('department', '') or ''
+        if isinstance(dept, dict):
+            dept = dept.get('name', '') or ''
+        if dept and dept.strip() not in profile.department:
+            profile.department.append(dept.strip())
+            elog.add('department', source_type, source_url, dept)
+
+        # bar_admissions (from memberOf)
+        member_of = ld.get('memberOf', [])
+        if isinstance(member_of, (str, dict)):
+            member_of = [member_of]
+        for m in member_of:
+            if isinstance(m, str) and _is_bar_admission(m):
+                if m not in profile.bar_admissions:
+                    profile.bar_admissions.append(m)
+                    elog.add('bar_admissions', source_type, source_url, m)
+            elif isinstance(m, dict):
+                name = m.get('name', '') or ''
+                if name and _is_bar_admission(name) and name not in profile.bar_admissions:
+                    profile.bar_admissions.append(name)
+                    elog.add('bar_admissions', source_type, source_url, name)
+
+    def _extract_offices_from_ld(self, ld: dict) -> list[str]:
+        """Extract US office strings from JSON-LD address/workLocation."""
+        offices = []
+        for key in ('address', 'workLocation', 'location'):
+            addr = ld.get(key)
+            if not addr:
+                continue
+            if isinstance(addr, dict):
+                office = _ld_addr_to_string(addr)
+                if office and _is_us_location(office):
+                    offices.append(office)
+            elif isinstance(addr, list):
+                for a in addr:
+                    if isinstance(a, dict):
+                        office = _ld_addr_to_string(a)
+                        if office and _is_us_location(office):
+                            offices.append(office)
+        return offices
+
+    def _extract_practice_areas_from_ld(self, ld: dict) -> list[str]:
+        """Extract practice areas from JSON-LD."""
+        areas = []
+        for key in ('knowsAbout', 'hasCredential', 'makesOffer', 'areaServed'):
+            items = ld.get(key, [])
+            if isinstance(items, str):
+                items = [items]
+            for item in items:
+                if isinstance(item, str) and 3 < len(item) < 120:
+                    areas.append(item)
+                elif isinstance(item, dict):
+                    name = item.get('name', '') or ''
+                    if name and 3 < len(name) < 120:
+                        areas.append(name)
+        return areas
+
+    def _extract_education_from_ld(self, ld: dict) -> list[EducationRecord]:
+        """Extract education records from JSON-LD alumniOf."""
+        edu_records = []
+        alumni = ld.get('alumniOf', [])
+        if isinstance(alumni, (str, dict)):
+            alumni = [alumni]
+        for item in alumni:
+            if isinstance(item, str) and len(item) > 3:
+                edu_records.append(EducationRecord(school=item))
+            elif isinstance(item, dict):
+                school = item.get('name', '') or ''
+                degree = item.get('description', '') or item.get('credential', '') or ''
+                year = _extract_year(item.get('endDate', '') or item.get('year', ''))
+                if school:
+                    edu_records.append(EducationRecord(
+                        degree=degree.strip() or None,
+                        school=school.strip(),
+                        year=year,
+                    ))
+        return edu_records
+
+    # ------------------------------------------------------------------
+    # Microdata applicator
+    # ------------------------------------------------------------------
+
+    def _apply_microdata(
+        self,
+        profile: AttorneyProfile,
+        microdata: dict,
+        source_url: str,
+        source_type: str,
+        elog: EnrichmentLog,
+    ) -> None:
+        """Apply schema.org microdata Person to profile."""
+        props = microdata.get('properties', {})
+
+        if not profile.full_name:
+            name = _first_string(props.get('name'))
+            if name:
+                profile.full_name = name
+                elog.add('full_name', source_type, source_url, name)
+
+        if not profile.title:
+            title = _first_string(props.get('jobTitle'))
+            if title:
+                profile.title = title
+                elog.add('title', source_type, source_url, title)
+
+        # Address
+        for addr_item in (props.get('address') or []):
+            if isinstance(addr_item, dict):
+                addr_props = addr_item.get('properties', {})
+                city = _first_string(addr_props.get('addressLocality')) or ''
+                state = _first_string(addr_props.get('addressRegion')) or ''
+                office = f"{city}, {state}".strip(', ')
+                if office and _is_us_location(office) and office not in profile.offices:
+                    profile.offices.append(office)
+                    elog.add('offices', source_type, source_url, office)
+
+    # ------------------------------------------------------------------
+    # Embedded JSON state applicator
+    # ------------------------------------------------------------------
+
+    def _apply_embedded_json(
+        self,
+        profile: AttorneyProfile,
+        data: dict,
+        source_url: str,
+        source_type: str,
+        elog: EnrichmentLog,
+    ) -> None:
+        """
+        Apply embedded JSON state to profile.
+        Recursively searches for attorney-like objects in the JSON tree.
+        """
+        person = _find_person_in_json(data, profile.full_name)
+        if not person:
+            return
+
+        if not profile.full_name:
+            name = person.get('name') or person.get('fullName') or person.get('full_name', '')
+            if name:
+                profile.full_name = str(name).strip()
+                elog.add('full_name', source_type, source_url, name)
+
+        if not profile.title:
+            title = (person.get('title') or person.get('jobTitle') or
+                     person.get('position') or person.get('role', ''))
+            if title:
+                profile.title = str(title).strip()
+                elog.add('title', source_type, source_url, title)
+
+        # Offices
+        for office_key in ('offices', 'office', 'location', 'city'):
+            offices_raw = person.get(office_key, [])
+            if isinstance(offices_raw, str):
+                offices_raw = [offices_raw]
+            for o in offices_raw:
+                if isinstance(o, str) and _is_us_location(o) and o not in profile.offices:
+                    profile.offices.append(o)
+                    elog.add('offices', source_type, source_url, o)
+                elif isinstance(o, dict):
+                    city = o.get('city', '') or o.get('name', '') or ''
+                    state = o.get('state', '') or o.get('stateCode', '') or ''
+                    office = f"{city}, {state}".strip(', ')
+                    if office and _is_us_location(office) and office not in profile.offices:
+                        profile.offices.append(office)
+                        elog.add('offices', source_type, source_url, office)
+
+        # Practice areas
+        for pa_key in ('practiceAreas', 'practice_areas', 'areas', 'services'):
+            pa_raw = person.get(pa_key, [])
+            if isinstance(pa_raw, str):
+                pa_raw = [pa_raw]
+            for pa in pa_raw:
+                if isinstance(pa, str) and 3 < len(pa) < 120 and pa not in profile.practice_areas:
+                    profile.practice_areas.append(pa)
+                    elog.add('practice_areas', source_type, source_url, pa)
+                elif isinstance(pa, dict):
+                    name = pa.get('name', '') or ''
+                    if name and name not in profile.practice_areas:
+                        profile.practice_areas.append(name)
+                        elog.add('practice_areas', source_type, source_url, name)
+
+        # Industries
+        for ind_key in ('industries', 'industry', 'sectors'):
+            ind_raw = person.get(ind_key, [])
+            if isinstance(ind_raw, str):
+                ind_raw = [ind_raw]
+            for ind in ind_raw:
+                if isinstance(ind, str) and 3 < len(ind) < 120 and ind not in profile.industries:
+                    profile.industries.append(ind)
+                    elog.add('industries', source_type, source_url, ind)
+
+        # Department — additive union/dedup for target list field
+        for dept_key in ('department', 'group', 'section'):
+            dept = person.get(dept_key, '')
+            if not dept:
+                continue
+            if isinstance(dept, list) and dept:
+                for d in dept:
+                    if d and str(d).strip() not in profile.department:
+                        profile.department.append(str(d).strip())
+                elog.add('department', source_type, source_url, profile.department)
+                break
+            elif isinstance(dept, str) and dept.strip() not in profile.department:
+                profile.department.append(dept.strip())
+                elog.add('department', source_type, source_url, dept)
+                break
+
+        # Bar admissions
+        for bar_key in ('barAdmissions', 'bar_admissions', 'admissions', 'licensedIn'):
+            bar_raw = person.get(bar_key, [])
+            if isinstance(bar_raw, str):
+                bar_raw = [bar_raw]
+            for bar in bar_raw:
+                if isinstance(bar, str) and _is_bar_admission(bar) and bar not in profile.bar_admissions:
+                    profile.bar_admissions.append(bar)
+                    elog.add('bar_admissions', source_type, source_url, bar)
+
+        # Education
+        edu_raw = person.get('education') or person.get('alumniOf') or []
+        if isinstance(edu_raw, (str, dict)):
+            edu_raw = [edu_raw]
+        for edu in edu_raw:
+            rec = _parse_edu_item(edu)
+            if rec and not any(e.school == rec.school for e in profile.education):
+                profile.education.append(rec)
+                elog.add('education', source_type, source_url,
+                         {'degree': rec.degree, 'school': rec.school, 'year': rec.year})
+
+    # ------------------------------------------------------------------
+    # HTML heuristics (last resort)
+    # ------------------------------------------------------------------
+
+    def _apply_html_heuristics(
+        self,
+        profile: AttorneyProfile,
+        html: str,
+        source_url: str,
+        source_type: str,
+        elog: EnrichmentLog,
+    ) -> None:
+        """
+        Section-based HTML extraction using BeautifulSoup heading maps.
+        Builds a heading_text -> section_content map from h1-h4 tags,
+        then extracts each field from the relevant section.
+        Non-destructive: only adds values not already present.
+        Falls back to regex for name/title only.
+        """
+        missing = getattr(profile, '_missing_field_names', lambda: [])()
+        html_source = source_type + '_html'
+
+        # ── name / title via regex (no heading needed) ──────────────────────
+        if 'full_name' in missing:
+            name = _html_extract_name(html)
+            if name:
+                profile.full_name = name
+                elog.add('full_name', html_source, source_url, name)
+
+        if 'title' in missing:
+            title = _html_extract_title(html)
+            if title:
+                profile.title = title
+                elog.add('title', html_source, source_url, title)
+
+        if 'offices' in missing or not profile.offices:
+            offices = _html_extract_offices(html)
+            new_offices = [office for office in offices if office not in profile.offices]
+            if new_offices:
+                profile.offices.extend(new_offices[:10])
+                elog.add('offices', html_source, source_url, new_offices[:10])
+
+        # ── section-based extraction ─────────────────────────────────────────
+        sections = parse_sections(html)
+        if not sections:
+            # bs4 unavailable — fall back to legacy regex helpers
+            if 'bar_admissions' in missing or not profile.bar_admissions:
+                bars = _html_extract_bar_admissions(html)
+                new_bars = [b for b in bars if b not in profile.bar_admissions]
+                if new_bars:
+                    profile.bar_admissions.extend(new_bars)
+                    elog.add('bar_admissions', html_source, source_url, new_bars)
+            if 'education' in missing or not profile.education:
+                edu_records = _html_extract_education(html)
+                for rec in edu_records:
+                    if not any(e.school == rec.school for e in profile.education):
+                        profile.education.append(rec)
+                        elog.add('education', html_source, source_url,
+                                 {'degree': rec.degree, 'school': rec.school, 'year': rec.year})
+            if 'practice_areas' in missing or not profile.practice_areas:
+                pas = _html_extract_practice_areas(html)
+                new_pas = [p for p in pas if p not in profile.practice_areas]
+                if new_pas:
+                    profile.practice_areas.extend(new_pas)
+                    elog.add('practice_areas', html_source, source_url, new_pas)
+            # industries: no legacy fallback — set sentinel
+            if not profile.industries:
+                profile.industries = ['no industry field']
+                elog.add('industries', html_source, source_url, ['no industry field'])
+            return
+
+        # ── departments (additive union/dedup for target list field) ─────────
+        dept_keywords = {'department', 'group', 'teams', 'team'}
+        dept_items = _items_from_sections(sections, dept_keywords)
+        new_depts = [d for d in dept_items if d not in profile.department]
+        if new_depts:
+            profile.department.extend(new_depts[:5])
+            elog.add('department', html_source, source_url, new_depts[:5])
+
+        # ── practice areas ───────────────────────────────────────────────────
+        if 'practice_areas' in missing or not profile.practice_areas:
+            pa_keywords = {'practice', 'services', 'capabilities', 'areas', 'expertise'}
+            pa_items = _items_from_sections(sections, pa_keywords)
+            new_pas = [p for p in pa_items if p not in profile.practice_areas]
+            if new_pas:
+                profile.practice_areas.extend(new_pas[:20])
+                elog.add('practice_areas', html_source, source_url, new_pas[:20])
+
+        # ── industries ───────────────────────────────────────────────────────
+        ind_keywords = {'industry', 'industries', 'sectors', 'sector'}
+        ind_items = _items_from_sections(sections, ind_keywords)
+        new_inds = [i for i in ind_items if i not in profile.industries]
+        if new_inds:
+            profile.industries.extend(new_inds[:20])
+            elog.add('industries', html_source, source_url, new_inds[:20])
+        elif not profile.industries:
+            # Explicit sentinel: this page has no industry section
+            profile.industries = ['no industry field']
+            elog.add('industries', html_source, source_url, ['no industry field'])
+
+        # ── bar admissions ────────────────────────────────────────────────────
+        if 'bar_admissions' in missing or not profile.bar_admissions:
+            bar_keywords = {'bar', 'admission', 'admissions', 'licensed', 'qualifications', 'licensure'}
+            bar_items = _items_from_sections(sections, bar_keywords)
+            valid_bars = [b for b in bar_items if _is_bar_admission(b) and b not in profile.bar_admissions]
+            if valid_bars:
+                profile.bar_admissions.extend(valid_bars[:20])
+                elog.add('bar_admissions', html_source, source_url, valid_bars[:20])
+            elif not profile.bar_admissions:
+                # Legacy regex fallback for bar admissions
+                bars = _html_extract_bar_admissions(html)
+                new_bars = [b for b in bars if b not in profile.bar_admissions]
+                if new_bars:
+                    profile.bar_admissions.extend(new_bars)
+                    elog.add('bar_admissions', html_source, source_url, new_bars)
+
+        # ── education ─────────────────────────────────────────────────────────
+        if 'education' in missing or not profile.education:
+            edu_keywords = {'education', 'credentials', 'academic', 'schools', 'academic background'}
+            edu_items = _items_from_sections(sections, edu_keywords)
+            for text in edu_items:
+                rec = _parse_edu_text(text)
+                if rec and not any(e.school == rec.school for e in profile.education):
+                    profile.education.append(rec)
+                    elog.add('education', html_source, source_url,
+                             {'degree': rec.degree, 'school': rec.school, 'year': rec.year})
+            if not profile.education:
+                # Legacy regex fallback for education
+                edu_records = _html_extract_education(html)
+                for rec in edu_records:
+                    if not any(e.school == rec.school for e in profile.education):
+                        profile.education.append(rec)
+                        elog.add('education', html_source, source_url,
+                                 {'degree': rec.degree, 'school': rec.school, 'year': rec.year})
+
+        # ── missing_fields marker for JD ──────────────────────────────────────
+        has_jd = any(
+            (rec.degree or '').upper().startswith('J') and 'D' in (rec.degree or '').upper()
+            for rec in profile.education
+        )
+        if not has_jd and profile.education is not None:
+            diag = profile.diagnostics.setdefault('missing_fields', [])
+            if 'JD' not in diag:
+                diag.append('JD')
+
+# ---------------------------------------------------------------------------
+# AttorneyProfile helper methods (monkey-patched onto the dataclass)
+# ---------------------------------------------------------------------------
+
+def _profile_has_missing_fields(self: AttorneyProfile) -> bool:
+    """Return True if any required field is missing."""
+    return bool(_profile_missing_field_names(self))
+
+
+def _profile_missing_field_names(self: AttorneyProfile) -> list[str]:
+    """Return list of required field names that are empty."""
+    missing = []
+    if not self.full_name:
+        missing.append('full_name')
+    if not self.title:
+        missing.append('title')
+    if not self.offices:
+        missing.append('offices')
+    if not self.department:
+        missing.append('department')
+    if not self.practice_areas:
+        missing.append('practice_areas')
+    if not self.industries:
+        missing.append('industries')
+    if not self.bar_admissions:
+        missing.append('bar_admissions')
+    if not self.education:
+        missing.append('education')
+    return missing
+
+
+# Monkey-patch if not already present
+if not hasattr(AttorneyProfile, '_has_missing_fields'):
+    AttorneyProfile._has_missing_fields = _profile_has_missing_fields  # type: ignore[attr-defined]
+if not hasattr(AttorneyProfile, '_missing_field_names'):
+    AttorneyProfile._missing_field_names = _profile_missing_field_names  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
+# JSON-LD extraction
+# ---------------------------------------------------------------------------
+
+def _extract_json_ld(html: str, base_url: str) -> dict | None:
+    """Extract the most relevant Person-type JSON-LD from HTML."""
+    if EXTRUCT_AVAILABLE and extruct is not None:
+        try:
+            data = extruct.extract(
+                html,
+                base_url=base_url,
+                syntaxes=['json-ld'],
+                uniform=True,
+            )
+            items = data.get('json-ld', [])
+            # Priority: Person > Attorney > Lawyer > first item
+            for item in items:
+                t = item.get('@type', '')
+                types = t if isinstance(t, list) else [t]
+                if any(x in ('Person', 'Attorney', 'Lawyer') for x in types):
+                    return item
+            return items[0] if items else None
+        except Exception:
+            pass
+
+    # Regex fallback
+    return _extract_json_ld_regex(html)
+
+
+def _extract_json_ld_regex(html: str) -> dict | None:
+    """Regex-based JSON-LD fallback."""
+    pat = re.compile(
+        r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
+        re.DOTALL | re.I,
+    )
+    for m in pat.finditer(html):
+        try:
+            data = json.loads(m.group(1).strip())
+            if isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict) and item.get('@type') in ('Person', 'Attorney', 'Lawyer'):
+                        return item
+                return data[0] if data else None
+            elif isinstance(data, dict):
+                return data
+        except Exception:
+            continue
+    return None
+
+
+def _extract_microdata_person(html: str, base_url: str) -> dict | None:
+    """Extract schema.org Person from microdata using extruct."""
+    if not EXTRUCT_AVAILABLE or extruct is None:
+        return None
+    try:
+        data = extruct.extract(html, base_url=base_url, syntaxes=['microdata'], uniform=True)
+        items = data.get('microdata', [])
+        for item in items:
+            type_val = item.get('type', '')
+            if 'Person' in str(type_val) or 'Attorney' in str(type_val):
+                return item
+        return None
+    except Exception:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Embedded JSON state extraction
+# ---------------------------------------------------------------------------
+
+_EMBEDDED_JSON_PATTERNS: list[re.Pattern] = [
+    # Next.js
+    re.compile(r'<script[^>]+id=["\']__NEXT_DATA__["\'][^>]*>(.*?)</script>', re.DOTALL | re.I),
+    # Nuxt.js
+    re.compile(r'window\.__NUXT__\s*=\s*(\{.*?\});', re.DOTALL),
+    # Generic window state
+    re.compile(r'window\.__(?:APP|INITIAL|REDUX|STATE)_STATE__\s*=\s*(\{.*?\});', re.DOTALL),
+    re.compile(r'window\.__(?:PRELOADED|SERVER)_STATE__\s*=\s*(\{.*?\});', re.DOTALL),
+    # Apollo / GraphQL
+    re.compile(r'window\.__APOLLO_STATE__\s*=\s*(\{.*?\});', re.DOTALL),
+]
+
+
+def _extract_embedded_json(html: str) -> dict | None:
+    """Extract embedded JSON state from React/Next.js/Nuxt pages."""
+    for pat in _EMBEDDED_JSON_PATTERNS:
+        m = pat.search(html)
+        if m:
+            try:
+                data = json.loads(m.group(1))
+                if isinstance(data, dict):
+                    return data
+            except Exception:
+                continue
+    return None
+
+
+# ---------------------------------------------------------------------------
+# JSON tree search for person-like object
+# ---------------------------------------------------------------------------
+
+def _find_person_in_json(data: Any, known_name: str | None = None, depth: int = 0) -> dict | None:
+    """
+    Recursively search a JSON structure for an object that looks like a person.
+    If known_name is provided, tries to match it for higher confidence.
+    """
+    if depth > 8:
+        return None
+
+    if isinstance(data, dict):
+        # Direct person indicators
+        person_keys = {'fullName', 'full_name', 'firstName', 'lastName', 'displayName',
+                       'jobTitle', 'practiceAreas', 'barAdmissions', 'alumniOf',
+                       'practice_areas', 'bar_admissions'}
+        if person_keys.intersection(data.keys()):
+            # Validate: if known_name provided, check for name match
+            if known_name:
+                for nk in ('name', 'fullName', 'full_name', 'displayName'):
+                    n = data.get(nk, '') or ''
+                    if isinstance(n, str) and known_name.lower() in n.lower():
+                        return data
+            else:
+                return data
+
+        # Recurse
+        for v in data.values():
+            result = _find_person_in_json(v, known_name, depth + 1)
+            if result:
+                return result
+
+    elif isinstance(data, list):
+        for item in data[:20]:  # cap list traversal
+            result = _find_person_in_json(item, known_name, depth + 1)
+            if result:
+                return result
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# HTML heuristic extractors
+# ---------------------------------------------------------------------------
+
+_NAME_PATTERNS = [
+    re.compile(r'<h1[^>]*class=["\'][^"\']*(?:attorney|lawyer|person|name|title)[^"\']*["\'][^>]*>(.*?)</h1>', re.DOTALL | re.I),
+    re.compile(r'<h1[^>]*>([\w\s\-\.\,\']+(?:Jr\.|Sr\.|III|II|IV)?)</h1>', re.I),
+    re.compile(r'"name"\s*:\s*"([^"]{5,80})"', re.I),
+]
+
+_TITLE_PATTERNS = [
+    re.compile(r'<[^>]+itemprop=["\']jobTitle["\'][^>]*content=["\']([^"\']{3,200})["\'][^>]*>', re.I),
+    re.compile(r'<[^>]+itemprop=["\']jobTitle["\'][^>]*>(.*?)</\w+>', re.DOTALL | re.I),
+    re.compile(r'<[^>]+class=["\'][^"\']*(?:position|job.?title|role|attorney.?type)[^"\']*["\'][^>]*>(.*?)</\w+>', re.DOTALL | re.I),
+    re.compile(r'<[^>]+class=["\'][^"\']*(?:rank|level)[^"\']*["\'][^>]*>(.*?)</\w+>', re.DOTALL | re.I),
+    re.compile(r'"(?:jobTitle|title|position)"\s*:\s*"([^"]{3,80})"', re.I),
+]
+
+_PRACTICE_AREA_HEADER = re.compile(r'practice\s+areas?', re.I)
+_BAR_ADMISSION_HEADER = re.compile(r'bar\s+admissions?|admissions\s+&?\s*qualifications?', re.I)
+_EDUCATION_HEADER = re.compile(r'\beducation\b', re.I)
+
+_DEGREE_PATTERN = re.compile(
+    r'\b(J\.?D\.?|LL\.?M\.?|LL\.?B\.?|B\.?A\.?|B\.?S\.?|M\.?B\.?A\.?|M\.?A\.?|M\.?S\.?|Ph\.?D\.?)\b'
+)
+_YEAR_PATTERN = re.compile(r'\b(19\d{2}|20\d{2})\b')
+
+_US_STATE_NAMES = {
+    'alabama', 'alaska', 'arizona', 'arkansas', 'california', 'colorado',
+    'connecticut', 'delaware', 'florida', 'georgia', 'hawaii', 'idaho',
+    'illinois', 'indiana', 'iowa', 'kansas', 'kentucky', 'louisiana',
+    'maine', 'maryland', 'massachusetts', 'michigan', 'minnesota',
+    'mississippi', 'missouri', 'montana', 'nebraska', 'nevada',
+    'new hampshire', 'new jersey', 'new mexico', 'new york',
+    'north carolina', 'north dakota', 'ohio', 'oklahoma', 'oregon',
+    'pennsylvania', 'rhode island', 'south carolina', 'south dakota',
+    'tennessee', 'texas', 'utah', 'vermont', 'virginia', 'washington',
+    'west virginia', 'wisconsin', 'wyoming', 'district of columbia',
+}
+
+_US_STATE_CODES = {
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC',
+}
+
+_NON_US_FAST_REJECT = {
+    'london', 'england', 'united kingdom', 'hong kong', 'singapore',
+    'tokyo', 'japan', 'beijing', 'shanghai', 'paris', 'france', 'germany',
+    'berlin', 'munich', 'frankfurt', 'dubai', 'abu dhabi', 'sydney',
+    'australia', 'toronto', 'canada', 'brussels', 'amsterdam', 'madrid',
+    'milan', 'rome', 'moscow', 'korea', 'seoul',
+}
+
+_STREET_WORDS = {
+    'street', 'st', 'avenue', 'ave', 'road', 'rd', 'boulevard', 'blvd', 'suite',
+    'floor', 'fl', 'drive', 'dr', 'lane', 'ln', 'parkway', 'pkwy', 'plaza', 'way',
+    'circle', 'cir', 'building', 'bldg', 'room', 'ste', 'highway', 'hwy',
+}
+
+_LOCATION_CONTEXT_JUNK = {
+    'phone', 'fax', 'email', 'contact', 'mobile', 'tel', 'toll free', 'linkedin',
+}
+
+
+# ---------------------------------------------------------------------------
+# Section-based HTML extraction helpers (BeautifulSoup)
+# ---------------------------------------------------------------------------
+
+
+
+def _items_from_sections(
+    sections: dict[str, list[str]],
+    keywords: set[str],
+) -> list[str]:
+    """
+    Find all sections whose heading contains ANY of the keywords,
+    and return all items from those sections (deduplicated, order-preserved).
+    """
+    seen: set[str] = set()
+    result: list[str] = []
+    for heading, items in sections.items():
+        if any(kw in heading for kw in keywords):
+            for item in items:
+                if item not in seen:
+                    seen.add(item)
+                    result.append(item)
+    return result
+
+
+
+def _html_extract_name(html: str) -> str | None:
+    """Extract attorney name from HTML using heuristic patterns."""
+    for pat in _NAME_PATTERNS:
+        m = pat.search(html)
+        if m:
+            text = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if 3 < len(text) < 80:
+                return text
+    return None
+
+
+def _html_extract_title(html: str) -> str | None:
+    """Extract attorney title from HTML."""
+    if BS4_AVAILABLE and BeautifulSoup is not None:
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+            title = _extract_title_from_soup(soup)
+            if title:
+                return title
+        except Exception:
+            pass
+
+    for pat in _TITLE_PATTERNS:
+        m = pat.search(html)
+        if m:
+            text = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+            if 3 < len(text) < 100:
+                return text
+    return None
+
+
+def _html_extract_offices(html: str) -> list[str]:
+    """Extract office/location candidates from semantic HTML elements."""
+    html = html[:500_000]  # cap at 500KB
+    if BS4_AVAILABLE and BeautifulSoup is not None:
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+            offices = _extract_offices_from_soup(soup)
+            if offices:
+                return offices
+        except Exception:
+            pass
+
+    offices: list[str] = []
+    seen: set[str] = set()
+    for match in re.finditer(r'<address[^>]*>(.*?)</address>', html, re.IGNORECASE | re.DOTALL):
+        office = _extract_contextual_office(re.sub(r'<[^>]+>', ' ', match.group(1)))
+        if office and office not in seen:
+            seen.add(office)
+            offices.append(office)
+
+    for meta_match in re.finditer(
+        r'<meta[^>]+property=["\']og:locality["\'][^>]+content=["\']([^"\']+)["\'][^>]*>',
+        html,
+        re.IGNORECASE,
+    ):
+        office = _extract_contextual_office(meta_match.group(1))
+        if office and office not in seen:
+            seen.add(office)
+            offices.append(office)
+
+    return offices
+
+
+def _html_extract_practice_areas(html: str) -> list[str]:
+    """Extract practice areas from HTML section following the header."""
+    html = html[:500_000]  # cap at 500KB
+    areas = []
+    m = _PRACTICE_AREA_HEADER.search(html)
+    if not m:
+        return areas
+    section = html[m.start():m.start() + 3000]
+    # Extract list items
+    for li_m in re.finditer(r'<li[^>]*>(.*?)</li>', section, re.DOTALL):
+        text = re.sub(r'<[^>]+>', '', li_m.group(1)).strip()
+        if 3 < len(text) < 100:
+            areas.append(text)
+    # Also extract anchor text
+    if not areas:
+        for a_m in re.finditer(r'<a[^>]*>(.*?)</a>', section, re.DOTALL):
+            text = re.sub(r'<[^>]+>', '', a_m.group(1)).strip()
+            if 3 < len(text) < 100 and text not in areas:
+                areas.append(text)
+    return areas[:20]
+
+
+def _html_extract_bar_admissions(html: str) -> list[str]:
+    """Extract bar admissions from HTML."""
+    bars = []
+    m = _BAR_ADMISSION_HEADER.search(html)
+    if not m:
+        return bars
+    section = html[m.start():m.start() + 2000]
+    for li_m in re.finditer(r'<li[^>]*>(.*?)</li>', section, re.DOTALL):
+        text = re.sub(r'<[^>]+>', '', li_m.group(1)).strip()
+        if _is_bar_admission(text):
+            bars.append(text)
+    return bars[:20]
+
+
+def _html_extract_education(html: str) -> list[EducationRecord]:
+    """Extract education records from HTML."""
+    records = []
+    m = _EDUCATION_HEADER.search(html)
+    if not m:
+        return records
+    section = html[m.start():m.start() + 3000]
+    for li_m in re.finditer(r'<li[^>]*>(.*?)</li>', section, re.DOTALL):
+        text = re.sub(r'<[^>]+>', '', li_m.group(1)).strip()
+        rec = _parse_edu_text(text)
+        if rec:
+            records.append(rec)
+    return records[:10]
+
+
+# ---------------------------------------------------------------------------
+# Utility functions
+# ---------------------------------------------------------------------------
+
+def _ld_addr_to_string(addr: dict) -> str:
+    """Convert a JSON-LD address dict to 'City, ST' string."""
+    city = addr.get('addressLocality', '') or addr.get('city', '') or ''
+    state = addr.get('addressRegion', '') or addr.get('state', '') or ''
+    parts = [p.strip() for p in [city, state] if p.strip()]
+    return ', '.join(parts)
+
+
+def _is_us_location(text: str) -> bool:
+    """Return True if text refers to a US location."""
+    if not text:
+        return False
+    lower = text.strip().lower()
+    for indicator in _NON_US_FAST_REJECT:
+        if indicator in lower:
+            return False
+    m = re.search(r',\s*([A-Za-z]{2})(?:\s+\d{5})?$', text.strip())
+    if m:
+        code = m.group(1).upper()
+        if code in _US_STATE_CODES:
+            return True
+        if code in {'UK', 'AU', 'DE', 'FR', 'JP', 'CN', 'SG', 'AE', 'QA', 'HK', 'CA'}:
+            return False
+    for state in _US_STATE_NAMES:
+        if state in lower:
+            return True
+    return False
+
+
+def _is_bar_admission(text: str) -> bool:
+    """Return True if text looks like a US bar admission."""
+    lower = text.lower()
+    for state in _US_STATE_NAMES:
+        if state in lower:
+            return True
+    m = re.search(r'\b([A-Z]{2})\b', text)
+    if m and m.group(1) in _US_STATE_CODES:
+        return True
+    return False
+
+
+def _extract_year(val: Any) -> int | None:
+    """Extract a 4-digit year from a string or int."""
+    if isinstance(val, int) and 1950 <= val <= 2030:
+        return val
+    if isinstance(val, str):
+        m = re.search(r'\b(19\d{2}|20\d{2})\b', val)
+        if m:
+            return int(m.group(0))
+    return None
+
+
+def _first_string(val: Any) -> str | None:
+    """Return first string from a value that might be a string or list."""
+    if isinstance(val, str):
+        return val.strip() or None
+    if isinstance(val, list):
+        for item in val:
+            if isinstance(item, str) and item.strip():
+                return item.strip()
+    return None
+
+
+def _profile_from_mapping(data: dict[str, Any], firm_name: str, profile_url: str) -> AttorneyProfile:
+    """Create AttorneyProfile from a legacy mapping payload."""
+    education = []
+    for item in data.get('education', []) or []:
+        rec = _parse_edu_item(item)
+        if rec:
+            education.append(rec)
+
+    department_raw = data.get('department', []) or []
+    if isinstance(department_raw, str):
+        department = [department_raw] if department_raw.strip() else []
+    else:
+        department = [str(item).strip() for item in department_raw if str(item).strip()]
+
+    return AttorneyProfile(
+        firm=firm_name,
+        profile_url=profile_url,
+        full_name=str(data.get('full_name', '') or '') or None,
+        title=str(data.get('title', '') or '') or None,
+        offices=[str(item).strip() for item in (data.get('offices', []) or []) if str(item).strip()],
+        department=department,
+        practice_areas=[
+            str(item).strip() for item in (data.get('practice_areas', []) or []) if str(item).strip()
+        ],
+        industries=[str(item).strip() for item in (data.get('industries', []) or []) if str(item).strip()],
+        bar_admissions=[
+            str(item).strip() for item in (data.get('bar_admissions', []) or []) if str(item).strip()
+        ],
+        education=education,
+        diagnostics=dict(data.get('diagnostics', {}) or {}),
+    )
+
+
+def _sync_profile_to_mapping(profile: AttorneyProfile, data: dict[str, Any]) -> dict[str, Any]:
+    """Write enriched AttorneyProfile values back into a legacy mapping payload."""
+    data['firm'] = profile.firm
+    data['profile_url'] = profile.profile_url
+    data['full_name'] = profile.full_name or ''
+    data['title'] = profile.title or ''
+    data['offices'] = list(profile.offices)
+    data['department'] = list(profile.department)
+    data['practice_areas'] = list(profile.practice_areas)
+    data['industries'] = list(profile.industries)
+    data['bar_admissions'] = list(profile.bar_admissions)
+    data['education'] = [rec.to_dict() for rec in profile.education]
+    data['extraction_status'] = profile.extraction_status
+    data['missing_fields'] = list(profile.missing_fields)
+    data['diagnostics'] = dict(profile.diagnostics)
+    return data
+
+
+def _extract_title_from_soup(soup: Any) -> str | None:
+    """Extract title from semantic itemprop/class patterns."""
+    for element in soup.find_all(attrs={'itemprop': re.compile(r'^jobTitle$', re.I)}):
+        text = _tag_text_or_content(element)
+        if text and 3 < len(text) < 200:
+            return text
+
+    class_pattern = re.compile(
+        r'\b(?:title|position|role|job(?:-?title)?|designation|rank|level|attorney-?type)\b',
+        re.I,
+    )
+    for element in soup.find_all(True):
+        classes = element.get('class', []) or []
+        class_text = ' '.join(classes) if isinstance(classes, list) else str(classes)
+        if not class_pattern.search(class_text):
+            continue
+        text = _tag_text_or_content(element)
+        if text and 3 < len(text) < 200:
+            return text
+
+    return None
+
+
+def _extract_offices_from_soup(soup: Any) -> list[str]:
+    """Extract office candidates from semantic location/address HTML."""
+    offices: list[str] = []
+    seen: set[str] = set()
+
+    def add_office(candidate: str | None) -> None:
+        if candidate and candidate not in seen:
+            seen.add(candidate)
+            offices.append(candidate)
+
+    for address_tag in soup.find_all('address'):
+        add_office(_extract_contextual_office(_tag_text_or_content(address_tag)))
+
+    for element in soup.find_all(attrs={'itemtype': re.compile(r'PostalAddress$', re.I)}):
+        locality = element.find(attrs={'itemprop': re.compile(r'^addressLocality$', re.I)})
+        region = element.find(attrs={'itemprop': re.compile(r'^addressRegion$', re.I)})
+        add_office(_compose_office(_tag_text_or_content(locality), _tag_text_or_content(region)))
+
+    for element in soup.find_all(attrs={'itemprop': re.compile(r'^(address|workLocation)$', re.I)}):
+        locality = element.find(attrs={'itemprop': re.compile(r'^addressLocality$', re.I)})
+        region = element.find(attrs={'itemprop': re.compile(r'^addressRegion$', re.I)})
+        if locality or region:
+            add_office(_compose_office(_tag_text_or_content(locality), _tag_text_or_content(region)))
+            continue
+        add_office(_extract_contextual_office(_tag_text_or_content(element)))
+
+    og_locality = None
+    og_region = None
+    for meta in soup.find_all('meta'):
+        prop = str(meta.get('property', '') or '')
+        if re.fullmatch(r'og:locality', prop, re.I):
+            og_locality = str(meta.get('content', '') or '')
+        elif re.fullmatch(r'og:region', prop, re.I):
+            og_region = str(meta.get('content', '') or '')
+    add_office(_compose_office(og_locality, og_region) or _extract_contextual_office(og_locality or ''))
+
+    return offices
+
+
+def _tag_text_or_content(tag: Any) -> str:
+    """Read text or content attr from a BeautifulSoup tag-like object."""
+    if not tag:
+        return ''
+    content = str(tag.get('content', '') or '').strip()
+    if content:
+        return _clean_html_text(content)
+    return _clean_html_text(tag.get_text(separator=' ', strip=True))
+
+
+def _clean_html_text(text: str) -> str:
+    """Collapse HTML-derived whitespace and separators."""
+    cleaned = re.sub(r'\s+', ' ', text or '').strip(' ,;|-')
+    return cleaned
+
+
+def _normalize_state_text(text: str) -> str | None:
+    """Normalize state codes/state names from a free-text fragment."""
+    cleaned = _clean_html_text(text)
+    if not cleaned:
+        return None
+    cleaned = re.sub(r'\b\d{5}(?:-\d{4})?\b', '', cleaned).strip(' ,')
+    if not cleaned:
+        return None
+    if len(cleaned) == 2 and cleaned.upper() in _US_STATE_CODES:
+        return cleaned.upper()
+
+    lower = cleaned.lower()
+    for state in sorted(_US_STATE_NAMES, key=len, reverse=True):
+        if lower == state or lower.startswith(f'{state} '):
+            return ' '.join(part.capitalize() for part in state.split())
+    return None
+
+
+def _looks_like_street_fragment(text: str) -> bool:
+    """Return True for obvious street-address fragments."""
+    lower = text.lower()
+    if any(token in lower for token in _LOCATION_CONTEXT_JUNK):
+        return True
+    if re.search(r'\b\d{1,6}\b', text):
+        return True
+    return any(re.search(rf'\b{re.escape(word)}\b', lower) for word in _STREET_WORDS)
+
+
+def _normalize_city_text(text: str) -> str | None:
+    """Normalize city/locality text and reject obvious non-city values."""
+    cleaned = _clean_html_text(text)
+    if not cleaned or _looks_like_street_fragment(cleaned):
+        return None
+    if len(cleaned.split()) > 4:
+        return None
+    return cleaned
+
+
+def _compose_office(city_text: str | None, state_text: str | None) -> str | None:
+    """Build a normalized office string from locality + region fragments."""
+    city = _normalize_city_text(city_text or '')
+    if not city:
+        return None
+    state = _normalize_state_text(state_text or '')
+    if state:
+        return f'{city}, {state}'
+    if _is_us_location(city) or city.lower() in _US_STATE_NAMES:
+        return city
+    return city
+
+
+def _extract_contextual_office(text: str) -> str | None:
+    """Extract a city/state office candidate from semantic address/location text."""
+    cleaned = _clean_html_text(text)
+    if not cleaned:
+        return None
+
+    parts = [part.strip() for part in re.split(r'[\n|;]+|\s{2,}', cleaned) if part.strip()]
+    if len(parts) <= 1:
+        parts = [part.strip() for part in cleaned.split(',') if part.strip()]
+
+    if len(parts) >= 2:
+        for idx in range(len(parts) - 2, -1, -1):
+            office = _compose_office(parts[idx], parts[idx + 1])
+            if office:
+                return office
+
+    return _compose_office(cleaned, None)
+
+
+def _parse_edu_item(item: Any) -> EducationRecord | None:
+    """Parse an education item from JSON."""
+    if isinstance(item, str):
+        return _parse_edu_text(item)
+    if isinstance(item, dict):
+        school = item.get('name', '') or item.get('school', '') or ''
+        degree = item.get('degree', '') or item.get('description', '') or ''
+        year = _extract_year(item.get('endDate') or item.get('year'))
+        if school:
+            return EducationRecord(degree=degree.strip() or None, school=school.strip(), year=year)
+    return None
+
+
+def _parse_edu_text(text: str) -> EducationRecord | None:
+    """Parse education text like 'J.D., Harvard Law School (2010)'."""
+    if not text or len(text.strip()) < 5:
+        return None
+    text = text.strip()
+    degree_m = _DEGREE_PATTERN.search(text)
+    year_m = _YEAR_PATTERN.search(text)
+    degree = degree_m.group(0) if degree_m else None
+    year = int(year_m.group(0)) if year_m else None
+
+    school_text = text
+    if degree_m:
+        school_text = school_text.replace(degree_m.group(0), '')
+    if year_m:
+        school_text = school_text.replace(year_m.group(0), '')
+    school_text = re.sub(r'[,\(\)\[\]]', ' ', school_text)
+    school_text = re.sub(r'\s+', ' ', school_text).strip(' -–')
+
+    if school_text and len(school_text) >= 5:
+        return EducationRecord(degree=degree, school=school_text, year=year)
+    return None

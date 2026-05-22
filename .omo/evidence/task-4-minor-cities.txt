@@ -1,0 +1,3 @@
+﻿Result: ['Bethesda, MD', 'Dayton, OH', 'Scranton, PA', 'McLean, VA', 'Tysons, VA']
+Reason: None
+PASS -- all valid US cities accepted

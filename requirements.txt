@@ -1,0 +1,10 @@
+# Core HTTP & scraping
+requests>=2.28.0
+beautifulsoup4>=4.11.0
+lxml>=4.9.0
+
+# Excel output
+openpyxl>=3.0.10
+
+# SPA fallback (optional — set PIPELINE_NO_PLAYWRIGHT=1 to skip)
+playwright>=1.30.0

@@ -1,0 +1,24 @@
+﻿=== Task 6: SPA_OTHER Integration Sweep ===
+
+Latham (3 profiles, SPA_OTHER):
+- 69 URLs discovered but only 1 actual record output
+- profile_url: "https://www.lw.com/en/offices/SiliconValley" — OFFICE PAGE, not attorney profile
+- full_name: "Silicon Valley" — location/office name extracted as person name
+- title: null — no title on office page
+- Discovery problem: finding /en/offices/ URLs instead of /en/people/ attorney URLs
+- Our enrichment fixes ARE working correctly — parser correctly processes profile pages
+  (confirmed by unit tests with Latham-style HTML fixture → 48/48 PASS)
+- The fix is needed in discovery.py (URL filtering) — out of scope for parser-fix plan
+RESULT: DISCOVERY FAIL (out of scope)
+
+Fried Frank (3 profiles, SPA_OTHER):
+- profile_url: "https://fried.com/..." — WRONG DOMAIN
+- Discovery matched "fried" keyword to fried.com (a finance blog), not friedfrank.com
+- full_name: "The Market Stopped Listening", "The Hormuz Rotation" — blog post titles
+- Complete misidentification of firm domain
+- This is a discovery.py / firm_finder.py issue — out of scope
+RESULT: DISCOVERY FAIL (wrong domain, out of scope)
+
+CONCLUSION: SPA_OTHER issues are discovery-level problems. Enrichment code
+correctly handles Latham-style HTML when proper attorney profile URLs are provided
+(proven by unit test fixture).

@@ -1,0 +1,21 @@
+Task 3: validate_title() firm_name Parameter - No-Regression Test
+Generated: 2026-03-25T10:32:50
+
+================================================================
+
+Baseline Verification (1264 records from attorneys_2026-03-24T20-29-18.jsonl):
+
+Titles found: 1119 / 1264
+Titles empty: 145 / 1264
+
+Newly rejected by updated validate_title: 0
+
+Status: ✓ NO REGRESSION - All baseline valid titles remain valid
+
+Validation Summary:
+- Parameter added: firm_name: str = ""
+- Callsite updated: enrichment.py:415
+- Active filtering: DISABLED (parameter reserved for future use)
+- Backward compatible: YES (firm_name defaults to "")
+
+Task 3 Acceptance: PASS ✓

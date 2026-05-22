@@ -1,0 +1,27 @@
+Phase 0 (URL)
+	Excel with firm name -> firm_finder_desktop.py
+	공식 홈페이지 URL
+	가능하면 people/laywers 관련 URL
+	접근 가능한 entry point가 뭐가 있는지 힌트 제공
+
+Phase 1 (관찰)
+	observation_logger.py
+	robots.txt, sitemap(XML,HTML), directory, 알파벳/파라미터, bot 보호
+	성공/실패 판단 없음
+	관찰 사실만 JSONL으로 누적 (firm_observations.jsonl)
+
+Phase 2 (패턴집계, 자동통계)
+	pattern_aggregator.py
+	Phase 1 데이터로 
+		sitemap=attorney list 비율
+		alphabet Enum 성공률
+		directory empty + params 성공률
+	규칙 confidence 메타데이터 생성 (rule_confidence.json)
+
+Phase 3 (규칙 엔진, 동적판단)
+	discovery_rules.py
+	매 실행마다 재계산
+	판단 결과는 메모리/로그로만 사용
+
+
+	

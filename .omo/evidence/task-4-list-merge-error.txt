@@ -1,0 +1,6 @@
+﻿ALL SCALAR PRECEDENCE + TARGET FIELD UNION TESTS PASSED
+  full_name='High Name' (higher-prec wins)
+  title='Partner' (higher-prec wins)
+  industries=['Tech', 'Healthcare'] (non-target: higher-prec overwrites)
+  department=['Corporate Dept', 'Litigation Dept'] (target: union-dedup)
+  offices=['New York', 'Boston', 'Chicago'] (target: union-dedup)

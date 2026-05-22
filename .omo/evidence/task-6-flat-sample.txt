@@ -1,0 +1,19 @@
+﻿=== Task 6: HTML_DIRECTORY_FLAT Integration Sweep ===
+
+Goodwin Procter (3 profiles, HTML_DIRECTORY_FLAT):
+- Only 21 URLs discovered — very low count
+- 1 record returned: full_name="Science Advisor Careers" — GARBAGE (careers page URL being scraped)
+- Discovery issue: wrong URLs being found (careers page, not attorney profiles)
+- This is a discovery.py issue — out of scope for parser-fix plan
+RESULT: DISCOVERY FAIL (out of scope)
+
+King & Spalding (3 profiles, HTML_DIRECTORY_FLAT):
+- 126 URLs discovered
+- full_name: "Financial Restructuring", "Regulatory Notices" — GARBAGE
+- Discovery scraping practice area pages and nav items as attorney profiles
+- This is a discovery.py issue — out of scope for parser-fix plan
+RESULT: DISCOVERY FAIL (out of scope)
+
+CONCLUSION: HTML_DIRECTORY_FLAT firms have discovery-level issues that cannot be fixed
+by parser_sections.py / validators.py / enrichment.py changes. The enrichment code
+receives wrong page types and extracts whatever text it finds as names/titles.

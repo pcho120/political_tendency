@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# PyInstaller
+build/
+dist/
+*.spec
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+
+# Temporary files
+*.tmp
+*.temp
+
+nul
+
+# Debug artifacts
+debug_reports/
+nul
+
+# Node.js (opencode tooling — not part of this Python project)
+node_modules/
+package.json
+package-lock.json
+
+outputs
+*.jsonl
+phase*/
+*.jsonl
+phase*/
+.sisyphus/

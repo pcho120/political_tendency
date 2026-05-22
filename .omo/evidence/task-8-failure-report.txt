@@ -1,0 +1,3 @@
+Report: AmLaw200_2025 Rank_gross revenue_with_websites_source_failure_report.xlsx
+Matches: 1
+Jones Day | https://www.jonesday.com | site_structures | BOT_PROTECTED_PRECLASSIFIED | 200 |  |  | Preclassified BOT_PROTECTED in site_structures.json; domain=jonesday.com; structure_type=BOT_PROTECTED; detection_method=preclassified | 2026-04-10T18:15:02.384455

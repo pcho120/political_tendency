@@ -1,0 +1,27 @@
+﻿python_executable=C:\Python314\python.exe
+python_version=3.14.0
+== normalize positive ==
+PASS | canonical practice areas | raw='Practice Areas & Expertise' expected='practice_areas' actual='practice_areas'
+PASS | canonical admissions | raw='Bar Admissions & Courts' expected='bar_admissions' actual='bar_admissions'
+PASS | canonical industries | raw='Industries and Markets' expected='industries' actual='industries'
+== risky positive ==
+PASS | service synonym | raw='Practice Services' expected='practice_areas' actual='practice_areas'
+PASS | group synonym | raw='Litigation Group' expected='departments' actual='departments'
+PASS | section synonym | raw='Tax Section' expected='departments' actual='departments'
+== risky adversarial ==
+PASS | service false-positive guard | raw='Client Services Team' expected='client_services_team' actual='client_services_team'
+PASS | group false-positive guard | raw='Working Group' expected='working_group' actual='working_group'
+PASS | section false-positive guard | raw='Section 1: Contact' expected='section_1_contact' actual='section_1_contact'
+== new boundary cases ==
+PASS | practice group synonym | raw='Practice Group' expected='departments' actual='departments'
+PASS | working group guard | raw='Working Group' expected='working_group' actual='working_group'
+PASS | practice department synonym | raw='Practice Department' expected='departments' actual='departments'
+PASS | focus heading synonym | raw='Areas of Focus' expected='practice_areas' actual='practice_areas'
+PASS | boundary: offices does not bleed into bar_admissions | blocks=['New York']
+PASS | boundary: practice_areas does not bleed into biography | blocks=['M&A']
+PASS | latham: h3 sub-sections under h2 Qualifications map correctly | blocks=['Harvard Law School, J.D.', 'Antitrust']
+== boundary ==
+PASS | nested heading stop boundary | blocks=['Core Alpha', 'Nested Beta']
+SUMMARY pass=17 fail=0
+OVERALL: PASS
+Exit code: 0

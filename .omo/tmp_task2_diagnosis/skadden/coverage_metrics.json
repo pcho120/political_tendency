@@ -1,0 +1,16 @@
+[
+  {
+    "firm": "Skadden",
+    "expected_total": null,
+    "expected_total_source": "unknown",
+    "discovered_attorney_count": 5,
+    "extracted_attorney_count": 5,
+    "missing_fields_ratio": 1.0,
+    "blocked_ratio": 0.0,
+    "coverage_ratio": null,
+    "needs_additional_sources": true,
+    "legally_incomplete": false,
+    "legally_incomplete_reason": null,
+    "notes": []
+  }
+]

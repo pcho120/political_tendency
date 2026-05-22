@@ -1,0 +1,6 @@
+Command: python -m pytest tests/ -v
+Result: PASS
+Summary: 61 passed, 0 failed, 11 warnings, runtime 1.41s.
+
+Terminal summary:
+======================= 61 passed, 11 warnings in 1.41s =======================

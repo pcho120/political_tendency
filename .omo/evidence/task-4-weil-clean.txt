@@ -1,0 +1,22 @@
+## Task-4 Weil Clean Check
+## Date: 2026-04-01
+## Interpreter: /usr/bin/python3 (Python 3.13.7)
+
+### Command
+python3 -c "
+import json
+rows = [json.loads(l) for l in open('outputs/attorneys_2026-04-01T18-55-17.jsonl')]
+contamination_str = 'Weil, Gotshal & Manges LLP'
+contaminated = [r for r in rows if r.get('title','') == contamination_str]
+print(f'total_rows={len(rows)}')
+print(f'contaminated_titles={len(contaminated)}')
+print('CLEAN' if len(contaminated) == 0 else 'CONTAMINATED')
+"
+
+### Result
+total_rows=5
+contaminated_titles=0
+CLEAN
+
+### Binary Result
+CLEAN — 0 of 5 sampled Weil rows contain exact contamination string in title field.

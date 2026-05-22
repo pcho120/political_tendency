@@ -1,0 +1,54 @@
+09:59:21 [INFO] pipeline — Loaded 1 firms from cache/firm_domain_cache.json
+09:59:21 [INFO] pipeline — ── Firm 1/1: cahill ──
+09:59:21 [INFO] pipeline — [cahill] Structure type: SITEMAP_XML
+09:59:21 [INFO] pipeline — [cahill] Discovery starting → https://www.cahill.com/
+09:59:21 [INFO] amlaw.cahill — SITEMAP_XML strategy | firm_url=https://www.cahill.com/ | derived_prefix=/professionals | sample_count=4
+09:59:21 [DEBUG] urllib3.connectionpool — Starting new HTTPS connection (1): www.cahill.com:443
+09:59:21 [DEBUG] urllib3.connectionpool — https://www.cahill.com:443 "GET /robots.txt HTTP/1.1" 200 None
+09:59:21 [DEBUG] urllib3.connectionpool — https://www.cahill.com:443 "GET /sitemap.xml HTTP/1.1" 200 None
+09:59:22 [INFO] amlaw.cahill — Sitemap discovery complete | base_url=https://www.cahill.com | path_prefix=/professionals | total_found=352
+09:59:22 [INFO] amlaw.cahill — SITEMAP_XML discovery complete | total=352 | sample=['https://www.cahill.com/professionals/ethan-saber', 'https://www.cahill.com/professionals/jie-jasmine-qiu', 'https://www.cahill.com/professionals/ariel-goldman']
+09:59:22 [INFO] pipeline — [cahill] Discovered 352 profile URLs
+09:59:22 [INFO] pipeline — [cahill] Limiting to 5 profiles (--max-profiles)
+09:59:22 [DEBUG] urllib3.connectionpool — https://www.cahill.com:443 "GET /professionals/ethan-saber HTTP/1.1" 200 None
+09:59:22 [WARNING] amlaw.cahill — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department', 'practice_areas'] | https://www.cahill.com/professionals/ethan-saber
+09:59:22 [WARNING] amlaw.cahill — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department', 'practice_areas'] | https://www.cahill.com/professionals/ethan-saber
+09:59:23 [DEBUG] urllib3.connectionpool — https://www.cahill.com:443 "GET /professionals/jie-jasmine-qiu HTTP/1.1" 200 None
+09:59:23 [WARNING] amlaw.cahill — Profile PARTIAL | mode=requests | render=requests | missing=['full_name', 'offices', 'department', 'practice_areas'] | https://www.cahill.com/professionals/jie-jasmine-qiu
+09:59:23 [WARNING] amlaw.cahill — Profile PARTIAL | mode=requests | render=requests | missing=['full_name', 'offices', 'department', 'practice_areas'] | https://www.cahill.com/professionals/jie-jasmine-qiu
+09:59:24 [DEBUG] urllib3.connectionpool — https://www.cahill.com:443 "GET /professionals/ariel-goldman HTTP/1.1" 200 None
+09:59:24 [WARNING] amlaw.cahill — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department', 'practice_areas'] | https://www.cahill.com/professionals/ariel-goldman
+09:59:24 [WARNING] amlaw.cahill — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department', 'practice_areas'] | https://www.cahill.com/professionals/ariel-goldman
+09:59:25 [DEBUG] urllib3.connectionpool — https://www.cahill.com:443 "GET /professionals/samson-enzer HTTP/1.1" 200 None
+09:59:25 [WARNING] amlaw.cahill — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department', 'practice_areas'] | https://www.cahill.com/professionals/samson-enzer
+09:59:25 [WARNING] amlaw.cahill — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department', 'practice_areas'] | https://www.cahill.com/professionals/samson-enzer
+09:59:26 [DEBUG] urllib3.connectionpool — https://www.cahill.com:443 "GET /professionals/jeremy-duffy HTTP/1.1" 200 None
+09:59:26 [WARNING] amlaw.cahill — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department'] | https://www.cahill.com/professionals/jeremy-duffy
+09:59:26 [WARNING] amlaw.cahill — Profile PARTIAL | mode=requests | render=requests | missing=['offices', 'department'] | https://www.cahill.com/professionals/jeremy-duffy
+09:59:26 [INFO] pipeline — [cahill] Done | enriched=5 failed=0 elapsed=5.5s
+09:59:26 [INFO] pipeline —   [US Filter] 5 attorneys, all US
+09:59:26 [INFO] pipeline — US filter: 5 → 5 profiles (removed 0 non-US)
+09:59:26 [INFO] pipeline — Name filter: 1 profiles dropped (empty full_name)
+09:59:26 [INFO] pipeline — Excel saved → outputs/attorneys_2026-03-25T13-59-21.xlsx (4 rows)
+09:59:26 [INFO] pipeline — JSONL saved → outputs/attorneys_2026-03-25T13-59-21.jsonl (4 records)
+
+=================================================================
+  PIPELINE COMPLETE
+  Firms processed : 1
+  URLs discovered : 352
+  Profiles enriched: 5
+  Failed profiles : 0
+  Errors          : 0
+  Total elapsed   : 5.5s
+=================================================================
+
+Firm                                  Disc  Enriched  Failed  Errors    Time
+---------------------------------------------------------------------------
+cahill                                 352         5       0       0    5.5s
+
+=== CAHILL TITLE QA ===
+  Ethan Saber                         | title: Associate
+  Ariel Goldman                       | title: Partner
+  Samson A. Enzer                     | title: Partner
+  Jeremy Duffy                        | title: Partner
+Cahill Gordon contamination count: 0 / 4

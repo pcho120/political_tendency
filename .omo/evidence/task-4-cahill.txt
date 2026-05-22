@@ -1,0 +1,18 @@
+Task 4: CAHILL Title Extraction with CSS Selectors
+Generated: 2026-03-25T10-26-00
+======================================================================
+
+Baseline Results (4 profiles):
+----------------------------------------------------------------------
+1. Miles Wiley | title=Partner
+2. Ethan Saber | title=Associate
+3. Ariel Goldman | title=Partner
+4. Samson A. Enzer | title=Partner
+
+----------------------------------------------------------------------
+Summary:
+  Titles captured: 4/4
+  Titles missing: 0/4
+
+CSS Selector: p.position
+Status: Firm-specific selectors integrated ✓

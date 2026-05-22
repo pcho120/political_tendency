@@ -1,0 +1,99 @@
+Firm,Expected Total,Expected Total Source,Discovered URLs,Extracted Attorneys,US Attorneys,Coverage Ratio,Missing Fields Ratio,Status,Legally Incomplete Reason,Sources Tried,Notes
+Cravath,,unknown,229,5,5,,100.0%,BLOCKED,ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403,xml_sitemap,[ABORT] ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403
+DLA Piper (verein),,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Sidley,,unknown,2046,5,5,,100.0%,BLOCKED,ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403,xml_sitemap,[ABORT] ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403
+Ropes & Gray,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BOT_PROTECTED_PRECLASSIFIED,,"Preclassified as bot protected in site_structures.json: domain=ropesgray.com, structure_type=BOT_PROTECTED, is_bot_protected=True"
+White & Case,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BOT_PROTECTED_PRECLASSIFIED,,"Preclassified as bot protected in site_structures.json: domain=whitecase.com, structure_type=BOT_PROTECTED, is_bot_protected=True"
+Hogan Lovells,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,AUTH_REQUIRED,,Legally inaccessible: AUTH_REQUIRED
+Jones Day,,unknown,2467,5,5,,100.0%,BLOCKED,ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403,xml_sitemap,[ABORT] ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403
+Dentons (verein),,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,AUTH_REQUIRED,,Legally inaccessible: AUTH_REQUIRED
+Greenberg Traurig,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Goodwin Procter,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+McDermott,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Holland & Knight,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Weil,,unknown,1293,5,5,,100.0%,BLOCKED,ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403,xml_sitemap,[ABORT] ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403
+Willkie,,unknown,1510,0,0,,0.0%,PARTIAL,,xml_sitemap,
+Cleary Gottlieb,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Debevoise,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Akin,,unknown,13,5,5,,100.0%,BLOCKED,ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403,xml_sitemap,[ABORT] ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403
+Morrison & Foerster,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Squire Patton (verein),,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Perkins Coie,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BOT_PROTECTED_NO_STRATEGY,,No viable legal strategy: site is bot-protected with no accessible sitemap
+Sheppard Mullin,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BOT_PROTECTED_PRECLASSIFIED,,"Preclassified as bot protected in site_structures.json: domain=sheppardmullin.com, structure_type=BOT_PROTECTED, is_bot_protected=False"
+Wachtell,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BOT_PROTECTED_PRECLASSIFIED,,"Preclassified as bot protected in site_structures.json: domain=wlrk.com, structure_type=BOT_PROTECTED, is_bot_protected=True"
+Faegre Drinker,,unknown,1244,5,5,,100.0%,BLOCKED,ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403,xml_sitemap,[ABORT] ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403
+Polsinelli,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Seyfarth,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Katten,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Bryan Cave,,unknown,1120,1117,1117,,63.2%,PARTIAL,,xml_sitemap,
+Fox Rothschild,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Gordon Rees,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Ogletree Deakins,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Taft,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,"directory_listing, dom_exhaustion",
+Duane Morris,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,"directory_listing, dom_exhaustion",
+Jenner & Block,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BOT_PROTECTED_PRECLASSIFIED,,"Preclassified as bot protected in site_structures.json: domain=jenner.com, structure_type=BOT_PROTECTED, is_bot_protected=True"
+Cadwalader,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Davis Wright,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Schulte Roth,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Womble Bond,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,"directory_listing, dom_exhaustion",
+Kilpatrick Townsend,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,"directory_listing, dom_exhaustion",
+Wilson Elser,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Steptoe,,unknown,509,501,501,,100.0%,PARTIAL,,xml_sitemap,
+Locke Lord,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Dorsey,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Baker Donelson,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Shook Hardy,,unknown,1930,5,5,,100.0%,BLOCKED,ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403,xml_sitemap,[ABORT] ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403
+Manatt,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Lowenstein Sandler,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Loeb & Loeb,,unknown,526,376,376,,19.5%,PARTIAL,,xml_sitemap,
+Snell & Wilmer,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Holland & Hart,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Choate Hall,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Maynard Nexsen,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Dickinson Wright,,unknown,634,5,5,,100.0%,BLOCKED,ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403,xml_sitemap,[ABORT] ACCESS_DENIED_RUNTIME: first 5 profiles all returned bot-protection 403
+Vedder Price,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BOT_PROTECTED_PRECLASSIFIED,,"Preclassified as bot protected in site_structures.json: domain=vedderprice.com, structure_type=BOT_PROTECTED, is_bot_protected=False"
+Finnegan,,unknown,416,416,416,,64.2%,PARTIAL,,xml_sitemap,
+Honigman,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Benesch,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Kutak Rock,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Stinson,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Chapman and Cutler,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Moore & Van Allen,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Brownstein,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,"directory_listing, dom_exhaustion",
+Thompson Coburn,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,directory_listing,Hard timeout 45s exceeded after 90s
+Marshall Dennehey,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Thompson Hine,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,directory_listing,Hard timeout 45s exceeded after 91s
+Ice Miller,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BOT_PROTECTED_PRECLASSIFIED,,"Preclassified as bot protected in site_structures.json: domain=icemiller.com, structure_type=BOT_PROTECTED, is_bot_protected=False"
+Brown Rudnick,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Hughes Hubbard,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Patterson Belknap,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Kelley Drye,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BOT_PROTECTED_PRECLASSIFIED,,"Preclassified as bot protected in site_structures.json: domain=kelleydrye.com, structure_type=BOT_PROTECTED, is_bot_protected=True"
+Allen Matkins,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Carlton Fields,,unknown,368,0,0,,0.0%,PARTIAL,,xml_sitemap,
+Wiley Rein,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Dykema,,unknown,418,418,418,,30.9%,PARTIAL,,xml_sitemap,
+Kasowitz,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Vorys,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Smith Gambrell,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Day Pitney,,unknown,284,0,0,,0.0%,PARTIAL,,xml_sitemap,
+Michael Best,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Phelps Dunbar,,unknown,472,472,472,,32.2%,PARTIAL,,xml_sitemap,
+Shutts & Bowen,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Pryor Cashman,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Armstrong Teasdale,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,"directory_listing, dom_exhaustion",
+Robinson & Cole,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Seward & Kissel,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Fennemore Craig,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+Lewis Roca,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+GrayRobinson,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,"directory_listing, dom_exhaustion",
+Offit Kurman,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Morris Manning,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,BLOCKED_BY_BOT,,Legally inaccessible: BLOCKED_BY_BOT
+"Atkinson, Andelson, Loya, Ruud & Romo",,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Hanson Bridgett,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Irell,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Robins Kaplan,,unknown,211,211,211,,28.1%,PARTIAL,,xml_sitemap,
+"Cox, Castle & Nicholson",,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+UB Greensfelder,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,
+Porter Wright,,unknown,1,1,1,,100.0%,PARTIAL,,xml_sitemap,
+Miles & Stockbridge,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,"directory_listing, dom_exhaustion",
+Herrick Feinstein,,unknown,0,0,0,,0.0%,LEGALLY_INCOMPLETE,,xml_sitemap,

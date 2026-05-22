@@ -1,0 +1,21 @@
+Task 10: Error scenario — regression detection verification
+============================================================
+Date: 2026-04-05
+
+Test: Reversed before/after files to simulate regression
+Command: python measure_baseline.py --compare outputs/low_fill_after.json outputs/low_fill_before.json --min-improvement 0.03 --fields department,practice_areas,offices
+Exit code: 2 (FAIL)
+
+Output:
+  title                before_fill=92.9%  after_fill=90.2%  delta -2.7%  [excluded from avg]
+  offices              before_fill=84.8%  after_fill=82.1%  delta -2.7%
+  department           before_fill=49.1%  after_fill=45.5%  delta -3.6%
+  practice_areas       before_fill=67.9%  after_fill=64.3%  delta -3.6%  contamination delta +0.9%
+  industries           before_fill=36.6%  after_fill=36.6%  delta +0.0%  [excluded from avg]
+
+  Average fill improvement: -3.3% (threshold: 3.0%)
+  FAIL: average fill improvement -3.3% < required 3.0%
+  RESULT: FAIL — one or more thresholds not met
+
+Conclusion: Regression detection works correctly — reversed inputs are caught with exit code 2.
+The gate correctly identifies negative improvement and refuses to pass.

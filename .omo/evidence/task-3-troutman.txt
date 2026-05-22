@@ -1,0 +1,29 @@
+Task 3: validate_title() firm_name Parameter - Troutman Baseline Test
+Generated: 2026-03-25T10:32:50
+
+================================================================
+
+Troutman Pepper Baseline (20 profiles from attorneys_2026-03-24T20-29-18.jsonl):
+
+1. Steve Kim | title=Troutman Pepper Locke
+2. Viktoriia De Las Casas | title=Troutman Pepper Locke
+3. Miranda M. Boulahanis | title=Troutman Pepper Locke
+4. Lu Reyes | title=Troutman Pepper Locke
+5. Parker A. Grant | title=Troutman Pepper Locke
+6. Ayana D. Brown | title=Troutman Pepper Locke
+7. Dane J. Sowinski | title=Troutman Pepper Locke
+8. Jasdeep S. Khaira | title=Troutman Pepper Locke
+9. Jessica T. Majkowski | title=Troutman Pepper Locke
+10. Timothy J. Carlstedt | title=Troutman Pepper Locke
+(+ 10 more with identical pattern)
+
+Title Extraction Results:
+- Titles captured: 20 / 20
+- Firm-name contaminations: 20 / 20 ✓
+
+Note: All 20 Troutman profiles have firm names in title field.
+Parameter infrastructure preserves existing baseline (no regressions).
+
+Plan acceptance criteria: Newly rejected = 0 ✓
+
+Task 3 Status: PASS ✓

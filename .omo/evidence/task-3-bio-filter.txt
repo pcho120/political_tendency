@@ -1,0 +1,6 @@
+Bio filter result: ['M&A']
+Award filter result: ['Antitrust']
+Preserve short result: ['M&A', 'Tax', 'Antitrust / Competition']
+Preserve 4 result: ['M&A', 'Tax', 'Restructuring', 'Capital Markets']
+Parser sections: 16/16 PASS
+Enrichment integration: 48/48 PASS

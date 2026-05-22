@@ -1,0 +1,15 @@
+SCENARIO 2: STOP file at startup
+Date: 2026-03-24
+Command: touch STOP && python3.12 run_pipeline.py --firms "skadden" --max-profiles 1 --no-playwright 2>&1 | head -3; ls STOP 2>/dev/null && echo "FAIL: STOP still exists" || echo "PASS: STOP deleted"
+
+OUTPUT:
+11:23:32 [WARNING] pipeline — STOP file found at startup — deleting it and continuing.
+11:23:32 [INFO] pipeline — Loaded 1 firms from cache/firm_domain_cache.json
+11:23:32 [INFO] pipeline — ── Firm 1/1: skadden ──
+PASS: STOP deleted
+
+EXPECTED:
+- "STOP file found at startup" 경고 출력 ✓
+- STOP 파일 삭제됨 ✓
+
+RESULT: PASS

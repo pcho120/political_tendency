@@ -1,0 +1,11 @@
+Final-wave remediation summary for title-office-dept-fix-recovery
+
+- Corrected the report contract from APPROVE/REJECT wording to PASS/FAIL wording in the final verification report.
+- Added explicit profile_url samples for knobbe, arentfox, and weil to task-1 repro evidence for traceability.
+- Added runtime handoff proof to task-1 repro: latest JSONL file used, non-empty firm counts, sample tuples, and validate_title(...) invocation results.
+- Repro-mismatch is now explicitly documented as verified-already-fixed state; task 1 evidence did not reproduce the historical contamination in this runtime sample.
+- Added interpreter deviation evidence: python3.12 was unavailable, so verification used python3 (/usr/bin/python3, Python 3.13.7).
+- Added a scope note stating this recovery session changed evidence/docs only and did not modify production code.
+- Kept the remediation narrative separated from historical fixes: prior code-state fixes are referenced only through existing task artifacts; this session only regenerated reviewer-verifiable evidence.
+- Git commits were not created in this run because orchestrator policy requires an explicit user request before committing.
+- Re-review targets for F1/F2/F3/F4 are now supported by the existing task-1 through task-5 artifacts and the updated final report.
